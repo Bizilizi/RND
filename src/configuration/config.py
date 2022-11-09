@@ -7,7 +7,6 @@ class TrainConfig(BaseModel):
     # Training
     gpus: str
     batch_size: int
-    resume_ckpt_path: str
     max_epochs: int
     validate_every_n: int
     num_workers: int
@@ -29,9 +28,7 @@ class TrainConfig(BaseModel):
 
         config = TrainConfig(
             **ini_config["training"],
-            **ini_config["dataset"],
             **ini_config["logging"],
-            **ini_config["model"],
         )
 
         return config
