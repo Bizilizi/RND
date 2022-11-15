@@ -1,3 +1,7 @@
+https://www.notion.so/Meeting-Notes-79ac8007e20a4be9834a6fe433b7624b
+
+
+
 <center><b>Experiment #1</b></center>
 <center>Reproducing plots from the RND paper. E.g. Figure 2, page 5</center> 
 
