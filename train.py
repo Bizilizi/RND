@@ -3,7 +3,8 @@ import typing as t
 from configparser import ConfigParser
 
 import wandb
-from avalanche.benchmarks import SplitMNIST
+from avalanche.benchmarks import PermutedMNIST, SplitMNIST
+from avalanche.benchmarks.datasets import default_dataset_location
 from avalanche.evaluation.metrics import (
     accuracy_metrics,
     confusion_matrix_metrics,
@@ -17,9 +18,11 @@ from avalanche.logging import InteractiveLogger
 from avalanche.training.plugins import EvaluationPlugin
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import seed_everything
+from torchvision.datasets import MNIST
 
 from src.configuration.config import TrainConfig
 from src.model.simple_mlp import PLSimpleMLP
+from src.scenarios.mnist import NormalPermutedMNIST
 from src.strategies.naive_pl import NaivePytorchLightning
 
 
@@ -54,8 +57,16 @@ def train_loop(
     run_id: t.Optional[str] = None,
     seed: int = 42,
 ) -> None:
+    """
+
+    :param config: Train config
+    :param resume_from: Path to checkpoint with model weights
+    :param run_id: Weight&Biases id of the run
+    :param seed: Seed
+    :return:
+    """
     # Create benchmark
-    benchmark = SplitMNIST(n_experiences=5, seed=seed)
+    benchmark = NormalPermutedMNIST()
 
     # Instantiate model
     model = PLSimpleMLP(learning_rate=0.005, num_classes=10)
