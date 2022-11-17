@@ -84,7 +84,7 @@ def train_loop(
 
     # Create Evaluation plugin
     evaluation_loggers = []
-    if config.train_logger == "wandb":
+    if config.evaluation_logger == "wandb":
         evaluation_loggers.append(
             av_loggers.WandBLogger(
                 project_name=wandb_params["project"],
@@ -93,7 +93,7 @@ def train_loop(
                 params=wandb_params,
             )
         )
-    elif config.train_logger == "interactive":
+    elif config.evaluation_logger == "interactive":
         evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
