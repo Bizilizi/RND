@@ -194,7 +194,9 @@ if __name__ == "__main__":
 
     # Generate experiment name if necessary
     if args.experiment_name is None:
-        args.experiment_name = f"CL-train-{datetime.datetime.now()}"
+        args.experiment_name = (
+            f"CL-train. Time: {datetime.datetime.now():%Y-%m-%d %H:%M}"
+        )
 
     # Run training process
     print(f"Running training process..")
