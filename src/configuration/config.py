@@ -14,7 +14,8 @@ class TrainConfig(BaseModel):
     learning_rate: float
 
     # Logging
-    logger_type: str
+    evaluation_logger_type: str
+    train_logger_type: str
     logging_path: str
 
     @staticmethod

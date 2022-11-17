@@ -2,9 +2,8 @@ import argparse
 import typing as t
 from configparser import ConfigParser
 
+import avalanche.logging as av_loggers
 import wandb
-from avalanche.benchmarks import PermutedMNIST, SplitMNIST
-from avalanche.benchmarks.datasets import default_dataset_location
 from avalanche.evaluation.metrics import (
     accuracy_metrics,
     confusion_matrix_metrics,
@@ -53,35 +52,48 @@ def parse_arguments(parser):
 
 def train_loop(
     config: TrainConfig,
+    experiment_name: str,
     resume_from: t.Optional[str] = None,
     run_id: t.Optional[str] = None,
-    seed: int = 42,
 ) -> None:
     """
 
     :param config: Train config
     :param resume_from: Path to checkpoint with model weights
     :param run_id: Weight&Biases id of the run
-    :param seed: Seed
+    :param experiment_name: Name of experiment
     :return:
     """
+
+    # Construct wandb params if necessary
+    if config.train_logger_type == "wandb" or config.train_logger_type == "wandb":
+        wandb_params = dict(
+            project="RND",
+            id=run_id,
+            entity="ewriji",
+            config=dict(config),
+            name=experiment_name,
+        )
+    else:
+        wandb_params = None
+
     # Create benchmark
     benchmark = NormalPermutedMNIST()
-
-    # Instantiate model
     model = PLSimpleMLP(learning_rate=0.005, num_classes=10)
 
-    # Create loggers
-    if config.logger_type == "wandb":
-        wandb.init(project="RND", id=run_id, entity="ewriji", config=dict(config))
-        logger = pl_loggers.WandbLogger(project="RND", log_model="all")
-        logger.watch(model)
-    elif config.logger_type == "tensorboard":
-        logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
-    else:
-        logger = None
-
-    interactive_logger = InteractiveLogger()
+    # Create Evaluation plugin
+    evaluation_loggers = []
+    if config.train_logger_type == "wandb":
+        evaluation_loggers.append(
+            av_loggers.WandBLogger(
+                project_name=wandb_params["project"],
+                run_name=wandb_params["name"],
+                config=wandb_params["config"],
+                params=wandb_params,
+            )
+        )
+    elif config.train_logger_type == "interactive":
+        evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
         accuracy_metrics(minibatch=True, epoch=True, experience=True, stream=True),
@@ -93,13 +105,27 @@ def train_loop(
             num_classes=benchmark.n_classes, save_image=False, stream=True
         ),
         disk_usage_metrics(minibatch=True, epoch=True, experience=True, stream=True),
-        loggers=[interactive_logger],
+        loggers=evaluation_loggers,
     )
 
     # Create avalanche strategy
+    if config.train_logger_type == "wandb":
+        if wandb.run is None:
+            wandb.init(**wandb_params)
+
+        train_logger = pl_loggers.WandbLogger(
+            project=wandb_params["project"],
+            log_model="all",
+        )
+        train_logger.watch(model)
+    elif config.train_logger_type == "tensorboard":
+        train_logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
+    else:
+        train_logger = None
+
     cl_strategy = NaivePytorchLightning(
         config=config,
-        train_logger=logger,
+        train_logger=train_logger,
         resume_from=resume_from,
         model=model,
         optimizer=model.configure_optimizers(),
