@@ -67,7 +67,7 @@ def train_loop(
     """
 
     # Construct wandb params if necessary
-    if config.train_logger == "wandb" or config.train_logger == "wandb":
+    if config.train_logger == "wandb" or config.evaluation_logger == "wandb":
         wandb_params = dict(
             project="RND",
             id=run_id,
