@@ -1,4 +1,5 @@
 import argparse
+import datetime
 import typing as t
 from configparser import ConfigParser
 
@@ -66,7 +67,7 @@ def train_loop(
     """
 
     # Construct wandb params if necessary
-    if config.train_logger_type == "wandb" or config.train_logger_type == "wandb":
+    if config.train_logger == "wandb" or config.train_logger == "wandb":
         wandb_params = dict(
             project="RND",
             id=run_id,
@@ -83,7 +84,7 @@ def train_loop(
 
     # Create Evaluation plugin
     evaluation_loggers = []
-    if config.train_logger_type == "wandb":
+    if config.train_logger == "wandb":
         evaluation_loggers.append(
             av_loggers.WandBLogger(
                 project_name=wandb_params["project"],
@@ -92,7 +93,7 @@ def train_loop(
                 params=wandb_params,
             )
         )
-    elif config.train_logger_type == "interactive":
+    elif config.train_logger == "interactive":
         evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
@@ -109,7 +110,7 @@ def train_loop(
     )
 
     # Create avalanche strategy
-    if config.train_logger_type == "wandb":
+    if config.train_logger == "wandb":
         if wandb.run is None:
             wandb.init(**wandb_params)
 
@@ -118,7 +119,7 @@ def train_loop(
             log_model="all",
         )
         train_logger.watch(model)
-    elif config.train_logger_type == "tensorboard":
+    elif config.train_logger == "tensorboard":
         train_logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
     else:
         train_logger = None
@@ -158,6 +159,13 @@ if __name__ == "__main__":
         default=None,
     )
     parser.add_argument(
+        "--experiment_name",
+        nargs="?",
+        type=str,
+        help="Name of experiment",
+        default=None,
+    )
+    parser.add_argument(
         "--seed",
         nargs="?",
         type=int,
@@ -184,9 +192,18 @@ if __name__ == "__main__":
     config = TrainConfig.construct_typed_config(ini_config)
     overwrite_config(args, config)
 
+    # Generate experiment name if necessary
+    if args.experiment_name is None:
+        args.experiment_name = f"CL-train-{datetime.datetime.now()}"
+
     # Run training process
     print(f"Running training process..")
     try:
-        train_loop(config, args.resume_from, args.run_id, args.seed)
+        train_loop(
+            config=config,
+            experiment_name=args.experiment_name,
+            resume_from=args.resume_from,
+            run_id=args.run_id,
+        )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")
