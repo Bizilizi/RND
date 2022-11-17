@@ -4,7 +4,9 @@ from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
 from pytorch_lightning import Trainer
-from pytorch_lightning.loggers import Logger
+
+if t.TYPE_CHECKING:
+    from pytorch_lightning.loggers import Logger
 
 from src.callbacks.log_model import LogModelWightsCallback
 from src.configuration.config import TrainConfig
@@ -20,7 +22,7 @@ class NaivePytorchLightning(Naive):
     def __init__(
         self,
         config: TrainConfig,
-        train_logger: t.Optional[Logger],
+        train_logger: t.Optional["Logger"],
         resume_from: t.Optional[str] = None,
         *args,
         **kwargs
