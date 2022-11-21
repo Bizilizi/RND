@@ -1,0 +1,6 @@
+Train a neural network on a bunch of 0's, inspect the features
+Train a neural network on a bunch of 1's, inspect the features
+Train a neural network IID on a bunch of 0's and 1's, inspect the features
+
+When we have both 0's and 1's, what are we learning such that we can predict well on both?
+
