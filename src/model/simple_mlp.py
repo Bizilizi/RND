@@ -7,12 +7,12 @@ from avalanche.models import SimpleMLP as AvalancheSimpleMLP
 
 
 class PLSimpleMLP(AvalancheSimpleMLP, pl.LightningModule):
-    def __init__(self, cl_step: int, learning_rate: float = 0.001, *args, **kwargs):
+    def __init__(self, learning_rate: float = 0.001, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self.loss = nn.CrossEntropyLoss()
         self.learning_rate = learning_rate
-        self.cl_step = cl_step
+        self.cl_step = 0
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(

@@ -57,4 +57,8 @@ class NaivePytorchLightning(Naive):
             ],
             accumulate_grad_batches=self.config.accumulate_grad_batches,
         )
+
+        if hasattr(self.model, "cl_step"):
+            self.model.cl_step = experiences.current_experience
+
         trainer.fit(self.model, datamodule=datamodule, ckpt_path=self.resume_from)
