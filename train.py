@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import logging
 import typing as t
 from configparser import ConfigParser
 
@@ -24,6 +25,9 @@ from src.configuration.config import TrainConfig
 from src.model.simple_mlp import PLSimpleMLP
 from src.scenarios.mnist import NormalPermutedMNIST
 from src.strategies.naive_pl import NaivePytorchLightning
+
+# configure logging at the root level of Lightning
+logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
 
 
 def overwrite_config(cli_args, config):
