@@ -74,6 +74,11 @@ def train_loop(
     :param experiment_name: Name of experiment
     :return:
     """
+    # Get device
+    if config.gpus:
+        device = torch.device("cuda")
+    else:
+        device = torch.device("cpu")
 
     # Construct wandb params if necessary
     if config.train_logger == "wandb" or config.evaluation_logger == "wandb":
@@ -87,12 +92,14 @@ def train_loop(
     else:
         wandb_params = None
 
-    # Create benchmark
+    # Create benchmark and model
     benchmark = SplitMNIST(n_experiences=10)
 
     assert config.generator_checkpoint, "Generator checkpoint is necessary to provide!"
     generator = MNISTGanGenerator(input_dim=config.input_dim, output_dim=784)
-    generator.load_state_dict(torch.load(config.generator_checkpoint))
+    generator.load_state_dict(
+        torch.load(config.generator_checkpoint, map_location=device)
+    )
 
     model = RND(
         generator=generator,
