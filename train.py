@@ -154,6 +154,9 @@ def train_loop(
         train_logger = None
 
     cl_strategy = NaivePytorchLightning(
+        gpus=config.gpus,
+        validate_every_n=config.validate_every_n,
+        accumulate_grad_batches=config.accumulate_grad_batches,
         train_logger=train_logger,
         resume_from=resume_from,
         model=model,
