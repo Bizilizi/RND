@@ -30,7 +30,6 @@ class RND(pl.LightningModule):
         self.num_random_images = num_random_images
         self.l2_threshold = l2_threshold
         self.num_generation_attempts = num_generation_attempts
-        self.experience = 0
 
         # Random network
         self.random_network = nn.Sequential(
