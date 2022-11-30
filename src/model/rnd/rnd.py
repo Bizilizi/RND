@@ -25,6 +25,7 @@ class RND(pl.LightningModule):
         self.num_random_images = num_random_images
         self.l2_threshold = l2_threshold
         self.num_generation_attempts = num_generation_attempts
+        self.cl_step = 0
 
         # Random network
         self.random_network = nn.Sequential(
@@ -84,10 +85,9 @@ class RND(pl.LightningModule):
 
                 # Compute mask based on given l2 threshold
                 # then we apply it to network prediction and targets for random data
-                threshold_mask = (
-                    (random_module_rn_pred - random_rn_target).pow(2).mean(dim=1)
-                    < self.l2_threshold
-                )
+                threshold_mask = (random_module_rn_pred - random_rn_target).pow(2).mean(
+                    dim=1
+                ) < self.l2_threshold
 
                 if threshold_mask.any():
                     samples.append(random_x[threshold_mask])
@@ -98,18 +98,18 @@ class RND(pl.LightningModule):
 
         if self.keep_logging:
             self.log(
-                "image_generation_attempts",
+                f"image_generation_attempts/cl_step_{self.cl_step}",
                 image_generation_attempts,
                 on_epoch=True,
             )
             self.log(
-                "num_incomplete_generation_attempts",
+                f"num_incomplete_generation_attempts/cl_step_{self.cl_step}",
                 1 if len(samples) < self.num_random_images else 0,
                 on_epoch=True,
                 reduce_fx="sum",
             )
             self.log(
-                "generated_samples",
+                f"generated_samples/cl_step_{self.cl_step}",
                 len(samples),
                 on_epoch=True,
             )
@@ -169,9 +169,12 @@ class RND(pl.LightningModule):
         loss = rnd_loss + downstream_loss
 
         if self.keep_logging:
-            self.log("rnd_loss", rnd_loss, on_epoch=True)
-            self.log("downstream_loss", downstream_loss, on_epoch=True)
-            self.log("loss", loss, on_epoch=True)
+            self.log(f"train/rnd_loss/cl_step_{self.cl_step}", rnd_loss)
+            self.log(
+                f"train/downstream_loss/cl_step_{self.cl_step}",
+                downstream_loss,
+            )
+            self.log(f"train/loss/cl_step_{self.cl_step}", loss)
 
         return loss
 
