@@ -174,13 +174,15 @@ def train_loop(
     )
 
     results = []
-    for experience in benchmark.train_stream:
-        if experience.current_experience == 0:
+    for train_experience, test_experience in zip(
+        benchmark.train_stream, benchmark.test_stream
+    ):
+        if train_experience.current_experience == 0:
             model.keep_sampling = False
         else:
             model.keep_sampling = True
 
-        cl_strategy.train(experience)
+        cl_strategy.train(train_experience, [test_experience])
         results.append(cl_strategy.eval(benchmark.test_stream))
 
 

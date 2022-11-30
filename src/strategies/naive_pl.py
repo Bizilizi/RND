@@ -51,6 +51,7 @@ class NaivePytorchLightning(Naive):
             batch_size=self.train_mb_size,
             num_workers=self.train_mb_num_workers,
             train_dataset=experiences.dataset,
+            val_dataset=eval_streams[0] if eval_streams else None,
         )
 
         # Training

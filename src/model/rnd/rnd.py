@@ -1,3 +1,5 @@
+import typing as t
+
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -6,7 +8,6 @@ from avalanche.training.templates.base import ExpSequence
 from torchvision import models
 
 from src.model.rnd.generator import ImageGenerator
-import typing as t
 
 
 class RND(pl.LightningModule):
