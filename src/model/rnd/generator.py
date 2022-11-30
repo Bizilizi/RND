@@ -3,6 +3,6 @@ import typing as t
 import torch
 
 
-class ImageGenerator(t.Protocol):
+class ImageGenerator:
     def generate(self, num_samples: int, device: t.Optional[torch.device] = None):
         ...
