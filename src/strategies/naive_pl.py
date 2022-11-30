@@ -25,7 +25,7 @@ class NaivePytorchLightning(Naive):
         train_mb_num_workers: int = 2,
         resume_from: t.Optional[str] = None,
         gpus: t.Optional[str] = None,
-        validate_every_n: t.Optional[int] = None,
+        validate_every_n: int = 1,
         accumulate_grad_batches: t.Optional[int] = None,
         *args,
         **kwargs
