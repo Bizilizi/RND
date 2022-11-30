@@ -26,7 +26,7 @@ class NaivePytorchLightning(Naive):
         resume_from: t.Optional[str] = None,
         gpus: t.Optional[str] = None,
         validate_every_n: t.Optional[int] = None,
-        accumulate_grad_batches: bool = False,
+        accumulate_grad_batches: t.Optional[int] = None,
         *args,
         **kwargs
     ) -> None:
