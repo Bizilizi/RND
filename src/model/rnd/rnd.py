@@ -63,7 +63,7 @@ class RND(pl.LightningModule):
         self.keep_logging = True  # Log data and losses to logger
         self.keep_sampling = True  # Sample random images and add them to the batch
 
-    def _generate_random_images_with_low_l2(self):
+    def _generate_random_images_with_low_l2(self) -> t.Optional[torch.Tensor]:
         samples = []
         image_generation_attempts = 0
 
@@ -117,7 +117,10 @@ class RND(pl.LightningModule):
                 on_epoch=True,
             )
 
-        return torch.cat(samples)
+        if samples:
+            return torch.cat(samples)
+
+        return None
 
     def forward(
         self, x: torch.Tensor, task_label: t.Optional[torch.Tensor] = None
@@ -144,20 +147,21 @@ class RND(pl.LightningModule):
         if self.keep_sampling:
             random_x = self._generate_random_images_with_low_l2()
 
-            random_rn_target = self.random_network(random_x)
-            random_module_output = self.forward(random_x)
+            if random_x is not None:
+                random_rn_target = self.random_network(random_x)
+                random_module_output = self.forward(random_x)
 
-            random_module_rn_pred = random_module_output[:, : self.rnd_latent_dim]
-            random_module_downstream_pred = random_module_output[
-                :, self.rnd_latent_dim :
-            ]
+                random_module_rn_pred = random_module_output[:, : self.rnd_latent_dim]
+                random_module_downstream_pred = random_module_output[
+                    :, self.rnd_latent_dim :
+                ]
 
-            # Add losses from random data
-            rnd_loss += self.rnd_loss(random_module_rn_pred, random_rn_target)
-            downstream_loss += self.downstream_loss(
-                random_module_downstream_pred,
-                random_module_downstream_pred.argmax(dim=1),
-            )
+                # Add losses from random data
+                rnd_loss += self.rnd_loss(random_module_rn_pred, random_rn_target)
+                downstream_loss += self.downstream_loss(
+                    random_module_downstream_pred,
+                    random_module_downstream_pred.argmax(dim=1),
+                )
 
         loss = rnd_loss + downstream_loss
 
