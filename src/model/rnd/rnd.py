@@ -58,8 +58,9 @@ class RND(pl.LightningModule):
         self.rnd_loss = nn.MSELoss()
         self.downstream_loss = nn.CrossEntropyLoss()
 
-        # This value allow to externally turn of logging output
-        self.keep_logging = True
+        # Flags
+        self.keep_logging = True  # Log data and losses to logger
+        self.keep_sampling = True  # Sample random images and add them to the batch
 
     def _generate_random_images_with_low_l2(self):
         samples = []
@@ -86,8 +87,8 @@ class RND(pl.LightningModule):
                 # Compute mask based on given l2 threshold
                 # then we apply it to network prediction and targets for random data
                 threshold_mask = (
-                    torch.abs(random_module_rn_pred - random_rn_target)
-                    < self.l2_threshold**2
+                    torch.pow(random_module_rn_pred - random_rn_target, 2).sum(dim=1)
+                    < self.l2_threshold
                 )
 
                 if threshold_mask.any():
@@ -118,8 +119,7 @@ class RND(pl.LightningModule):
         return torch.cat(samples)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
-        random_x = self._generate_random_images_with_low_l2()
+        x, y, *_ = batch
 
         # Perform forward step on the data from the batch
         batch_rn_target = self.random_network(x)
@@ -130,22 +130,28 @@ class RND(pl.LightningModule):
         batch_module_rn_pred = batch_module_output[:, : self.rnd_latent_dim]
         batch_module_downstream_pred = batch_module_output[:, self.rnd_latent_dim :]
 
-        # Perform forward step on randomly generated data
-        random_rn_target = self.random_network(random_x)
-        random_module_output = self.module(random_x)
-
-        random_module_rn_pred = random_module_output[:, : self.rnd_latent_dim]
-        random_module_downstream_pred = random_module_output[:, self.rnd_latent_dim :]
-
         # Compute losses
         rnd_loss = self.rnd_loss(batch_module_rn_pred, batch_rn_target)
-        rnd_loss += self.rnd_loss(random_module_rn_pred, random_rn_target)
-
         downstream_loss = self.downstream_loss(batch_module_downstream_pred, y)
-        downstream_loss += self.downstream_loss(
-            random_module_downstream_pred,
-            random_module_downstream_pred.argmax(dim=1),
-        )
+
+        # Perform forward step on randomly generated data if necessary
+        if self.keep_sampling:
+            random_x = self._generate_random_images_with_low_l2()
+
+            random_rn_target = self.random_network(random_x)
+            random_module_output = self.module(random_x)
+
+            random_module_rn_pred = random_module_output[:, : self.rnd_latent_dim]
+            random_module_downstream_pred = random_module_output[
+                :, self.rnd_latent_dim :
+            ]
+
+            # Add losses from random data
+            rnd_loss += self.rnd_loss(random_module_rn_pred, random_rn_target)
+            downstream_loss += self.downstream_loss(
+                random_module_downstream_pred,
+                random_module_downstream_pred.argmax(dim=1),
+            )
 
         loss = rnd_loss + downstream_loss
 

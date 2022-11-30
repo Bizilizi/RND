@@ -18,6 +18,12 @@ class TrainConfig(BaseModel):
     train_logger: str
     logging_path: str
 
+    # Model
+    input_dim: int
+    num_random_images: int
+    l2_threshold: float
+    rnd_latent_dim: int
+
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
         """
@@ -30,6 +36,7 @@ class TrainConfig(BaseModel):
         config = TrainConfig(
             **ini_config["training"],
             **ini_config["logging"],
+            **ini_config["model"],
         )
 
         return config

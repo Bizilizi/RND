@@ -6,6 +6,7 @@ from configparser import ConfigParser
 
 import avalanche.logging as av_loggers
 import wandb
+from avalanche.benchmarks import SplitMNIST
 from avalanche.evaluation.metrics import (
     accuracy_metrics,
     confusion_matrix_metrics,
@@ -22,6 +23,9 @@ from pytorch_lightning import seed_everything
 from torchvision.datasets import MNIST
 
 from src.configuration.config import TrainConfig
+from src.model.rnd.gan_generator import MNISTGanGenerator
+from src.model.rnd.generator import ImageGenerator
+from src.model.rnd.rnd import RND
 from src.model.simple_mlp import PLSimpleMLP
 from src.scenarios.mnist import NormalPermutedMNIST
 from src.strategies.naive_pl import NaivePytorchLightning
@@ -83,8 +87,16 @@ def train_loop(
         wandb_params = None
 
     # Create benchmark
-    benchmark = NormalPermutedMNIST()
-    model = PLSimpleMLP(learning_rate=0.005, num_classes=10)
+    benchmark = SplitMNIST(n_experiences=10)
+    generator = MNISTGanGenerator(input_dim=config.input_dim, output_dim=784)
+    model = RND(
+        generator=generator,
+        num_random_images=config.num_random_images,
+        l2_threshold=config.l2_threshold,
+        rnd_latent_dim=config.rnd_latent_dim,
+        num_classes=10,
+        num_generation_attempts=20,
+    )
 
     # Create Evaluation plugin
     evaluation_loggers = []
@@ -134,7 +146,7 @@ def train_loop(
         resume_from=resume_from,
         model=model,
         optimizer=model.configure_optimizers(),
-        criterion=model.loss,
+        criterion=model.downstream_loss,
         train_mb_size=100,
         train_epochs=4,
         eval_mb_size=100,
@@ -143,6 +155,11 @@ def train_loop(
 
     results = []
     for experience in benchmark.train_stream:
+        if experience.current_experience == 0:
+            model.keep_sampling = False
+        else:
+            model.keep_sampling = True
+
         cl_strategy.train(experience)
         results.append(cl_strategy.eval(benchmark.test_stream))
 
