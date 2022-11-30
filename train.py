@@ -5,6 +5,7 @@ import typing as t
 from configparser import ConfigParser
 
 import avalanche.logging as av_loggers
+import torch
 import wandb
 from avalanche.benchmarks import SplitMNIST
 from avalanche.evaluation.metrics import (
@@ -88,7 +89,11 @@ def train_loop(
 
     # Create benchmark
     benchmark = SplitMNIST(n_experiences=10)
+
+    assert config.generator_checkpoint, "Generator checkpoint is necessary to provide!"
     generator = MNISTGanGenerator(input_dim=config.input_dim, output_dim=784)
+    generator.load_state_dict(torch.load(config.generator_checkpoint))
+
     model = RND(
         generator=generator,
         num_random_images=config.num_random_images,

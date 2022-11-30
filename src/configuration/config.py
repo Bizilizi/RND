@@ -23,6 +23,7 @@ class TrainConfig(BaseModel):
     num_random_images: int
     l2_threshold: float
     rnd_latent_dim: int
+    generator_checkpoint: str
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
