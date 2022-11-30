@@ -44,7 +44,7 @@ class NaivePytorchLightning(Naive):
         eval_streams: t.Optional[t.Sequence[t.Union[CLExperience, ExpSequence]]] = None,
         **kwargs
     ) -> None:
-        self.model.experience = experiences
+        self.model.experience_step = experiences.current_experience
 
         # Create DataModule
         datamodule = PLDataModule(

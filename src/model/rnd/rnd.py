@@ -11,7 +11,7 @@ from src.model.rnd.generator import ImageGenerator
 
 
 class RND(pl.LightningModule):
-    experience: t.Union[CLExperience, ExpSequence]
+    experience_step: int
 
     def __init__(
         self,
@@ -218,8 +218,8 @@ class RND(pl.LightningModule):
     def log_with_postfix(self, name: str, value: t.Any, *args, **kwargs):
         self.log_dict(
             {
-                f"{name}/experience_step_{self.experience.current_experience}": value,
-                "experience_step": self.experience.current_experience,
+                f"{name}/experience_step_{self.experience_step}": value,
+                "experience_step": self.experience_step,
             },
             *args,
             **kwargs,
