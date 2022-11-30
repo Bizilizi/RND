@@ -81,14 +81,11 @@ class RND(pl.LightningModule):
                 random_module_output = self.module(random_x)
 
                 random_module_rn_pred = random_module_output[:, : self.rnd_latent_dim]
-                random_module_downstream_pred = random_module_output[
-                    :, self.rnd_latent_dim :
-                ]
 
                 # Compute mask based on given l2 threshold
                 # then we apply it to network prediction and targets for random data
                 threshold_mask = (
-                    torch.pow(random_module_rn_pred - random_rn_target, 2).sum(dim=1)
+                    (random_module_rn_pred - random_rn_target).pow(2).mean(dim=1)
                     < self.l2_threshold
                 )
 
@@ -138,6 +135,9 @@ class RND(pl.LightningModule):
         """
         batch_module_rn_pred = batch_module_output[:, : self.rnd_latent_dim]
         batch_module_downstream_pred = batch_module_output[:, self.rnd_latent_dim :]
+        batch_module_downstream_pred = self.downstream_head(
+            batch_module_downstream_pred
+        )
 
         # Compute losses
         rnd_loss = self.rnd_loss(batch_module_rn_pred, batch_rn_target)
@@ -155,6 +155,9 @@ class RND(pl.LightningModule):
                 random_module_downstream_pred = random_module_output[
                     :, self.rnd_latent_dim :
                 ]
+                random_module_downstream_pred = self.downstream_head(
+                    random_module_downstream_pred
+                )
 
                 # Add losses from random data
                 rnd_loss += self.rnd_loss(random_module_rn_pred, random_rn_target)
