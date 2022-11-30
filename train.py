@@ -157,6 +157,7 @@ def train_loop(
         train_logger=train_logger,
         resume_from=resume_from,
         model=model,
+        device=device,
         optimizer=model.configure_optimizers(),
         criterion=model.downstream_loss,
         train_mb_size=100,

@@ -4,6 +4,7 @@ import torch.nn as nn
 from torchvision import models
 
 from src.model.rnd.generator import ImageGenerator
+import typing as t
 
 
 class RND(pl.LightningModule):
@@ -118,12 +119,17 @@ class RND(pl.LightningModule):
 
         return torch.cat(samples)
 
+    def forward(
+        self, x: torch.Tensor, task_label: t.Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        return self.module(x)
+
     def training_step(self, batch, batch_idx):
         x, y, *_ = batch
 
         # Perform forward step on the data from the batch
         batch_rn_target = self.random_network(x)
-        batch_module_output = self.module(x)
+        batch_module_output = self.forward(x)
         """
         batch_module_output is a tensor with dim = (batch_size, 1000)
         """
@@ -139,7 +145,7 @@ class RND(pl.LightningModule):
             random_x = self._generate_random_images_with_low_l2()
 
             random_rn_target = self.random_network(random_x)
-            random_module_output = self.module(random_x)
+            random_module_output = self.forward(random_x)
 
             random_module_rn_pred = random_module_output[:, : self.rnd_latent_dim]
             random_module_downstream_pred = random_module_output[
