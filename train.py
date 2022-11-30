@@ -132,7 +132,7 @@ def train_loop(
         forgetting_metrics(experience=True, stream=True),
         cpu_usage_metrics(experience=True),
         confusion_matrix_metrics(
-            num_classes=benchmark.n_classes, save_image=False, stream=True
+            num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
         ),
         disk_usage_metrics(minibatch=True, epoch=True, experience=True, stream=True),
         loggers=evaluation_loggers,
