@@ -153,16 +153,16 @@ def train_loop(
         train_logger = None
 
     cl_strategy = NaivePytorchLightning(
-        config=config,
         train_logger=train_logger,
         resume_from=resume_from,
         model=model,
         device=device,
         optimizer=model.configure_optimizers(),
         criterion=model.downstream_loss,
-        train_mb_size=100,
-        train_epochs=4,
-        eval_mb_size=100,
+        train_mb_size=config.batch_size,
+        train_mb_num_workers=config.num_workers,
+        train_epochs=config.max_epochs,
+        eval_mb_size=config.batch_size,
         evaluator=eval_plugin,
     )
 

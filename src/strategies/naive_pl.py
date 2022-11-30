@@ -21,15 +21,21 @@ class NaivePytorchLightning(Naive):
 
     def __init__(
         self,
-        config: TrainConfig,
         train_logger: t.Optional["Logger"],
+        train_mb_num_workers: int = 2,
         resume_from: t.Optional[str] = None,
+        gpus: t.Optional[str] = None,
+        validate_every_n: t.Optional[int] = None,
+        accumulate_grad_batches: bool = False,
         *args,
         **kwargs
     ) -> None:
-        self.config = config
         self.resume_from = resume_from
         self.train_logger = train_logger
+        self.train_mb_num_workers = train_mb_num_workers
+        self.accumulate_grad_batches = accumulate_grad_batches
+        self.validate_every_n = validate_every_n
+        self.gpus = gpus
         super().__init__(*args, **kwargs)
 
     def train(
@@ -40,22 +46,22 @@ class NaivePytorchLightning(Naive):
     ) -> None:
         # Create DataModule
         datamodule = PLDataModule(
-            batch_size=self.config.batch_size,
-            num_workers=self.config.num_workers,
+            batch_size=self.train_mb_size,
+            num_workers=self.train_mb_num_workers,
             train_dataset=experiences.dataset,
         )
 
         # Training
         trainer = Trainer(
-            gpus=self.config.gpus,
-            check_val_every_n_epoch=self.config.validate_every_n,
+            gpus=self.gpus,
+            check_val_every_n_epoch=self.validate_every_n,
             logger=self.train_logger,
             log_every_n_steps=1,
-            max_epochs=self.config.max_epochs,
+            max_epochs=self.train_epochs,
             callbacks=[
                 # LogModelWightsCallback(log_every=self.config.validate_every_n),
             ],
-            accumulate_grad_batches=self.config.accumulate_grad_batches,
+            accumulate_grad_batches=self.accumulate_grad_batches,
         )
 
         if hasattr(self.model, "cl_step"):
