@@ -25,7 +25,7 @@ class RND(pl.LightningModule):
         self.num_random_images = num_random_images
         self.l2_threshold = l2_threshold
         self.num_generation_attempts = num_generation_attempts
-        self.cl_step = 0
+        self.experience_step = 0
 
         # Random network
         self.random_network = nn.Sequential(
@@ -98,18 +98,18 @@ class RND(pl.LightningModule):
 
         if self.keep_logging:
             self.log(
-                f"image_generation_attempts/cl_step_{self.cl_step}",
+                f"image_generation_attempts/experience_step_{self.experience_step}",
                 image_generation_attempts,
                 on_epoch=True,
             )
             self.log(
-                f"num_incomplete_generation_attempts/cl_step_{self.cl_step}",
+                f"num_incomplete_generation_attempts/experience_step_{self.experience_step}",
                 1 if len(samples) < self.num_random_images else 0,
                 on_epoch=True,
                 reduce_fx="sum",
             )
             self.log(
-                f"generated_samples/cl_step_{self.cl_step}",
+                f"generated_samples/experience_step_{self.experience_step}",
                 len(samples),
                 on_epoch=True,
             )
@@ -169,12 +169,41 @@ class RND(pl.LightningModule):
         loss = rnd_loss + downstream_loss
 
         if self.keep_logging:
-            self.log(f"train/rnd_loss/cl_step_{self.cl_step}", rnd_loss)
+            self.log(f"train/rnd_loss/experience_step_{self.experience_step}", rnd_loss)
             self.log(
-                f"train/downstream_loss/cl_step_{self.cl_step}",
+                f"train/downstream_loss/experience_step_{self.experience_step}",
                 downstream_loss,
             )
-            self.log(f"train/loss/cl_step_{self.cl_step}", loss)
+            self.log(f"train/loss/experience_step_{self.experience_step}", loss)
+
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y, *_ = batch
+
+        # Perform forward step on the data from the batch
+        batch_rn_target = self.random_network(x)
+        batch_module_output = self.forward(x)
+
+        batch_module_rn_pred = batch_module_output[:, : self.rnd_latent_dim]
+        batch_module_downstream_pred = batch_module_output[:, self.rnd_latent_dim :]
+        batch_module_downstream_pred = self.downstream_head(
+            batch_module_downstream_pred
+        )
+
+        # Compute losses
+        rnd_loss = self.rnd_loss(batch_module_rn_pred, batch_rn_target)
+        downstream_loss = self.downstream_loss(batch_module_downstream_pred, y)
+
+        loss = rnd_loss + downstream_loss
+
+        if self.keep_logging:
+            self.log(f"val/rnd_loss/experience_step_{self.experience_step}", rnd_loss)
+            self.log(
+                f"val/downstream_loss/experience_step_{self.experience_step}",
+                downstream_loss,
+            )
+            self.log(f"val/loss/experience_step_{self.experience_step}", loss)
 
         return loss
 

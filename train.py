@@ -148,6 +148,9 @@ def train_loop(
             log_model="all",
         )
         train_logger.watch(model)
+
+        # Add CL step metric to wandb
+        train_logger.experiment.define_metric("trainer/experience_step")
     elif config.train_logger == "tensorboard":
         train_logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
     else:

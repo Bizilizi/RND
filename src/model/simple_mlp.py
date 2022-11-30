@@ -12,7 +12,7 @@ class PLSimpleMLP(AvalancheSimpleMLP, pl.LightningModule):
 
         self.loss = nn.CrossEntropyLoss()
         self.learning_rate = learning_rate
-        self.cl_step = 0
+        self.experience_step = 0
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
@@ -26,7 +26,7 @@ class PLSimpleMLP(AvalancheSimpleMLP, pl.LightningModule):
         prediction = self.forward(x)
         train_loss = self.loss(prediction, y)
 
-        self.log(f"train/loss/cl_step_{self.cl_step}", train_loss)
+        self.log(f"train/loss/cl_step_{self.experience_step}", train_loss)
         return train_loss
 
     def validation_step(self, batch: t.Tuple[torch.Tensor, int, int], batch_idx):
@@ -34,5 +34,5 @@ class PLSimpleMLP(AvalancheSimpleMLP, pl.LightningModule):
         prediction = self.forward(x)
         val_loss = self.loss(prediction, y)
 
-        self.log(f"val/loss/cl_step_{self.cl_step}", val_loss)
+        self.log(f"val/loss/cl_step_{self.experience_step}", val_loss)
         return val_loss
