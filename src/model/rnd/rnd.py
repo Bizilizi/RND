@@ -1,6 +1,8 @@
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
+from avalanche.benchmarks import CLExperience
+from avalanche.training.templates.base import ExpSequence
 from torchvision import models
 
 from src.model.rnd.generator import ImageGenerator
@@ -8,6 +10,8 @@ import typing as t
 
 
 class RND(pl.LightningModule):
+    experience: t.Union[CLExperience, ExpSequence]
+
     def __init__(
         self,
         generator: ImageGenerator,
@@ -25,7 +29,7 @@ class RND(pl.LightningModule):
         self.num_random_images = num_random_images
         self.l2_threshold = l2_threshold
         self.num_generation_attempts = num_generation_attempts
-        self.experience_step = 0
+        self.experience = 0
 
         # Random network
         self.random_network = nn.Sequential(
@@ -97,19 +101,19 @@ class RND(pl.LightningModule):
         samples = samples[: self.num_random_images]
 
         if self.keep_logging:
-            self.log(
-                f"image_generation_attempts/experience_step_{self.experience_step}",
+            self.log_with_postfix(
+                f"image_generation_attempts",
                 image_generation_attempts,
                 on_epoch=True,
             )
-            self.log(
-                f"num_incomplete_generation_attempts/experience_step_{self.experience_step}",
+            self.log_with_postfix(
+                f"num_incomplete_generation_attempts",
                 1 if len(samples) < self.num_random_images else 0,
                 on_epoch=True,
                 reduce_fx="sum",
             )
-            self.log(
-                f"generated_samples/experience_step_{self.experience_step}",
+            self.log_with_postfix(
+                f"generated_samples",
                 len(samples),
                 on_epoch=True,
             )
@@ -169,12 +173,15 @@ class RND(pl.LightningModule):
         loss = rnd_loss + downstream_loss
 
         if self.keep_logging:
-            self.log(f"train/rnd_loss/experience_step_{self.experience_step}", rnd_loss)
-            self.log(
-                f"train/downstream_loss/experience_step_{self.experience_step}",
+            self.log_with_postfix(
+                f"train/rnd_loss",
+                rnd_loss,
+            )
+            self.log_with_postfix(
+                f"train/downstream_loss",
                 downstream_loss,
             )
-            self.log(f"train/loss/experience_step_{self.experience_step}", loss)
+            self.log_with_postfix(f"train/loss", loss)
 
         return loss
 
@@ -198,15 +205,22 @@ class RND(pl.LightningModule):
         loss = rnd_loss + downstream_loss
 
         if self.keep_logging:
-            self.log(f"val/rnd_loss/experience_step_{self.experience_step}", rnd_loss)
-            self.log(
-                f"val/downstream_loss/experience_step_{self.experience_step}",
-                downstream_loss,
-            )
-            self.log(f"val/loss/experience_step_{self.experience_step}", loss)
+            self.log_with_postfix("val/rnd_loss", rnd_loss)
+            self.log_with_postfix("val/downstream_loss", downstream_loss)
+            self.log_with_postfix("val/loss", loss)
 
         return loss
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.module.parameters(), lr=1e-3)
         return optimizer
+
+    def log_with_postfix(self, name: str, value: t.Any, *args, **kwargs):
+        self.log_dict(
+            {
+                f"{name}/experience_step_{self.experience.current_experience}": value,
+                "experience_step": self.experience.current_experience,
+            },
+            *args,
+            **kwargs,
+        )
