@@ -100,6 +100,7 @@ def train_loop(
     generator.load_state_dict(
         torch.load(config.generator_checkpoint, map_location=device)
     )
+    generator.to(device)
 
     model = RND(
         generator=generator,
