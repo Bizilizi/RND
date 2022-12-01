@@ -38,13 +38,15 @@ class NaivePytorchLightning(Naive):
         self.gpus = gpus
         super().__init__(*args, **kwargs)
 
+        self.experience_step = 0
+
     def train(
         self,
         experiences: t.Union[CLExperience, ExpSequence],
         eval_streams: t.Optional[t.Sequence[t.Union[CLExperience, ExpSequence]]] = None,
         **kwargs
     ) -> None:
-        self.model.experience_step = experiences.current_experience
+        self.model.experience_step = self.experience_step
 
         # Create DataModule
         datamodule = PLDataModule(
@@ -68,3 +70,5 @@ class NaivePytorchLightning(Naive):
         )
 
         trainer.fit(self.model, datamodule=datamodule, ckpt_path=self.resume_from)
+
+        self.experience_step += 1
