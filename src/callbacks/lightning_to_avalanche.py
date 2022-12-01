@@ -40,10 +40,12 @@ class PytorchLightningToAvalancheCallback(Callback):
         batch_idx: int,
     ) -> None:
         self.strategy._after_training_iteration(**self.kwargs)
+        self.strategy.mb_output = outputs
 
     def on_before_backward(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", loss: torch.Tensor
     ) -> None:
+        self.strategy.loss = loss
         self.strategy._before_backward(**self.kwargs)
 
     def on_after_backward(
