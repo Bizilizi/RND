@@ -14,7 +14,7 @@ from avalanche.evaluation.metrics import (
     disk_usage_metrics,
     forgetting_metrics,
     loss_metrics,
-    timing_metrics,
+    timing_metrics, bwt_metrics,
 )
 from avalanche.logging import InteractiveLogger
 from avalanche.training.plugins import EvaluationPlugin
@@ -127,14 +127,12 @@ def train_loop(
         evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
-        loss_metrics(minibatch=True, experience=True, stream=True),
         timing_metrics(epoch_running=True),
         forgetting_metrics(experience=True, stream=True),
-        cpu_usage_metrics(experience=True),
+        bwt_metrics(experience=True, stream=True),
         confusion_matrix_metrics(
             num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
         ),
-        disk_usage_metrics(minibatch=True, epoch=True, experience=True, stream=True),
         loggers=evaluation_loggers,
     )
 
@@ -149,7 +147,7 @@ def train_loop(
         train_logger.watch(model)
 
         # Add CL step metric to wandb
-        train_logger.experiment.define_metric("trainer/experience_step")
+        # train_logger.experiment.define_metric("trainer/experience_step")
     elif config.train_logger == "tensorboard":
         train_logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
     else:
