@@ -22,7 +22,7 @@ class PytorchLightningToAvalancheCallback(Callback):
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
         """Called when fit ends."""
-        self.strategy._after_training_exp(**self.kwargs)(**self.kwargs)
+        self.strategy._after_training_exp(**self.kwargs)
 
     def on_train_epoch_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
