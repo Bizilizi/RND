@@ -128,14 +128,14 @@ def train_loop(
 
     eval_plugin = EvaluationPlugin(
         accuracy_metrics(minibatch=True, experience=True, stream=True),
-        # loss_metrics(minibatch=True, experience=True, stream=True),
-        # timing_metrics(epoch_running=True),
+        loss_metrics(minibatch=True, experience=True, stream=True),
+        timing_metrics(epoch_running=True),
         forgetting_metrics(experience=True, stream=True),
-        # cpu_usage_metrics(experience=True),
-        # confusion_matrix_metrics(
-        #     num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
-        # ),
-        # disk_usage_metrics(minibatch=True, epoch=True, experience=True, stream=True),
+        cpu_usage_metrics(experience=True),
+        confusion_matrix_metrics(
+            num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
+        ),
+        disk_usage_metrics(minibatch=True, epoch=True, experience=True, stream=True),
         loggers=evaluation_loggers,
     )
 
@@ -182,7 +182,7 @@ def train_loop(
         else:
             model.keep_sampling = True
 
-        # cl_strategy.train(train_experience, [test_experience])
+        cl_strategy.train(train_experience, [test_experience])
         results.append(cl_strategy.eval(benchmark.test_stream))
 
 
