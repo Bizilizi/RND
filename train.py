@@ -127,8 +127,6 @@ def train_loop(
         evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
-        accuracy_metrics(minibatch=True, experience=True, stream=True),
-        loss_metrics(minibatch=True, experience=True, stream=True),
         timing_metrics(epoch_running=True),
         forgetting_metrics(experience=True, stream=True),
         cpu_usage_metrics(experience=True),
