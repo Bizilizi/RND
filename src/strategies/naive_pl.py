@@ -40,7 +40,7 @@ class NaivePytorchLightning(Naive):
 
         self.experience_step = 0
 
-    def train(
+    def _train_exp(
         self,
         experiences: t.Union[CLExperience, ExpSequence],
         eval_streams: t.Optional[t.Sequence[t.Union[CLExperience, ExpSequence]]] = None,
