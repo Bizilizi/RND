@@ -6,7 +6,6 @@ from configparser import ConfigParser
 
 import avalanche.logging as av_loggers
 import torch
-import wandb
 from avalanche.benchmarks import SplitMNIST
 from avalanche.evaluation.metrics import (
     accuracy_metrics,
@@ -23,6 +22,7 @@ from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import seed_everything
 from torchvision.datasets import MNIST
 
+import wandb
 from src.configuration.config import TrainConfig
 from src.model.rnd.gan_generator import MNISTGanGenerator
 from src.model.rnd.generator import ImageGenerator
@@ -85,7 +85,7 @@ def train_loop(
         wandb_params = dict(
             project="RND",
             id=run_id,
-            entity="ewriji",
+            entity="vgg-continual-learning",
             config=dict(config),
             name=experiment_name,
         )
@@ -146,6 +146,7 @@ def train_loop(
         train_logger = pl_loggers.WandbLogger(
             project=wandb_params["project"],
             log_model="all",
+            experiment=wandb.run,
         )
         train_logger.watch(model)
 
