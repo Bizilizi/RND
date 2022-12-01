@@ -219,7 +219,6 @@ class RND(pl.LightningModule):
         self.log_dict(
             {
                 f"{name}/experience_step_{self.experience_step}": value,
-                "experience_step": self.experience_step,
             },
             *args,
             **kwargs,

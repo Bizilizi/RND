@@ -89,6 +89,7 @@ def train_loop(
             config=dict(config),
             name=experiment_name,
         )
+        wandb.init(**wandb_params)
     else:
         wandb_params = None
 
@@ -140,8 +141,6 @@ def train_loop(
 
     # Create avalanche strategy
     if config.train_logger == "wandb":
-        if wandb.run is None:
-            wandb.init(**wandb_params)
 
         train_logger = pl_loggers.WandbLogger(
             project=wandb_params["project"],
