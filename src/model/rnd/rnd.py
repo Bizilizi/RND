@@ -190,6 +190,7 @@ class RND(pl.LightningModule):
         x, y, *_ = batch
 
         # Compute losses
+        x = self.forward(x)
         rnd_loss, downstream_loss = self.criterion(x, y)
         loss = rnd_loss + downstream_loss
 

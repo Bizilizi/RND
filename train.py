@@ -129,12 +129,12 @@ def train_loop(
         evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
-        timing_metrics(epoch_running=True),
+        # timing_metrics(epoch_running=True),
         rnd_forgetting_metrics(experience=True, stream=True),
-        bwt_metrics(experience=True, stream=True),
-        confusion_matrix_metrics(
-            num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
-        ),
+        # bwt_metrics(experience=True, stream=True),
+        # confusion_matrix_metrics(
+        #     num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
+        # ),
         suppress_warnings=True,
         loggers=evaluation_loggers,
     )
@@ -182,7 +182,7 @@ def train_loop(
         else:
             model.keep_sampling = True
 
-        # cl_strategy.train(train_experience, [test_experience])
+        cl_strategy.train(train_experience, [test_experience])
         results.append(cl_strategy.eval(benchmark.test_stream))
 
 
