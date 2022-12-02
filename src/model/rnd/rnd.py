@@ -144,7 +144,7 @@ class RND(pl.LightningModule):
         # Compute losses
         rnd_loss = self.rnd_loss(module_rn_pred, rn_target)
 
-        if y:
+        if y is not None:
             downstream_loss = self.downstream_loss(module_downstream_pred, y)
         else:
             downstream_loss = self.downstream_loss(
