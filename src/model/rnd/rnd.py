@@ -125,17 +125,17 @@ class RND(pl.LightningModule):
 
     def forward(
         self, x: torch.Tensor, task_label: t.Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
-        return self.module(x)
+    ) -> t.Tuple[torch.Tensor, torch.Tensor]:
+        return self.random_network(x), self.module(x)
 
     def criterion(
-        self, x: torch.tensor, y: t.Optional[torch.Tensor] = None
+        self, x: t.Tuple[torch.Tensor, torch.Tensor], y: t.Optional[torch.Tensor] = None
     ) -> t.Tuple[torch.Tensor, torch.Tensor]:
-        rn_target = self.random_network(x)
-        module_output = self.forward(x)
+
         """
         module_output is a tensor with dim = (batch_size, 1000)
         """
+        rn_target, module_output = x
 
         module_rn_pred = module_output[:, : self.rnd_latent_dim]
         module_downstream_pred = module_output[:, self.rnd_latent_dim :]
@@ -158,6 +158,7 @@ class RND(pl.LightningModule):
         x, y, *_ = batch
 
         # Compute losses
+        x = self.forward(x)
         rnd_loss, downstream_loss = self.criterion(x, y)
 
         # Perform forward step on randomly generated data if necessary
@@ -165,6 +166,7 @@ class RND(pl.LightningModule):
             random_x = self._generate_random_images_with_low_l2()
 
             if random_x is not None:
+                random_x = self.forward(random_x)
                 random_rnd_loss, random_downstream_loss = self.criterion(random_x)
 
                 rnd_loss += random_rnd_loss

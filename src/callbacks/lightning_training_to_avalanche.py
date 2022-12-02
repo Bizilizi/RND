@@ -53,7 +53,6 @@ class PLTestLoopToAvalancheEvalLoopCallback(Callback):
         batch: t.Any,
         batch_idx: int,
     ) -> None:
-        print(outputs)
         self.strategy.mb_output = outputs
         self.strategy._after_training_iteration(**self.kwargs)
 

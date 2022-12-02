@@ -181,7 +181,7 @@ def train_loop(
         else:
             model.keep_sampling = True
 
-        cl_strategy.train(train_experience, [test_experience])
+        cl_strategy.train(/train_experience, [test_experience])
         results.append(cl_strategy.eval(benchmark.test_stream))
 
 
