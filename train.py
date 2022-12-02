@@ -9,13 +9,13 @@ import torch
 from avalanche.benchmarks import SplitMNIST
 from avalanche.evaluation.metrics import (
     accuracy_metrics,
+    bwt_metrics,
     confusion_matrix_metrics,
     cpu_usage_metrics,
     disk_usage_metrics,
     forgetting_metrics,
     loss_metrics,
     timing_metrics,
-    bwt_metrics,
 )
 from avalanche.logging import InteractiveLogger
 from avalanche.training.plugins import EvaluationPlugin
@@ -25,6 +25,7 @@ from torchvision.datasets import MNIST
 
 import wandb
 from src.configuration.config import TrainConfig
+from src.metrics.rnd_forgetting import rnd_forgetting_metrics
 from src.model.rnd.gan_generator import MNISTGanGenerator
 from src.model.rnd.generator import ImageGenerator
 from src.model.rnd.rnd import RND
@@ -128,12 +129,12 @@ def train_loop(
         evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
-        # timing_metrics(epoch_running=True),
-        forgetting_metrics(experience=True, stream=True),
-        # bwt_metrics(experience=True, stream=True),
-        # confusion_matrix_metrics(
-        #     num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
-        # ),
+        timing_metrics(epoch_running=True),
+        rnd_forgetting_metrics(experience=True, stream=True),
+        bwt_metrics(experience=True, stream=True),
+        confusion_matrix_metrics(
+            num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
+        ),
         suppress_warnings=True,
         loggers=evaluation_loggers,
     )
@@ -181,7 +182,7 @@ def train_loop(
         else:
             model.keep_sampling = True
 
-        cl_strategy.train(train_experience, [test_experience])
+        # cl_strategy.train(train_experience, [test_experience])
         results.append(cl_strategy.eval(benchmark.test_stream))
 
 

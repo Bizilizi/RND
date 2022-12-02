@@ -1,7 +1,8 @@
+import typing as t
+
 from avalanche.training.templates import BaseSGDTemplate
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-import typing as t
 
 
 class PLTrainLoopToAvalancheTrainLoopCallback(Callback):
