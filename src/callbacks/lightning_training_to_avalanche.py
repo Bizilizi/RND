@@ -7,7 +7,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch.optim import Optimizer
 
 
-class PytorchLightningToAvalancheCallback(Callback):
+class PLTestLoopToAvalancheEvalLoopCallback(Callback):
     def __init__(self, strategy: BaseSGDTemplate, **kwargs):
         self.strategy = strategy
         self.kwargs = kwargs
@@ -53,6 +53,7 @@ class PytorchLightningToAvalancheCallback(Callback):
         batch: t.Any,
         batch_idx: int,
     ) -> None:
+        print(outputs)
         self.strategy.mb_output = outputs
         self.strategy._after_training_iteration(**self.kwargs)
 

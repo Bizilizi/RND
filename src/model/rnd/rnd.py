@@ -128,50 +128,49 @@ class RND(pl.LightningModule):
     ) -> torch.Tensor:
         return self.module(x)
 
+    def criterion(
+        self, x: torch.tensor, y: t.Optional[torch.Tensor] = None
+    ) -> t.Tuple[torch.Tensor, torch.Tensor]:
+        rn_target = self.random_network(x)
+        module_output = self.forward(x)
+        """
+        module_output is a tensor with dim = (batch_size, 1000)
+        """
+
+        module_rn_pred = module_output[:, : self.rnd_latent_dim]
+        module_downstream_pred = module_output[:, self.rnd_latent_dim :]
+        module_downstream_pred = self.downstream_head(module_downstream_pred)
+
+        # Compute losses
+        rnd_loss = self.rnd_loss(module_rn_pred, rn_target)
+
+        if y:
+            downstream_loss = self.downstream_loss(module_downstream_pred, y)
+        else:
+            downstream_loss = self.downstream_loss(
+                module_downstream_pred,
+                module_downstream_pred.argmax(dim=1),
+            )
+
+        return rnd_loss, downstream_loss
+
     def training_step(self, batch, batch_idx):
         x, y, *_ = batch
 
-        # Perform forward step on the data from the batch
-        batch_rn_target = self.random_network(x)
-        batch_module_output = self.forward(x)
-        """
-        batch_module_output is a tensor with dim = (batch_size, 1000)
-        """
-        batch_module_rn_pred = batch_module_output[:, : self.rnd_latent_dim]
-        batch_module_downstream_pred = batch_module_output[:, self.rnd_latent_dim :]
-        batch_module_downstream_pred = self.downstream_head(
-            batch_module_downstream_pred
-        )
-
         # Compute losses
-        rnd_loss = self.rnd_loss(batch_module_rn_pred, batch_rn_target)
-        downstream_loss = self.downstream_loss(batch_module_downstream_pred, y)
+        rnd_loss, downstream_loss = self.criterion(x, y)
 
         # Perform forward step on randomly generated data if necessary
         if self.keep_sampling:
             random_x = self._generate_random_images_with_low_l2()
 
             if random_x is not None:
-                random_rn_target = self.random_network(random_x)
-                random_module_output = self.forward(random_x)
+                random_rnd_loss, random_downstream_loss = self.criterion(random_x)
 
-                random_module_rn_pred = random_module_output[:, : self.rnd_latent_dim]
-                random_module_downstream_pred = random_module_output[
-                    :, self.rnd_latent_dim :
-                ]
-                random_module_downstream_pred = self.downstream_head(
-                    random_module_downstream_pred
-                )
-
-                # Add losses from random data
-                rnd_loss += self.rnd_loss(random_module_rn_pred, random_rn_target)
-                downstream_loss += self.downstream_loss(
-                    random_module_downstream_pred,
-                    random_module_downstream_pred.argmax(dim=1),
-                )
+                rnd_loss += random_rnd_loss
+                downstream_loss += random_downstream_loss
 
         loss = rnd_loss + downstream_loss
-
         if self.keep_logging:
             self.log_with_postfix(
                 f"train/rnd_loss",
@@ -188,20 +187,8 @@ class RND(pl.LightningModule):
     def validation_step(self, batch, batch_idx):
         x, y, *_ = batch
 
-        # Perform forward step on the data from the batch
-        batch_rn_target = self.random_network(x)
-        batch_module_output = self.forward(x)
-
-        batch_module_rn_pred = batch_module_output[:, : self.rnd_latent_dim]
-        batch_module_downstream_pred = batch_module_output[:, self.rnd_latent_dim :]
-        batch_module_downstream_pred = self.downstream_head(
-            batch_module_downstream_pred
-        )
-
         # Compute losses
-        rnd_loss = self.rnd_loss(batch_module_rn_pred, batch_rn_target)
-        downstream_loss = self.downstream_loss(batch_module_downstream_pred, y)
-
+        rnd_loss, downstream_loss = self.criterion(x, y)
         loss = rnd_loss + downstream_loss
 
         if self.keep_logging:

@@ -14,7 +14,8 @@ from avalanche.evaluation.metrics import (
     disk_usage_metrics,
     forgetting_metrics,
     loss_metrics,
-    timing_metrics, bwt_metrics,
+    timing_metrics,
+    bwt_metrics,
 )
 from avalanche.logging import InteractiveLogger
 from avalanche.training.plugins import EvaluationPlugin
@@ -127,12 +128,13 @@ def train_loop(
         evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
-        timing_metrics(epoch_running=True),
+        # timing_metrics(epoch_running=True),
         forgetting_metrics(experience=True, stream=True),
-        bwt_metrics(experience=True, stream=True),
-        confusion_matrix_metrics(
-            num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
-        ),
+        # bwt_metrics(experience=True, stream=True),
+        # confusion_matrix_metrics(
+        #     num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
+        # ),
+        suppress_warnings=True,
         loggers=evaluation_loggers,
     )
 
@@ -162,7 +164,7 @@ def train_loop(
         model=model,
         device=device,
         optimizer=model.configure_optimizers(),
-        criterion=model.downstream_loss,
+        criterion=model.criterion,
         train_mb_size=config.batch_size,
         train_mb_num_workers=config.num_workers,
         train_epochs=config.max_epochs,
