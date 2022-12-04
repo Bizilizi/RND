@@ -5,7 +5,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
 
-class PLTrainLoopToAvalancheTrainLoopCallback(Callback):
+class PLTestLoopToAvalancheEvalLoopCallback(Callback):
     def __init__(self, strategy: BaseSGDTemplate, **kwargs):
         self.strategy = strategy
         self.kwargs = kwargs

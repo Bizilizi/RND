@@ -6,7 +6,7 @@ from avalanche.training.templates.base import ExpSequence
 from pytorch_lightning import Trainer
 
 from src.callbacks.lightning_test_to_avalanche import (
-    PLTrainLoopToAvalancheTrainLoopCallback,
+    PLTestLoopToAvalancheEvalLoopCallback,
 )
 
 if t.TYPE_CHECKING:
@@ -68,7 +68,7 @@ class NaivePytorchLightning(Naive):
             log_every_n_steps=1,
             max_epochs=self.train_epochs,
             callbacks=[
-                PLTrainLoopToAvalancheTrainLoopCallback(self, **kwargs),
+                PLTestLoopToAvalancheEvalLoopCallback(self, **kwargs),
                 # LogModelWightsCallback(log_every=self.config.validate_every_n),
             ],
             accumulate_grad_batches=self.accumulate_grad_batches,

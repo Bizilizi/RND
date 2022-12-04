@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 from avalanche.benchmarks import CLExperience
 from avalanche.training.templates.base import ExpSequence
+from pytorch_lightning.utilities.types import EPOCH_OUTPUT
 from torchvision import models
 
 from src.model.rnd.generator import ImageGenerator
@@ -185,6 +186,9 @@ class RND(pl.LightningModule):
             self.log_with_postfix(f"train/loss", loss)
 
         return loss
+
+    def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
+        ...
 
     def validation_step(self, batch, batch_idx):
         x, y, *_ = batch
