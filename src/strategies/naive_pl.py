@@ -5,15 +5,12 @@ from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
 from pytorch_lightning import Trainer
 
-from src.callbacks.lightning_test_to_avalanche import (
-    PLTestLoopToAvalancheEvalLoopCallback,
-)
+from src.callbacks.lightning_training_to_avalanche import \
+    PLTrainLoopToAvalancheTrainLoopCallback
 
 if t.TYPE_CHECKING:
     from pytorch_lightning.loggers import Logger
 
-from src.callbacks.log_model import LogModelWightsCallback
-from src.configuration.config import TrainConfig
 from src.data.default_pl_module import PLDataModule
 
 
@@ -68,7 +65,7 @@ class NaivePytorchLightning(Naive):
             log_every_n_steps=1,
             max_epochs=self.train_epochs,
             callbacks=[
-                PLTestLoopToAvalancheEvalLoopCallback(self, **kwargs),
+                PLTrainLoopToAvalancheTrainLoopCallback(self, **kwargs),
                 # LogModelWightsCallback(log_every=self.config.validate_every_n),
             ],
             accumulate_grad_batches=self.accumulate_grad_batches,
