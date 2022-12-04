@@ -17,7 +17,7 @@ from avalanche.evaluation.metrics import (
     loss_metrics,
     timing_metrics,
 )
-from avalanche.logging import InteractiveLogger
+from avalanche.logging import InteractiveLogger, WandBLogger
 from avalanche.training.plugins import EvaluationPlugin
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import seed_everything
@@ -25,6 +25,7 @@ from torchvision.datasets import MNIST
 
 import wandb
 from src.configuration.config import TrainConfig
+from src.loggers.interactive_wandb import InteractiveWandBLogger
 from src.metrics.rnd_forgetting import rnd_forgetting_metrics
 from src.model.rnd.gan_generator import MNISTGanGenerator
 from src.model.rnd.generator import ImageGenerator
@@ -118,7 +119,7 @@ def train_loop(
     evaluation_loggers = []
     if config.evaluation_logger == "wandb":
         evaluation_loggers.append(
-            av_loggers.WandBLogger(
+            InteractiveWandBLogger(
                 project_name=wandb_params["project"],
                 run_name=wandb_params["name"],
                 config=wandb_params["config"],
