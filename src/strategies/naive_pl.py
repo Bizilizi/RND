@@ -4,9 +4,11 @@ from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
 from pytorch_lightning import Trainer
+from torch.utils.data import Subset
 
-from src.callbacks.lightning_training_to_avalanche import \
-    PLTrainLoopToAvalancheTrainLoopCallback
+from src.callbacks.lightning_training_to_avalanche import (
+    PLTrainLoopToAvalancheTrainLoopCallback,
+)
 
 if t.TYPE_CHECKING:
     from pytorch_lightning.loggers import Logger

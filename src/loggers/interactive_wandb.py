@@ -1,24 +1,212 @@
+import errno
+import os
 import sys
 import typing as t
+from pathlib import Path
 
+import numpy as np
+import torch
 from avalanche.benchmarks import OnlineCLExperience
+from avalanche.core import SupervisedPlugin
+from avalanche.evaluation.metric_results import (
+    AlternativeValues,
+    MetricValue,
+    TensorImage,
+)
 from avalanche.evaluation.metric_utils import phase_and_task, stream_type
-from avalanche.logging import WandBLogger
+from avalanche.logging import BaseLogger
+from matplotlib.pyplot import Figure
+from numpy import array
+from PIL.Image import Image
+from torch import Tensor
+
+if t.TYPE_CHECKING:
+    from avalanche.evaluation.metric_results import MetricValue
+    from avalanche.training.templates.supervised import SupervisedTemplate
+
 from tqdm import tqdm
 
+from wandb import Image
 
-class InteractiveWandBLogger(WandBLogger):
+
+class InteractiveWandBLogger(BaseLogger, SupervisedPlugin):
     def __init__(
         self,
-        file=sys.stdout,
-        *args,
-        **kwargs,
+        project_name: str = "Avalanche",
+        run_name: str = "Test",
+        log_artifacts: bool = False,
+        path: t.Union[str, Path] = "Checkpoints",
+        uri: str = None,
+        sync_tfboard: bool = False,
+        save_code: bool = True,
+        config: object = None,
+        dir: t.Union[str, Path] = None,
+        params: dict = None,
     ):
-        super().__init__(*args, **kwargs)
+        """Creates an instance of the `WandBLogger`.
 
-        self.file = file
+        :param project_name: Name of the W&B project.
+        :param run_name: Name of the W&B run.
+        :param log_artifacts: Option to log model weights as W&B Artifacts.
+        :param path: Path to locally save the model checkpoints.
+        :param uri: URI identifier for external storage buckets (GCS, S3).
+        :param sync_tfboard: Syncs TensorBoard to the W&B dashboard UI.
+        :param save_code: Saves the main training script to W&B.
+        :param config: Syncs hyper-parameters and config values used to W&B.
+        :param dir: Path to the local log directory for W&B logs to be saved at.
+        :param params: All arguments for wandb.init() function call. Visit
+            https://docs.wandb.ai/ref/python/init to learn about all
+            wand.init() parameters.
+        """
+        super().__init__()
+        self.import_wandb()
+        self.project_name = project_name
+        self.run_name = run_name
+        self.log_artifacts = log_artifacts
+        self.path = path
+        self.uri = uri
+        self.sync_tfboard = sync_tfboard
+        self.save_code = save_code
+        self.config = config
+        self.dir = dir
+        self.params = params
+        self.args_parse()
+        self.before_run()
+        self.step = 0
+        self.exp_count = 0
+        self.file = sys.stdout
         self._pbar = None
         self.last_length = 0
+
+    def import_wandb(self):
+        try:
+            import wandb
+        except ImportError:
+            raise ImportError('Please run "pip install wandb" to install wandb')
+        self.wandb = wandb
+
+    def args_parse(self):
+        self.init_kwargs = {
+            "project": self.project_name,
+            "name": self.run_name,
+            "sync_tensorboard": self.sync_tfboard,
+            "dir": self.dir,
+            "save_code": self.save_code,
+            "config": self.config,
+        }
+        if self.params:
+            self.init_kwargs.update(self.params)
+
+    def before_run(self):
+        if self.wandb is None:
+            self.import_wandb()
+
+        if self.wandb.run is not None:
+            if self.init_kwargs:
+                self.wandb.init(**self.init_kwargs)
+            else:
+                self.wandb.init()
+
+        self.wandb.run.define_metric("avalanche/TrainingExperience")
+        self.wandb.run.define_metric("avalanche/MetricStep")
+
+    def after_training_exp(
+        self,
+        strategy: "SupervisedTemplate",
+        metric_values: t.List["MetricValue"],
+        **kwargs: t.Dict[str, t.Any],
+    ):
+        if isinstance(strategy.experience, OnlineCLExperience):
+            experience = strategy.experience.logging()
+            if experience.is_last_subexp:
+                self._end_progress()
+                super().after_training_exp(strategy, metric_values, **kwargs)
+
+        for val in metric_values:
+            self.log_metrics([val])
+
+        self.wandb.log(
+            {
+                "avalanche/TrainingExperience": self.exp_count,
+                "avalanche/MetricStep": self.step,
+            }
+        )
+        self.exp_count += 1
+
+    def log_single_metric(self, name, value, x_plot):
+        self.step = x_plot
+
+        if isinstance(value, AlternativeValues):
+            value = value.best_supported_value(
+                Image,
+                Tensor,
+                TensorImage,
+                Figure,
+                float,
+                int,
+                self.wandb.viz.CustomChart,
+            )
+
+        if not isinstance(
+            value,
+            (Image, Tensor, Figure, float, int, self.wandb.viz.CustomChart),
+        ):
+            # Unsupported type
+            return
+
+        if isinstance(value, Image):
+            self.wandb.log(
+                {
+                    name: self.wandb.Image(value),
+                    "avalanche/MetricStep": self.step,
+                }
+            )
+
+        elif isinstance(value, Tensor):
+            value = np.histogram(value.view(-1).numpy())
+            self.wandb.log(
+                {
+                    name: self.wandb.Histogram(np_histogram=value),
+                    "avalanche/MetricStep": self.step,
+                },
+            )
+
+        elif isinstance(value, (float, int, Figure, self.wandb.viz.CustomChart)):
+            self.wandb.log(
+                {
+                    name: value,
+                    "avalanche/MetricStep": self.step,
+                }
+            )
+
+        elif isinstance(value, TensorImage):
+            self.wandb.log(
+                {
+                    name: self.wandb.Image(array(value)),
+                    "avalanche/MetricStep": self.step,
+                }
+            )
+
+        elif name.startswith("WeightCheckpoint"):
+            if self.log_artifacts:
+                cwd = os.getcwd()
+                ckpt = os.path.join(cwd, self.path)
+                try:
+                    os.makedirs(ckpt)
+                except OSError as e:
+                    if e.errno != errno.EEXIST:
+                        raise
+                suffix = ".pth"
+                dir_name = os.path.join(ckpt, name + suffix)
+                artifact_name = os.path.join("Models", name + suffix)
+                if isinstance(value, Tensor):
+                    torch.save(value, dir_name)
+                    name = os.path.splittext(self.checkpoint)
+                    artifact = self.wandb.Artifact(name, type="model")
+                    artifact.add_file(dir_name, name=artifact_name)
+                    self.wandb.run.log_artifact(artifact)
+                    if self.uri is not None:
+                        artifact.add_reference(self.uri, name=artifact_name)
 
     # region Training
     def before_training(
@@ -57,20 +245,6 @@ class InteractiveWandBLogger(WandBLogger):
                 )
                 self.last_length = self._progress.total
 
-    def after_training_exp(
-        self,
-        strategy: "SupervisedTemplate",
-        metric_values: t.List["MetricValue"],
-        **kwargs,
-    ):
-        if isinstance(strategy.experience, OnlineCLExperience):
-            experience = strategy.experience.logging()
-            if experience.is_last_subexp:
-                self._end_progress()
-                super().after_training_exp(strategy, metric_values, **kwargs)
-
-        super(WandBLogger, self).after_training_exp(strategy, metric_values, **kwargs)
-
     def after_training_iteration(
         self,
         strategy: "SupervisedTemplate",
@@ -93,8 +267,6 @@ class InteractiveWandBLogger(WandBLogger):
             file=self.file,
             flush=True,
         )
-        self.print_current_metrics()
-        self.metric_vals = {}
         self._end_progress()
 
     def after_training(
@@ -108,6 +280,7 @@ class InteractiveWandBLogger(WandBLogger):
 
     # endregion
 
+    # region Validation
     def before_eval(
         self,
         strategy: "SupervisedTemplate",
@@ -151,8 +324,6 @@ class InteractiveWandBLogger(WandBLogger):
                 file=self.file,
                 flush=True,
             )
-        self.print_current_metrics()
-        self.metric_vals = {}
         self._end_progress()
 
     def after_eval_iteration(
@@ -173,8 +344,6 @@ class InteractiveWandBLogger(WandBLogger):
     ):
         super().after_eval(strategy, metric_values, **kwargs)
         print("-- >> End of eval phase << --", file=self.file, flush=True)
-        self.print_current_metrics()
-        self.metric_vals = {}
 
     @property
     def _progress(self):
@@ -207,6 +376,8 @@ class InteractiveWandBLogger(WandBLogger):
                 file=self.file,
                 flush=True,
             )
+
+    # endregion
 
 
 __all__ = ["InteractiveWandBLogger"]

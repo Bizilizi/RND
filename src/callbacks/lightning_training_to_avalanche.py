@@ -3,6 +3,7 @@ import typing as t
 import torch
 from avalanche.training.templates import BaseSGDTemplate
 from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch.optim import Optimizer
 
 
@@ -11,13 +12,6 @@ class PLTrainLoopToAvalancheTrainLoopCallback(Callback):
         super().__init__()
         self.strategy = strategy
         self.kwargs = kwargs
-
-    def on_train_batch_end(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", *_: t.Any
-    ) -> None:
-        raise Exception
-        self.strategy.mb_output = None
-        self.strategy._after_training_iteration(**self.kwargs)
 
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -51,6 +45,17 @@ class PLTrainLoopToAvalancheTrainLoopCallback(Callback):
         self.strategy.mbatch = batch
         self.strategy.loss = 0
         self.strategy._before_training_iteration(**self.kwargs)
+
+    def on_train_batch_end(
+        self,
+        trainer: "pl.Trainer",
+        pl_module: "pl.LightningModule",
+        outputs: STEP_OUTPUT,
+        batch: t.Any,
+        batch_idx: int,
+    ) -> None:
+        self.strategy.mb_output = STEP_OUTPUT
+        self.strategy._after_training_iteration(**self.kwargs)
 
     def on_before_backward(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", loss: torch.Tensor
