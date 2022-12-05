@@ -159,6 +159,7 @@ class InteractiveWandBLogger(BaseLogger, SupervisedPlugin):
                 {
                     name: self.wandb.Image(value),
                     "avalanche/MetricStep": self.step,
+                    "avalanche/TrainingExperience": self.exp_count,
                 }
             )
 
@@ -168,6 +169,7 @@ class InteractiveWandBLogger(BaseLogger, SupervisedPlugin):
                 {
                     name: self.wandb.Histogram(np_histogram=value),
                     "avalanche/MetricStep": self.step,
+                    "avalanche/TrainingExperience": self.exp_count,
                 },
             )
 
@@ -176,6 +178,7 @@ class InteractiveWandBLogger(BaseLogger, SupervisedPlugin):
                 {
                     name: value,
                     "avalanche/MetricStep": self.step,
+                    "avalanche/TrainingExperience": self.exp_count,
                 }
             )
 
@@ -184,6 +187,7 @@ class InteractiveWandBLogger(BaseLogger, SupervisedPlugin):
                 {
                     name: self.wandb.Image(array(value)),
                     "avalanche/MetricStep": self.step,
+                    "avalanche/TrainingExperience": self.exp_count,
                 }
             )
 
