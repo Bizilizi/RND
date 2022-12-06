@@ -32,7 +32,7 @@ class ExperienceAccuracy(AccuracyPluginMetric):
         else:
             task_labels = task_labels[0]
 
-        _, _, module_downstream_pred = strategy.mb_output["forward_output"]
+        _, _, module_downstream_pred = strategy.mb_output
         self._accuracy.update(module_downstream_pred, strategy.mb_y, task_labels)
 
     def __str__(self):
@@ -67,7 +67,7 @@ class StreamAccuracy(AccuracyPluginMetric):
         else:
             task_labels = task_labels[0]
 
-        _, _, module_downstream_pred = strategy.mb_output["forward_output"]
+        _, _, module_downstream_pred = strategy.mb_output
         self._accuracy.update(module_downstream_pred, strategy.mb_y, task_labels)
 
     def __str__(self):

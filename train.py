@@ -135,7 +135,7 @@ def train_loop(
 
     eval_plugin = EvaluationPlugin(
         timing_metrics(epoch_running=True),
-        rnd_forgetting_metrics(experience=True, stream=True),
+        rnd_forgetting_metrics(experience=True, stream=True, accuracy=True),
         rnd_accuracy_metrics(experience=True, stream=True),
         # confusion_matrix_metrics(
         #     num_classes=benchmark.n_classes,

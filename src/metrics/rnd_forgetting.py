@@ -2,10 +2,24 @@ import typing as t
 
 from avalanche.evaluation import PluginMetric
 from avalanche.evaluation.metrics import (
+    ExperienceForgetting,
     GenericExperienceForgetting,
     GenericStreamForgetting,
     Mean,
+    StreamForgetting,
 )
+
+
+class RNDStreamAccForgetting(StreamForgetting):
+    def metric_update(self, strategy):
+        _, _, module_downstream_pred = strategy.mb_output
+        self._current_metric.update(strategy.mb_y, module_downstream_pred, 0)
+
+
+class RNDExperienceAccForgetting(ExperienceForgetting):
+    def metric_update(self, strategy):
+        _, _, module_downstream_pred = strategy.mb_output
+        self._current_metric.update(strategy.mb_y, module_downstream_pred, 0)
 
 
 class RNDStreamForgetting(GenericStreamForgetting):
@@ -94,7 +108,9 @@ class RNDExperienceForgetting(GenericExperienceForgetting):
         return name
 
 
-def rnd_forgetting_metrics(*, experience=False, stream=False) -> t.List[PluginMetric]:
+def rnd_forgetting_metrics(
+    *, experience=False, stream=False, accuracy=False
+) -> t.List[PluginMetric]:
     """
     Helper method that can be used to obtain the desired set of
     plugin metrics.
@@ -104,6 +120,8 @@ def rnd_forgetting_metrics(*, experience=False, stream=False) -> t.List[PluginMe
     :param stream: If True, will return a metric able to log
         the forgetting averaged over the evaluation stream experiences,
         which have been observed during training.
+    :param accuracy: If True, will return a accuracy metric able to log
+        the forgetting metrics, both for experience and stream.
 
     :return: A list of plugin metrics.
     """
@@ -119,6 +137,9 @@ def rnd_forgetting_metrics(*, experience=False, stream=False) -> t.List[PluginMe
             ]
         )
 
+        if accuracy:
+            metrics.append(RNDExperienceAccForgetting())
+
     if stream:
         metrics.extend(
             [
@@ -127,5 +148,7 @@ def rnd_forgetting_metrics(*, experience=False, stream=False) -> t.List[PluginMe
                 RNDStreamForgetting(with_rnd_loss=False),
             ]
         )
+        if accuracy:
+            metrics.append(RNDStreamAccForgetting())
 
     return metrics
