@@ -4,35 +4,22 @@ import logging
 import typing as t
 from configparser import ConfigParser
 
-import avalanche.logging as av_loggers
 import torch
 from avalanche.benchmarks import SplitMNIST
-from avalanche.evaluation.metrics import (
-    accuracy_metrics,
-    bwt_metrics,
-    confusion_matrix_metrics,
-    cpu_usage_metrics,
-    disk_usage_metrics,
-    forgetting_metrics,
-    loss_metrics,
-    timing_metrics,
-)
-from avalanche.logging import InteractiveLogger, WandBLogger
+from avalanche.evaluation.metrics import timing_metrics
+from avalanche.logging import InteractiveLogger
 from avalanche.training.plugins import EvaluationPlugin
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import seed_everything
-from torchvision.datasets import MNIST
 
 import wandb
 from src.configuration.config import TrainConfig
 from src.loggers.interactive_wandb import InteractiveWandBLogger
 from src.metrics.rnd_accuracy import rnd_accuracy_metrics
+from src.metrics.rnd_confusion_matrix import rnd_confusion_matrix_metrics
 from src.metrics.rnd_forgetting import rnd_forgetting_metrics
 from src.model.rnd.gan_generator import MNISTGanGenerator
-from src.model.rnd.generator import ImageGenerator
 from src.model.rnd.rnd import RND
-from src.model.simple_mlp import PLSimpleMLP
-from src.scenarios.mnist import NormalPermutedMNIST
 from src.strategies.naive_pl import NaivePytorchLightning
 
 # configure logging at the root level of Lightning
@@ -137,12 +124,12 @@ def train_loop(
         timing_metrics(epoch_running=True),
         rnd_forgetting_metrics(experience=True, stream=True, accuracy=True),
         rnd_accuracy_metrics(experience=True, stream=True),
-        # confusion_matrix_metrics(
-        #     num_classes=benchmark.n_classes,
-        #     save_image=False,
-        #     stream=True,
-        #     wandb=is_using_wandb,
-        # ),
+        rnd_confusion_matrix_metrics(
+            num_classes=benchmark.n_classes,
+            save_image=False,
+            stream=True,
+            wandb=is_using_wandb,
+        ),
         suppress_warnings=True,
         loggers=evaluation_loggers,
     )

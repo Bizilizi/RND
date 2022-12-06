@@ -13,18 +13,6 @@ class PLTrainLoopToAvalancheTrainLoopCallback(Callback):
         self.strategy = strategy
         self.kwargs = kwargs
 
-    def on_fit_start(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
-        """Called when fit begins."""
-        self.strategy._before_training_exp(**self.kwargs)
-
-    def on_fit_end(
-        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
-    ) -> None:
-        """Called when fit ends."""
-        self.strategy._after_training_exp(**self.kwargs)
-
     def on_train_epoch_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
