@@ -26,6 +26,7 @@ from torchvision.datasets import MNIST
 import wandb
 from src.configuration.config import TrainConfig
 from src.loggers.interactive_wandb import InteractiveWandBLogger
+from src.metrics.rnd_accuracy import rnd_accuracy_metrics
 from src.metrics.rnd_forgetting import rnd_forgetting_metrics
 from src.model.rnd.gan_generator import MNISTGanGenerator
 from src.model.rnd.generator import ImageGenerator
@@ -84,7 +85,10 @@ def train_loop(
         device = torch.device("cpu")
 
     # Construct wandb params if necessary
-    if config.train_logger == "wandb" or config.evaluation_logger == "wandb":
+    is_using_wandb = (
+        config.train_logger == "wandb" or config.evaluation_logger == "wandb"
+    )
+    if is_using_wandb:
         wandb_params = dict(
             project="RND",
             id=run_id,
@@ -130,11 +134,14 @@ def train_loop(
         evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
-        # timing_metrics(epoch_running=True),
+        timing_metrics(epoch_running=True),
         rnd_forgetting_metrics(experience=True, stream=True),
-        # bwt_metrics(experience=True, stream=True),
+        rnd_accuracy_metrics(experience=True, stream=True),
         # confusion_matrix_metrics(
-        #     num_classes=benchmark.n_classes, save_image=False, stream=True, wandb=True
+        #     num_classes=benchmark.n_classes,
+        #     save_image=False,
+        #     stream=True,
+        #     wandb=is_using_wandb,
         # ),
         suppress_warnings=True,
         loggers=evaluation_loggers,

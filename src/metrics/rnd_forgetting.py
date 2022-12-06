@@ -29,10 +29,10 @@ class RNDStreamForgetting(GenericStreamForgetting):
         loss = 0
 
         if self.with_rnd_loss:
-            loss += rn_loss
+            loss -= rn_loss
 
         if self.with_downstream_loss:
-            loss += downstream_loss
+            loss -= downstream_loss
 
         self._current_metric.update(loss, 1)
 
@@ -72,10 +72,10 @@ class RNDExperienceForgetting(GenericExperienceForgetting):
         loss = 0
 
         if self.with_rnd_loss:
-            loss += rn_loss
+            loss -= rn_loss
 
         if self.with_downstream_loss:
-            loss += downstream_loss
+            loss -= downstream_loss
 
         self._current_metric.update(loss, 1)
 

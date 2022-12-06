@@ -20,6 +20,7 @@ class RND(pl.LightningModule):
         num_random_images: int,
         l2_threshold: float,
         *,
+        image_generation_batch_size: int = 10,
         rnd_latent_dim: int = 200,
         num_classes: int = 100,
         num_generation_attempts: int = 20,
@@ -31,6 +32,7 @@ class RND(pl.LightningModule):
         self.num_random_images = num_random_images
         self.l2_threshold = l2_threshold
         self.num_generation_attempts = num_generation_attempts
+        self.image_generation_batch_size = image_generation_batch_size
 
         # Random network
         self.random_network = nn.Sequential(
@@ -52,7 +54,7 @@ class RND(pl.LightningModule):
         # classification output.
         self.module = nn.Sequential(
             nn.Conv2d(1, 3, 3),
-            models.resnet152(pretrained=False),
+            models.resnet18(),
         )
         self.downstream_head = nn.Sequential(
             nn.Linear(1000 - self.rnd_latent_dim, 200),
@@ -78,24 +80,31 @@ class RND(pl.LightningModule):
                 if len(samples) >= self.num_random_images:
                     break
 
-                random_x = self.generator.generate(
-                    self.num_random_images * self.num_classes, device=self.device
-                )
+                for _ in range(
+                    self.num_random_images
+                    * self.num_classes
+                    // self.image_generation_batch_size
+                ):
+                    random_x = self.generator.generate(
+                        self.image_generation_batch_size, device=self.device
+                    )
 
-                # Perform forward step on randomly generated data
-                random_rn_target = self.random_network(random_x)
-                random_module_output = self.module(random_x)
+                    # Perform forward step on randomly generated data
+                    random_rn_target = self.random_network(random_x)
+                    random_module_output = self.module(random_x)
 
-                random_module_rn_pred = random_module_output[:, : self.rnd_latent_dim]
+                    random_module_rn_pred = random_module_output[
+                        :, : self.rnd_latent_dim
+                    ]
 
-                # Compute mask based on given l2 threshold
-                # then we apply it to network prediction and targets for random data
-                threshold_mask = (random_module_rn_pred - random_rn_target).pow(2).mean(
-                    dim=1
-                ) < self.l2_threshold
+                    # Compute mask based on given l2 threshold
+                    # then we apply it to network prediction and targets for random data
+                    threshold_mask = (random_module_rn_pred - random_rn_target).pow(
+                        2
+                    ).mean(dim=1) < self.l2_threshold
 
-                if threshold_mask.any():
-                    samples.append(random_x[threshold_mask])
+                    if threshold_mask.any():
+                        samples.append(random_x[threshold_mask])
 
                 image_generation_attempts += 1
 
@@ -126,21 +135,26 @@ class RND(pl.LightningModule):
 
     def forward(
         self, x: torch.Tensor, task_label: t.Optional[torch.Tensor] = None
-    ) -> t.Tuple[torch.Tensor, torch.Tensor]:
-        return self.random_network(x), self.module(x)
+    ) -> t.Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        rn_target = self.random_network(x)
+        module_output = self.module(x)
+
+        module_rn_pred = module_output[:, : self.rnd_latent_dim]
+        module_downstream_pred = module_output[:, self.rnd_latent_dim :]
+        module_downstream_pred = self.downstream_head(module_downstream_pred)
+
+        return rn_target, module_rn_pred, module_downstream_pred
 
     def criterion(
-        self, x: t.Tuple[torch.Tensor, torch.Tensor], y: t.Optional[torch.Tensor] = None
+        self,
+        x: t.Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+        y: t.Optional[torch.Tensor] = None,
     ) -> t.Tuple[torch.Tensor, torch.Tensor]:
 
         """
         module_output is a tensor with dim = (batch_size, 1000)
         """
-        rn_target, module_output = x
-
-        module_rn_pred = module_output[:, : self.rnd_latent_dim]
-        module_downstream_pred = module_output[:, self.rnd_latent_dim :]
-        module_downstream_pred = self.downstream_head(module_downstream_pred)
+        rn_target, module_rn_pred, module_downstream_pred = x
 
         # Compute losses
         rnd_loss = self.rnd_loss(module_rn_pred, rn_target)
@@ -185,10 +199,7 @@ class RND(pl.LightningModule):
             )
             self.log_with_postfix(f"train/loss", loss)
 
-        return loss
-
-    def training_epoch_end(self, outputs: EPOCH_OUTPUT) -> None:
-        ...
+        return {"loss": loss, "forward_output": x}
 
     def validation_step(self, batch, batch_idx):
         x, y, *_ = batch
@@ -203,7 +214,7 @@ class RND(pl.LightningModule):
             self.log_with_postfix("val/downstream_loss", downstream_loss)
             self.log_with_postfix("val/loss", loss)
 
-        return loss
+        return {"loss": loss, "forward_output": x}
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.module.parameters(), lr=1e-3)
