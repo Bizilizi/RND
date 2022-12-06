@@ -36,7 +36,7 @@ class ExperienceAccuracy(AccuracyPluginMetric):
         self._accuracy.update(module_downstream_pred, strategy.mb_y, task_labels)
 
     def __str__(self):
-        return "Top1_Acc_Exp"
+        return "test/top1_acc_exp"
 
 
 class StreamAccuracy(AccuracyPluginMetric):
@@ -71,7 +71,7 @@ class StreamAccuracy(AccuracyPluginMetric):
         self._accuracy.update(module_downstream_pred, strategy.mb_y, task_labels)
 
     def __str__(self):
-        return "Top1_Acc_Stream"
+        return "test/top1_acc_stream"
 
 
 def rnd_accuracy_metrics(

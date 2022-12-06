@@ -10,14 +10,15 @@ from avalanche.evaluation.metrics import (
 
 class RNDWandBStreamConfusionMatrix(WandBStreamConfusionMatrix):
     def after_eval_iteration(self, strategy: "SupervisedTemplate"):
-        super(WandBStreamConfusionMatrix, self).after_eval_iteration(strategy)
         _, _, module_downstream_pred = strategy.mb_output
         self.update(module_downstream_pred, strategy.mb_y)
+
+    def __str__(self):
+        return "test/W&BConfusion_matrix_stream"
 
 
 class RNDStreamConfusionMatrix(StreamConfusionMatrix):
     def after_eval_iteration(self, strategy: "SupervisedTemplate") -> None:
-        super().after_eval_iteration(strategy)
         _, _, module_downstream_pred = strategy.mb_output
         self.update(module_downstream_pred, strategy.mb_y)
 

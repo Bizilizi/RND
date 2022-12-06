@@ -6,6 +6,7 @@ import torch.nn as nn
 from avalanche.benchmarks import CLExperience
 from avalanche.training.templates.base import ExpSequence
 from pytorch_lightning.utilities.types import EPOCH_OUTPUT
+from torch import no_grad
 from torchvision import models
 
 from src.model.rnd.generator import ImageGenerator
@@ -169,12 +170,29 @@ class RND(pl.LightningModule):
 
         return rnd_loss, downstream_loss
 
+    @torch.no_grad()
+    def accuracy_criterion(
+        self,
+        x: t.Tuple[torch.Tensor, torch.Tensor, torch.Tensor],
+        y: torch.Tensor,
+    ) -> t.Tuple[torch.Tensor, torch.Tensor]:
+
+        """
+        module_output is a tensor with dim = (batch_size, 1000)
+        """
+        _, _, module_downstream_pred = x
+
+        accuracy = (module_downstream_pred.argmax(dim=1) == y).float().mean()
+
+        return accuracy
+
     def training_step(self, batch, batch_idx):
         x, y, *_ = batch
 
         # Compute losses
         x = self.forward(x)
         rnd_loss, downstream_loss = self.criterion(x, y)
+        accuracy = self.accuracy_criterion(x, y)
 
         # Perform forward step on randomly generated data if necessary
         if self.keep_sampling:
@@ -198,6 +216,7 @@ class RND(pl.LightningModule):
                 downstream_loss,
             )
             self.log_with_postfix(f"train/loss", loss)
+            self.log_with_postfix("train/accuracy", accuracy)
 
         return {"loss": loss, "forward_output": x}
 
@@ -207,12 +226,15 @@ class RND(pl.LightningModule):
         # Compute losses
         x = self.forward(x)
         rnd_loss, downstream_loss = self.criterion(x, y)
+        accuracy = self.accuracy_criterion(x, y)
+
         loss = rnd_loss + downstream_loss
 
         if self.keep_logging:
             self.log_with_postfix("val/rnd_loss", rnd_loss)
             self.log_with_postfix("val/downstream_loss", downstream_loss)
             self.log_with_postfix("val/loss", loss)
+            self.log_with_postfix("val/accuracy", accuracy)
 
         return {"loss": loss, "forward_output": x}
 

@@ -42,7 +42,7 @@ class PLTrainLoopToAvalancheTrainLoopCallback(Callback):
         batch: t.Any,
         batch_idx: int,
     ) -> None:
-        self.strategy.mb_output = STEP_OUTPUT
+        self.strategy.mb_output = outputs["forward_output"]
         self.strategy._after_training_iteration(**self.kwargs)
 
     def on_before_backward(

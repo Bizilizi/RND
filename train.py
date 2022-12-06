@@ -18,6 +18,7 @@ from src.loggers.interactive_wandb import InteractiveWandBLogger
 from src.metrics.rnd_accuracy import rnd_accuracy_metrics
 from src.metrics.rnd_confusion_matrix import rnd_confusion_matrix_metrics
 from src.metrics.rnd_forgetting import rnd_forgetting_metrics
+from src.metrics.rnd_loss import rnd_loss_metrics
 from src.model.rnd.gan_generator import MNISTGanGenerator
 from src.model.rnd.rnd import RND
 from src.strategies.naive_pl import NaivePytorchLightning
@@ -130,6 +131,7 @@ def train_loop(
             stream=True,
             wandb=is_using_wandb,
         ),
+        rnd_loss_metrics(experience=True, stream=True),
         suppress_warnings=True,
         loggers=evaluation_loggers,
     )
@@ -139,7 +141,7 @@ def train_loop(
 
         train_logger = pl_loggers.WandbLogger(
             project=wandb_params["project"],
-            log_model="all",
+            log_model=False,
             experiment=wandb.run,
         )
         train_logger.watch(model)
