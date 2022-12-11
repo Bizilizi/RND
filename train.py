@@ -2,6 +2,7 @@ import argparse
 import datetime
 import logging
 import typing as t
+from collections import defaultdict
 from configparser import ConfigParser
 
 import torch
@@ -22,34 +23,11 @@ from src.metrics.rnd_loss import rnd_loss_metrics
 from src.model.rnd.gan_generator import MNISTGanGenerator
 from src.model.rnd.rnd import RND
 from src.strategies.naive_pl import NaivePytorchLightning
+from src.utils.summary_table import log_summary_table_to_wandb
+from src.utils.train_script import overwrite_config, parse_arguments
 
 # configure logging at the root level of Lightning
 logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
-
-
-def overwrite_config(cli_args, config):
-    """The method overwrites config fields with passed to cli arguments"""
-
-    for k, v in vars(cli_args).items():
-        if hasattr(config, k):
-            setattr(config, k, type(getattr(config, k))(v))
-
-
-def parse_arguments(parser):
-    """
-    This method constructs a new parser for cli command with new unregisters
-    arguments with str type and runs `parse_args` on it.
-    """
-
-    parsed, unknown = parser.parse_known_args()
-
-    for arg in unknown:
-        if arg.startswith(("-", "--")):
-            # you can pass any arguments to add_argument
-            parser.add_argument(arg.split("=")[0], type=str)
-
-    args = parser.parse_args()
-    return args
 
 
 def train_loop(
@@ -57,6 +35,7 @@ def train_loop(
     experiment_name: str,
     resume_from: t.Optional[str] = None,
     run_id: t.Optional[str] = None,
+    seed: int = 42,
 ) -> None:
     """
 
@@ -89,7 +68,7 @@ def train_loop(
         wandb_params = None
 
     # Create benchmark and model
-    benchmark = SplitMNIST(n_experiences=10)
+    benchmark = SplitMNIST(n_experiences=10, seed=seed)
 
     assert config.generator_checkpoint, "Generator checkpoint is necessary to provide!"
     generator = MNISTGanGenerator(input_dim=config.input_dim, output_dim=784)
@@ -182,6 +161,9 @@ def train_loop(
         cl_strategy.train(train_experience, [test_experience])
         results.append(cl_strategy.eval(benchmark.test_stream))
 
+    if is_using_wandb:
+        log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Model trainer")
@@ -246,6 +228,7 @@ if __name__ == "__main__":
             experiment_name=args.experiment_name,
             resume_from=args.resume_from,
             run_id=args.run_id,
+            seed=args.seed,
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")
