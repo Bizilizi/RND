@@ -5,3 +5,4 @@ wandb==0.12.21
 pandas
 pytorch-lightning==1.6.5
 avalanche-lib==0.2.1
+torchvision==0.13.0
