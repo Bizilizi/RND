@@ -195,6 +195,7 @@ class RND(pl.LightningModule):
         accuracy = self.accuracy_criterion(x, y)
 
         # Perform forward step on randomly generated data if necessary
+        random_x = None
         if self.keep_sampling:
             random_x = self._generate_random_images_with_low_l2()
 
@@ -218,7 +219,7 @@ class RND(pl.LightningModule):
             self.log_with_postfix(f"train/loss", loss)
             self.log_with_postfix("train/accuracy", accuracy)
 
-        return {"loss": loss, "forward_output": x}
+        return {"loss": loss, "forward_output": x, "random_x": random_x}
 
     def validation_step(self, batch, batch_idx):
         x, y, *_ = batch
