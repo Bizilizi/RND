@@ -4,11 +4,11 @@ from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
 from pytorch_lightning import Trainer
-from torch.utils.data import Subset
 
 from src.callbacks.lightning_training_to_avalanche import (
     PLTrainLoopToAvalancheTrainLoopCallback,
 )
+from src.callbacks.log_generated_images import LogSampledImagesCallback
 
 if t.TYPE_CHECKING:
     from pytorch_lightning.loggers import Logger
@@ -22,12 +22,15 @@ class NaivePytorchLightning(Naive):
     uses trainer from the Pytorch Lightning instead.
     """
 
+    experience_step: int
+
     def __init__(
         self,
         train_logger: t.Optional["Logger"],
         train_mb_num_workers: int = 2,
         resume_from: t.Optional[str] = None,
-        gpus: t.Optional[str] = None,
+        accelerator: str = "cpu",
+        devices: str = "0,",
         validate_every_n: int = 1,
         accumulate_grad_batches: t.Optional[int] = None,
         *args,
@@ -38,7 +41,8 @@ class NaivePytorchLightning(Naive):
         self.train_mb_num_workers = train_mb_num_workers
         self.accumulate_grad_batches = accumulate_grad_batches
         self.validate_every_n = validate_every_n
-        self.gpus = gpus
+        self.accelerator = accelerator
+        self.devices = devices
         super().__init__(*args, **kwargs)
 
         self.experience_step = 0
@@ -61,13 +65,15 @@ class NaivePytorchLightning(Naive):
 
         # Training
         trainer = Trainer(
-            gpus=self.gpus,
             check_val_every_n_epoch=self.validate_every_n,
+            accelerator=self.accelerator,
+            devices=self.devices,
             logger=self.train_logger,
             log_every_n_steps=1,
             max_epochs=self.train_epochs,
             callbacks=[
                 PLTrainLoopToAvalancheTrainLoopCallback(self, **kwargs),
+                LogSampledImagesCallback(strategy=self, num_images=10),
                 # LogModelWightsCallback(log_every=self.config.validate_every_n),
             ],
             accumulate_grad_batches=self.accumulate_grad_batches,

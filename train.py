@@ -46,8 +46,10 @@ def train_loop(
     :return:
     """
     # Get device
-    if config.gpus:
+    if config.accelerator == "gpu":
         device = torch.device("cuda")
+    elif config.accelerator == "mps":
+        device = torch.device("mps")
     else:
         device = torch.device("cpu")
 
@@ -73,7 +75,7 @@ def train_loop(
     assert config.generator_checkpoint, "Generator checkpoint is necessary to provide!"
     generator = MNISTGanGenerator(input_dim=config.input_dim, output_dim=784)
     generator.load_state_dict(
-        torch.load(config.generator_checkpoint, map_location=device)
+        torch.load(config.generator_checkpoint, map_location=torch.device("cpu"))
     )
     generator.to(device)
 
@@ -133,7 +135,8 @@ def train_loop(
         train_logger = None
 
     cl_strategy = NaivePytorchLightning(
-        gpus=config.gpus,
+        accelerator=config.accelerator,
+        devices=config.devices,
         validate_every_n=config.validate_every_n,
         accumulate_grad_batches=config.accumulate_grad_batches,
         train_logger=train_logger,

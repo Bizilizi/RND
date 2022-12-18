@@ -5,7 +5,8 @@ from pydantic import BaseModel
 
 class TrainConfig(BaseModel):
     # Training
-    gpus: str
+    accelerator: str
+    devices: str
     batch_size: int
     max_epochs: int
     validate_every_n: int
