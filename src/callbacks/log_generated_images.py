@@ -3,7 +3,9 @@ import typing as t
 import torch
 import wandb
 from pytorch_lightning.callbacks import Callback
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.types import STEP_OUTPUT
+from PIL import Image
 
 if t.TYPE_CHECKING:
     from src.strategies.naive_pl import NaivePytorchLightning
@@ -40,10 +42,12 @@ class LogSampledImagesCallback(Callback):
             else:
                 images_idx = torch.arange(0, self.num_images)
 
-            torch_images = random_x[images_idx]
+            torch_images = random_x[images_idx].squeeze()
+
             artifact_images = [
                 wandb.Image(
-                    torch_images[i][0],
+                    self._rescale_image(torch_images[i]).cpu().numpy(),
+                    caption=f"random_image/ex_{self.strategy.experience_step}/gs_{trainer.global_step}",
                 )
                 for i in range(torch_images.shape[0])
             ]
@@ -55,10 +59,22 @@ class LogSampledImagesCallback(Callback):
     def on_fit_end(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        wandb.log(
-            {f"train/generated_images_{self.strategy.experience_step}": self.data_table}
-        )
-        self.data_table = None
+
+        for logger in trainer.loggers:
+            if isinstance(logger, WandbLogger):
+                wandb.log(
+                    {
+                        f"train/generated_images_{self.strategy.experience_step}": self.data_table
+                    }
+                )
+                self.data_table = None
+
+    @staticmethod
+    def _rescale_image(image):
+        image = torch.clone(image)
+        image = (image - image.min()) / image.max() * 255
+
+        return image.int()
 
     def _init_table(self):
         # Create table

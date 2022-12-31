@@ -25,6 +25,7 @@ class TrainConfig(BaseModel):
     num_random_images: int
     l2_threshold: float
     rnd_latent_dim: int
+    generator_type: str
     generator_checkpoint: str
 
     @staticmethod

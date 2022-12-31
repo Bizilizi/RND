@@ -12,6 +12,7 @@ from avalanche.logging import InteractiveLogger
 from avalanche.training.plugins import EvaluationPlugin
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import seed_everything
+from torchvision.transforms import Compose, ToTensor, Normalize
 
 import wandb
 from src.configuration.config import TrainConfig
@@ -22,12 +23,14 @@ from src.metrics.rnd_forgetting import rnd_forgetting_metrics
 from src.metrics.rnd_loss import rnd_loss_metrics
 from src.model.rnd.gan_generator import MNISTGanGenerator
 from src.model.rnd.rnd import RND
+from src.model.rnd.vae_generator import MNISTVaeLinearGenerator
 from src.strategies.naive_pl import NaivePytorchLightning
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config, parse_arguments
 
 # configure logging at the root level of Lightning
 logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+_default_mnist_train_transform = Compose([Normalize((0.1307,), (0.3081,))])
 
 
 def train_loop(
@@ -73,7 +76,19 @@ def train_loop(
     benchmark = SplitMNIST(n_experiences=10, seed=seed)
 
     assert config.generator_checkpoint, "Generator checkpoint is necessary to provide!"
-    generator = MNISTGanGenerator(input_dim=config.input_dim, output_dim=784)
+    if config.generator_type == "gan":
+        generator = MNISTGanGenerator(input_dim=config.input_dim, output_dim=784)
+    elif config.generator_type == "vae":
+        generator = MNISTVaeLinearGenerator(
+            x_dim=784,
+            h_dim1=512,
+            h_dim2=256,
+            z_dim=2,
+            transforms=_default_mnist_train_transform,
+        )
+    else:
+        raise AssertionError("Unknown type of generator!")
+
     generator.load_state_dict(
         torch.load(config.generator_checkpoint, map_location=torch.device("cpu"))
     )

@@ -18,6 +18,12 @@ torchaudio = "^0.12.0"
 pytorch-lightning = "^1.6.5"
 avalanche-lib = "^0.2.1"
 
+[tool.poetry.group.dev.dependencies]
+lovely-tensors = "^0.1.10"
+jupyterlab = "^3.5.1"
+ipywidgets = "^8.0.3"
+
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
