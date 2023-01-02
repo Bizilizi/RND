@@ -72,8 +72,11 @@ class RND(pl.LightningModule):
         self.keep_logging = True  # Log data and losses to logger
         self.keep_sampling = True  # Sample random images and add them to the batch
 
-    def _generate_random_images_with_low_l2(self) -> t.Optional[torch.Tensor]:
+    def _generate_random_images_with_low_l2(
+        self,
+    ) -> t.Optional[t.Tuple[torch.Tensor, torch.Tensor]]:
         samples = []
+        samples_rnd_loss = []
         image_generation_attempts = 0
 
         with torch.no_grad():
@@ -100,12 +103,14 @@ class RND(pl.LightningModule):
 
                     # Compute mask based on given l2 threshold
                     # then we apply it to network prediction and targets for random data
-                    threshold_mask = (random_module_rn_pred - random_rn_target).pow(
-                        2
-                    ).mean(dim=1) < self.l2_threshold
+                    rnd_loss = (
+                        (random_module_rn_pred - random_rn_target).pow(2).mean(dim=1)
+                    )
+                    threshold_mask = rnd_loss < self.l2_threshold
 
                     if threshold_mask.any():
                         samples.append(random_x[threshold_mask])
+                        samples_rnd_loss.append(rnd_loss[threshold_mask])
 
                 image_generation_attempts += 1
 
@@ -130,7 +135,7 @@ class RND(pl.LightningModule):
             )
 
         if samples:
-            return torch.cat(samples)
+            return torch.cat(samples), torch.cat(samples_rnd_loss)
 
         return None
 
@@ -196,8 +201,12 @@ class RND(pl.LightningModule):
 
         # Perform forward step on randomly generated data if necessary
         random_images = None
+        random_images_rnd_loss = None
         if self.keep_sampling:
-            random_images = self._generate_random_images_with_low_l2()
+            (
+                random_images,
+                random_images_rnd_loss,
+            ) = self._generate_random_images_with_low_l2()
 
             if random_images is not None:
                 random_x = self.forward(random_images)
@@ -219,7 +228,12 @@ class RND(pl.LightningModule):
             self.log_with_postfix(f"train/loss", loss)
             self.log_with_postfix("train/accuracy", accuracy)
 
-        return {"loss": loss, "forward_output": x, "random_images": random_images}
+        return {
+            "loss": loss,
+            "forward_output": x,
+            "random_images": random_images,
+            "random_images_rnd_loss": random_images_rnd_loss,
+        }
 
     def validation_step(self, batch, batch_idx):
         x, y, *_ = batch

@@ -32,6 +32,7 @@ class LogSampledImagesCallback(Callback):
         batch_idx: int,
     ) -> None:
         random_x = outputs["random_images"]
+        random_images_rnd_loss = outputs["random_images_rnd_loss"]
 
         if self.data_table is None:
             self._init_table()
@@ -52,8 +53,13 @@ class LogSampledImagesCallback(Callback):
                 for i in range(torch_images.shape[0])
             ]
 
+            artifact_data = [
+                el
+                for pair in zip(artifact_images, random_images_rnd_loss)
+                for el in pair
+            ]
             self.data_table.add_data(
-                self.strategy.experience_step, trainer.global_step, *artifact_images
+                self.strategy.experience_step, trainer.global_step, *artifact_data
             )
 
     def on_fit_end(
@@ -78,7 +84,8 @@ class LogSampledImagesCallback(Callback):
 
     def _init_table(self):
         # Create table
-        columns = ["experience_step", "train_step"] + [
-            f"img_{i}" for i in range(self.num_images)
-        ]
+        image_columns = [(f"img_{i}", f"rnd_{i}") for i in range(self.num_images)]
+        image_columns = [el for pair in image_columns for el in pair]
+
+        columns = ["experience_step", "train_step"] + image_columns
         self.data_table = wandb.Table(columns=columns)
