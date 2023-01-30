@@ -5,15 +5,15 @@ from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
 from pytorch_lightning import Trainer
 
-from src.callbacks.lightning_training_to_avalanche import (
+from src.avalanche.callbacks.lightning_training_to_avalanche import (
     PLTrainLoopToAvalancheTrainLoopCallback,
 )
-from src.callbacks.log_generated_images import LogSampledImagesCallback
+from src.rnd.callbacks.log_generated_images import LogSampledImagesCallback
 
 if t.TYPE_CHECKING:
     from pytorch_lightning.loggers import Logger
 
-from src.data.default_pl_module import PLDataModule
+from src.avalanche.data.default_pl_module import PLDataModule
 
 
 class NaivePytorchLightning(Naive):

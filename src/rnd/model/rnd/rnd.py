@@ -3,13 +3,9 @@ import typing as t
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from avalanche.benchmarks import CLExperience
-from avalanche.training.templates.base import ExpSequence
-from pytorch_lightning.utilities.types import EPOCH_OUTPUT
-from torch import no_grad
 from torchvision import models
 
-from src.model.rnd.generator import ImageGenerator
+from src.rnd.model.rnd.generator import ImageGenerator
 
 
 class RND(pl.LightningModule):

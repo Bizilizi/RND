@@ -5,10 +5,9 @@ import wandb
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.types import STEP_OUTPUT
-from PIL import Image
 
 if t.TYPE_CHECKING:
-    from src.strategies.naive_pl import NaivePytorchLightning
+    from src.avalanche.strategies.naive_pl import NaivePytorchLightning
 
 
 class LogSampledImagesCallback(Callback):

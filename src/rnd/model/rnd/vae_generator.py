@@ -5,7 +5,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 
-from src.model.rnd.generator import ImageGenerator
+from src.rnd.model.rnd.generator import ImageGenerator
 
 
 class MNISTVaeLinearGenerator(nn.Module):
