@@ -1,108 +1,185 @@
 import argparse
+import datetime
+import logging
 import typing as t
 from configparser import ConfigParser
 
-import wandb
+import torch
 from avalanche.benchmarks import SplitMNIST
-from avalanche.evaluation.metrics import (
-    accuracy_metrics,
-    confusion_matrix_metrics,
-    cpu_usage_metrics,
-    disk_usage_metrics,
-    forgetting_metrics,
-    loss_metrics,
-    timing_metrics,
-)
+from avalanche.evaluation.metrics import timing_metrics
 from avalanche.logging import InteractiveLogger
 from avalanche.training.plugins import EvaluationPlugin
 from pytorch_lightning import loggers as pl_loggers
 from pytorch_lightning import seed_everything
+from torchvision.transforms import Compose, Normalize
 
-from src.configuration.config import TrainConfig
-from src.model.simple_mlp import PLSimpleMLP
-from src.strategies.naive_pl import NaivePytorchLightning
+import wandb
+from src.rnd.configuration import TrainConfig
+from src.avalanche.loggers.interactive_wandb import InteractiveWandBLogger
+from src.rnd.metrics.rnd_accuracy import rnd_accuracy_metrics
+from src.rnd.metrics.rnd_confusion_matrix import rnd_confusion_matrix_metrics
+from src.rnd.metrics.rnd_forgetting import rnd_forgetting_metrics
+from src.rnd.metrics.rnd_loss import rnd_loss_metrics
+from src.rnd.model.rnd.gan_generator import MNISTGanGenerator
+from src.rnd.model.rnd.rnd import RND
+from src.rnd.model.rnd.vae_generator import MNISTVaeLinearGenerator
+from src.avalanche.strategies import NaivePytorchLightning
+from src.utils.summary_table import log_summary_table_to_wandb
+from src.utils.train_script import overwrite_config, parse_arguments
 
-
-def overwrite_config(cli_args, config):
-    """The method overwrites config fields with passed to cli arguments"""
-
-    for k, v in vars(cli_args).items():
-        if hasattr(config, k):
-            setattr(config, k, type(getattr(config, k))(v))
-
-
-def parse_arguments(parser):
-    """
-    This method constructs a new parser for cli command with new unregisters
-    arguments with str type and runs `parse_args` on it.
-    """
-
-    parsed, unknown = parser.parse_known_args()
-
-    for arg in unknown:
-        if arg.startswith(("-", "--")):
-            # you can pass any arguments to add_argument
-            parser.add_argument(arg.split("=")[0], type=str)
-
-    args = parser.parse_args()
-    return args
+# configure logging at the root level of Lightning
+logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+_default_mnist_train_transform = Compose([Normalize((0.1307,), (0.3081,))])
 
 
 def train_loop(
     config: TrainConfig,
+    experiment_name: str,
     resume_from: t.Optional[str] = None,
     run_id: t.Optional[str] = None,
     seed: int = 42,
 ) -> None:
-    # Create benchmark
+    """
+
+    :param config: Train config
+    :param resume_from: Path to checkpoint with model weights
+    :param run_id: Weight&Biases id of the run
+    :param experiment_name: Name of experiment
+    :return:
+    """
+    # Get device
+    if config.accelerator == "gpu":
+        device = torch.device("cuda")
+    elif config.accelerator == "mps":
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+
+    # Construct wandb params if necessary
+    is_using_wandb = (
+        config.train_logger == "wandb" or config.evaluation_logger == "wandb"
+    )
+    if is_using_wandb:
+        wandb_params = dict(
+            project="RND",
+            id=run_id,
+            entity="vgg-continual-learning",
+            config=dict(config),
+            name=experiment_name,
+        )
+        wandb.init(**wandb_params)
+    else:
+        wandb_params = None
+
+    # Create benchmark and model
     benchmark = SplitMNIST(n_experiences=5, seed=seed)
 
-    # Instantiate model
-    model = PLSimpleMLP(learning_rate=0.005, num_classes=10)
-
-    # Create loggers
-    if config.logger_type == "wandb":
-        wandb.init(project="RND", id=run_id, entity="ewriji", config=dict(config))
-        logger = pl_loggers.WandbLogger(project="RND", log_model="all")
-        logger.watch(model)
-    elif config.logger_type == "tensorboard":
-        logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
+    assert config.generator_checkpoint, "Generator checkpoint is necessary to provide!"
+    if config.generator_type == "gan":
+        generator = MNISTGanGenerator(input_dim=config.input_dim, output_dim=784)
+    elif config.generator_type == "vae":
+        generator = MNISTVaeLinearGenerator(
+            x_dim=784,
+            h_dim1=512,
+            h_dim2=256,
+            z_dim=2,
+            transforms=_default_mnist_train_transform,
+        )
     else:
-        logger = None
+        raise AssertionError("Unknown type of generator!")
 
-    interactive_logger = InteractiveLogger()
+    generator.load_state_dict(
+        torch.load(config.generator_checkpoint, map_location=torch.device("cpu"))
+    )
+    generator.to(device)
+
+    model = RND(
+        generator=generator,
+        num_random_images=config.num_random_images,
+        l2_threshold=config.l2_threshold,
+        rnd_latent_dim=config.rnd_latent_dim,
+        num_classes=10,
+        num_generation_attempts=config.num_generation_attempts,
+    )
+
+    # Create Evaluation plugin
+    evaluation_loggers = []
+    if config.evaluation_logger == "wandb":
+        evaluation_loggers.append(
+            InteractiveWandBLogger(
+                project_name=wandb_params["project"],
+                run_name=wandb_params["name"],
+                config=wandb_params["config"],
+                params=wandb_params,
+            )
+        )
+    elif config.evaluation_logger == "interactive":
+        evaluation_loggers.append(InteractiveLogger())
 
     eval_plugin = EvaluationPlugin(
-        accuracy_metrics(minibatch=True, epoch=True, experience=True, stream=True),
-        loss_metrics(minibatch=True, epoch=True, experience=True, stream=True),
-        timing_metrics(epoch=True, epoch_running=True),
-        forgetting_metrics(experience=True, stream=True),
-        cpu_usage_metrics(experience=True),
-        confusion_matrix_metrics(
-            num_classes=benchmark.n_classes, save_image=False, stream=True
+        timing_metrics(epoch_running=True),
+        rnd_forgetting_metrics(experience=True, stream=True, accuracy=True),
+        rnd_accuracy_metrics(experience=True, stream=True),
+        rnd_confusion_matrix_metrics(
+            num_classes=benchmark.n_classes,
+            save_image=False,
+            stream=True,
+            wandb=is_using_wandb,
         ),
-        disk_usage_metrics(minibatch=True, epoch=True, experience=True, stream=True),
-        loggers=[interactive_logger],
+        rnd_loss_metrics(experience=True, stream=True),
+        suppress_warnings=True,
+        loggers=evaluation_loggers,
     )
 
     # Create avalanche strategy
+    if config.train_logger == "wandb":
+
+        train_logger = pl_loggers.WandbLogger(
+            project=wandb_params["project"],
+            log_model=False,
+            experiment=wandb.run,
+        )
+        train_logger.watch(model)
+
+        # Add CL step metric to wandb
+        # train_logger.experiment.define_metric("trainer/experience_step")
+    elif config.train_logger == "tensorboard":
+        train_logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
+    else:
+        train_logger = None
+
     cl_strategy = NaivePytorchLightning(
-        config=config,
-        train_logger=logger,
+        accelerator=config.accelerator,
+        devices=config.devices,
+        validate_every_n=config.validate_every_n,
+        accumulate_grad_batches=config.accumulate_grad_batches,
+        train_logger=train_logger,
         resume_from=resume_from,
         model=model,
+        device=device,
         optimizer=model.configure_optimizers(),
-        criterion=model.loss,
-        train_mb_size=100,
-        train_epochs=4,
-        eval_mb_size=100,
+        criterion=model.criterion,
+        train_mb_size=config.batch_size,
+        train_mb_num_workers=config.num_workers,
+        train_epochs=config.max_epochs,
+        eval_mb_size=config.batch_size,
         evaluator=eval_plugin,
     )
 
     results = []
-    for experience in benchmark.train_stream:
-        cl_strategy.train(experience)
+    for train_experience, test_experience in zip(
+        benchmark.train_stream, benchmark.test_stream
+    ):
+        if train_experience.current_experience == 0:
+            model.keep_sampling = False
+        else:
+            model.keep_sampling = True
+
+        cl_strategy.train(train_experience, [test_experience])
         results.append(cl_strategy.eval(benchmark.test_stream))
+
+    if is_using_wandb:
+        log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
 
 if __name__ == "__main__":
@@ -118,6 +195,13 @@ if __name__ == "__main__":
         nargs="?",
         type=str,
         help="path to resume model",
+        default=None,
+    )
+    parser.add_argument(
+        "--experiment_name",
+        nargs="?",
+        type=str,
+        help="Name of experiment",
         default=None,
     )
     parser.add_argument(
@@ -147,9 +231,21 @@ if __name__ == "__main__":
     config = TrainConfig.construct_typed_config(ini_config)
     overwrite_config(args, config)
 
+    # Generate experiment name if necessary
+    if args.experiment_name is None:
+        args.experiment_name = (
+            f"CL-train. Time: {datetime.datetime.now():%Y-%m-%d %H:%M}"
+        )
+
     # Run training process
     print(f"Running training process..")
     try:
-        train_loop(config, args.resume_from, args.run_id, args.seed)
+        train_loop(
+            config=config,
+            experiment_name=args.experiment_name,
+            resume_from=args.resume_from,
+            run_id=args.run_id,
+            seed=args.seed,
+        )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")

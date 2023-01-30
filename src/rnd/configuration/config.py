@@ -5,7 +5,8 @@ from pydantic import BaseModel
 
 class TrainConfig(BaseModel):
     # Training
-    gpus: str
+    accelerator: str
+    devices: str
     batch_size: int
     max_epochs: int
     validate_every_n: int
@@ -14,8 +15,19 @@ class TrainConfig(BaseModel):
     learning_rate: float
 
     # Logging
-    logger_type: str
+    evaluation_logger: str
+    train_logger: str
     logging_path: str
+
+    # Model
+    image_generation_batch_size: int
+    input_dim: int
+    num_random_images: int
+    num_generation_attempts: int = 20
+    l2_threshold: float
+    rnd_latent_dim: int
+    generator_type: str
+    generator_checkpoint: str
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
@@ -29,6 +41,7 @@ class TrainConfig(BaseModel):
         config = TrainConfig(
             **ini_config["training"],
             **ini_config["logging"],
+            **ini_config["model"],
         )
 
         return config
