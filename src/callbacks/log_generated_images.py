@@ -58,9 +58,7 @@ class LogSampledImagesCallback(Callback):
                 for pair in zip(artifact_images, random_images_rnd_loss)
                 for el in pair
             ]
-            self.data_table.add_data(
-                self.strategy.experience_step, trainer.global_step, *artifact_data
-            )
+            self.data_table.add_data()
 
     def on_fit_end(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -70,7 +68,7 @@ class LogSampledImagesCallback(Callback):
             if isinstance(logger, WandbLogger):
                 wandb.log(
                     {
-                        f"train/generated_images_{self.strategy.experience_step}": self.data_table
+                        f"train/generated_images/experience_step_{self.strategy.experience_step}": self.data_table
                     }
                 )
                 self.data_table = None

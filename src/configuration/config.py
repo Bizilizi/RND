@@ -23,6 +23,7 @@ class TrainConfig(BaseModel):
     image_generation_batch_size: int
     input_dim: int
     num_random_images: int
+    num_generation_attempts: int = 20
     l2_threshold: float
     rnd_latent_dim: int
     generator_type: str

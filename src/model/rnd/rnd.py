@@ -203,17 +203,19 @@ class RND(pl.LightningModule):
         random_images = None
         random_images_rnd_loss = None
         if self.keep_sampling:
-            (
-                random_images,
-                random_images_rnd_loss,
-            ) = self._generate_random_images_with_low_l2()
+            random_images_and_loss = self._generate_random_images_with_low_l2()
+            if random_images_and_loss:
+                (
+                    random_images,
+                    random_images_rnd_loss,
+                ) = random_images_and_loss
 
-            if random_images is not None:
-                random_x = self.forward(random_images)
-                random_rnd_loss, random_downstream_loss = self.criterion(random_x)
+                if random_images is not None:
+                    random_x = self.forward(random_images)
+                    random_rnd_loss, random_downstream_loss = self.criterion(random_x)
 
-                rnd_loss += random_rnd_loss
-                downstream_loss += random_downstream_loss
+                    rnd_loss += random_rnd_loss
+                    downstream_loss += random_downstream_loss
 
         loss = rnd_loss + downstream_loss
         if self.keep_logging:
