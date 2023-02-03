@@ -33,9 +33,9 @@ class NaivePytorchLightning(Naive):
         train_logger: t.Optional["Logger"],
         max_epochs: int,
         min_epochs: int,
-        restore_best_model: bool = False,
+        restore_best_model: bool = True,
         train_mb_num_workers: int = 2,
-        resume_from: t.Optional[str] = None,
+        initial_resume_from: t.Optional[str] = None,
         accelerator: str = "cpu",
         devices: str = "0,",
         validate_every_n: int = 1,
@@ -44,7 +44,7 @@ class NaivePytorchLightning(Naive):
         *args,
         **kwargs
     ) -> None:
-        self.resume_from = resume_from
+        self.initial_resume_from = initial_resume_from
         self.train_logger = train_logger
         self.train_mb_num_workers = train_mb_num_workers
         self.accumulate_grad_batches = accumulate_grad_batches
@@ -98,11 +98,16 @@ class NaivePytorchLightning(Naive):
             min_epochs=self.min_epochs,
             callbacks=self.callbacks,
             accumulate_grad_batches=self.accumulate_grad_batches,
-            resume_from_checkpoint="artifacts/cl_best_model/model"
-            if self.restore_best_model and self.experience_step > 0
-            else None,
         )
 
-        trainer.fit(self.model, datamodule=datamodule, ckpt_path=self.resume_from)
+        # Derive from which checkpoint ot resume training
+        if self.experience_step == 0 and self.initial_resume_from:
+            resume_from = self.initial_resume_from
+        elif self.experience_step > 0 and self.restore_best_model:
+            resume_from = "artifacts/cl_best_model/model"
+        else:
+            resume_from = None
+
+        trainer.fit(self.model, datamodule=datamodule, ckpt_path=resume_from)
 
         self.experience_step += 1
