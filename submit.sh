@@ -9,16 +9,7 @@
 #SBATCH --mem=12gb                          # Job memory request
 #SBATCH --partition=gpu                     # Partition (compute (default) / gpu)
 #SBATCH --gres=gpu:1                        # Requesting 1 GPUs
-#SBATCH --constraint=p40
+#SBATCH --constraint=p40,m40
 # -------------------------------
-export PATH=/users/dzverev/.conda/envs/cl/bin:$PATH
-export PYTHONPATH=\“${BASE}\“:$PYTHONPATH
-eval “$(conda shell.bash hook)”
-conda activate cl
-echo “Starting job w sPAIR”
-echo “$(pwd)”
-echo “$(nvidia-smi)”
-python train.py --model vae-ft \
---config src/vae_ft/configuration/train.ini \
---train_logger wandb \
---evaluation_logger wandb
+nvidia-smi
+eval "$1"
