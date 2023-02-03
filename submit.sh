@@ -12,4 +12,4 @@
 #SBATCH --constraint=p40,m40
 # -------------------------------
 nvidia-smi
-eval "$1"
+eval "$@"
