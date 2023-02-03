@@ -88,14 +88,12 @@ class NaivePytorchLightning(Naive):
 
         # Training
         trainer = Trainer(
-            check_val_every_n_epoch=self.validate_every_n,
             accelerator=self.accelerator,
             devices=self.devices,
             logger=self.train_logger,
             max_epochs=self.max_epochs,
             min_epochs=self.min_epochs,
             callbacks=self.callbacks,
-            accumulate_grad_batches=self.accumulate_grad_batches,
         )
 
         # Derive from which checkpoint ot resume training
