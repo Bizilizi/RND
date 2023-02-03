@@ -12,13 +12,20 @@ class RestoreBestPerformingModel(ModelCheckpoint):
     It later used by NaivePytorchLightning to restore weight before next CL step.
     """
 
-    def __init__(self, monitor: str, *args, **kwargs):
+    def __init__(self, monitor: str, mode: str, *args, **kwargs):
         self._monitor = monitor
+        self.mode = mode
+
+        self.args = (monitor, args)
+        self.kwargs = kwargs
+
         super().__init__(
             dirpath="artifacts/cl_best_model",
             filename="model",
             save_top_k=1,
             monitor=monitor,
+            mode=mode,
+            verbose=True,
             *args,
             **kwargs,
         )
@@ -28,11 +35,21 @@ class RestoreBestPerformingModel(ModelCheckpoint):
     ) -> None:
         experience_step = trainer.model.experience_step
 
-        self.current_score = None
-        self.best_k_models = {}
-        self.kth_best_model_path = ""
-        self.best_model_score = None
-        self.best_model_path = ""
-        self.last_model_path = ""
+        monitor, args = self.args
 
-        self.monitor = f"{self._monitor}/experience_step_{experience_step}"
+        super().__init__(
+            dirpath="artifacts/cl_best_model",
+            filename="model",
+            save_top_k=1,
+            monitor=f"{self._monitor}/experience_step_{experience_step}",
+            mode=self.mode,
+            verbose=True,
+            *args,
+            **self.kwargs,
+        )
+
+    def on_fit_end(
+        self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
+    ) -> None:
+        monitor_candidates = self._monitor_candidates(trainer)
+        self._save_topk_checkpoint(trainer, monitor_candidates)

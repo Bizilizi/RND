@@ -62,9 +62,7 @@ class NaivePytorchLightning(Naive):
         )
         if self.restore_best_model:
             self.callbacks.append(
-                RestoreBestPerformingModel(
-                    monitor="val/loss",
-                )
+                RestoreBestPerformingModel(monitor="val/loss", mode="min")
             )
 
         super().__init__(*args, **kwargs)
