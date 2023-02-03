@@ -1,10 +1,11 @@
 import typing as t
 
 import torch
-import wandb
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.types import STEP_OUTPUT
+
+import wandb
 
 if t.TYPE_CHECKING:
     from src.avalanche.strategies.naive_pl import NaivePytorchLightning
@@ -13,13 +14,11 @@ if t.TYPE_CHECKING:
 class LogSampledImagesCallback(Callback):
     def __init__(
         self,
-        strategy: "NaivePytorchLightning",
         num_images: int,
         sample_randomly: bool = True,
     ):
         self.num_images = num_images
         self.sample_randomly = sample_randomly
-        self.strategy = strategy
         self.data_table = None
 
     def on_train_batch_end(
@@ -47,7 +46,7 @@ class LogSampledImagesCallback(Callback):
             artifact_images = [
                 wandb.Image(
                     self._rescale_image(torch_images[i]).cpu().numpy(),
-                    caption=f"random_image/ex_{self.strategy.experience_step}/gs_{trainer.global_step}",
+                    caption=f"random_image/ex_{trainer.model.experience_step}/gs_{trainer.global_step}",
                 )
                 for i in range(torch_images.shape[0])
             ]
@@ -67,7 +66,7 @@ class LogSampledImagesCallback(Callback):
             if isinstance(logger, WandbLogger):
                 wandb.log(
                     {
-                        f"train/generated_images/experience_step_{self.strategy.experience_step}": self.data_table
+                        f"train/generated_images/experience_step_{trainer.model.experience_step}": self.data_table
                     }
                 )
                 self.data_table = None

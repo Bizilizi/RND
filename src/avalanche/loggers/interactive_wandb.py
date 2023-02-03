@@ -6,6 +6,11 @@ from pathlib import Path
 
 import numpy as np
 import torch
+from matplotlib.pyplot import Figure
+from numpy import array
+from PIL.Image import Image
+from torch import Tensor
+
 from avalanche.benchmarks import OnlineCLExperience
 from avalanche.core import SupervisedPlugin
 from avalanche.evaluation.metric_results import (
@@ -15,10 +20,6 @@ from avalanche.evaluation.metric_results import (
 )
 from avalanche.evaluation.metric_utils import phase_and_task, stream_type
 from avalanche.logging import BaseLogger
-from matplotlib.pyplot import Figure
-from numpy import array
-from PIL.Image import Image
-from torch import Tensor
 
 if t.TYPE_CHECKING:
     from avalanche.evaluation.metric_results import MetricValue

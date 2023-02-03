@@ -1,11 +1,11 @@
 import typing as t
 from pathlib import Path
 
-from avalanche.benchmarks import NIScenario
-from avalanche.benchmarks.datasets import default_dataset_location
 from torchvision.datasets import MNIST
 from torchvision.transforms import Compose, Normalize, ToTensor
 
+from avalanche.benchmarks import NIScenario
+from avalanche.benchmarks.datasets import default_dataset_location
 from src.avalanche.scenarios.ni_generator import ni_benchmark_rand_normal
 
 _default_mnist_train_transform = Compose([ToTensor(), Normalize((0.1307,), (0.3081,))])

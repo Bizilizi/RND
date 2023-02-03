@@ -1,4 +1,4 @@
-def overwrite_config(cli_args, config):
+def overwrite_config_with_args(cli_args, config):
     """The method overwrites config fields with passed to cli arguments"""
 
     for k, v in vars(cli_args).items():

@@ -1,13 +1,16 @@
 import typing as t
 
+from pytorch_lightning import Callback, Trainer
+
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
-from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from src.avalanche.callbacks.lightning_training_to_avalanche import (
     PLTrainLoopToAvalancheTrainLoopCallback,
 )
+from src.avalanche.callbacks.restore_best_model import RestoreBestPerformingModel
 from src.rnd.callbacks.log_generated_images import LogSampledImagesCallback
 
 if t.TYPE_CHECKING:
@@ -27,12 +30,16 @@ class NaivePytorchLightning(Naive):
     def __init__(
         self,
         train_logger: t.Optional["Logger"],
+        max_epochs: int,
+        min_epochs: int,
+        restore_best_model: bool = False,
         train_mb_num_workers: int = 2,
         resume_from: t.Optional[str] = None,
         accelerator: str = "cpu",
         devices: str = "0,",
         validate_every_n: int = 1,
         accumulate_grad_batches: t.Optional[int] = None,
+        callbacks: t.Optional[t.Union[t.List[Callback], Callback]] = None,
         *args,
         **kwargs
     ) -> None:
@@ -43,6 +50,22 @@ class NaivePytorchLightning(Naive):
         self.validate_every_n = validate_every_n
         self.accelerator = accelerator
         self.devices = devices
+        self.min_epochs = min_epochs
+        self.max_epochs = max_epochs
+        self.restore_best_model = restore_best_model
+
+        # Modify callback to
+        self.callbacks = callbacks
+        self.callbacks.append(
+            PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)
+        )
+        if self.restore_best_model:
+            self.callbacks.append(
+                RestoreBestPerformingModel(
+                    monitor="val/loss",
+                )
+            )
+
         super().__init__(*args, **kwargs)
 
         self.experience_step = 0
@@ -54,6 +77,7 @@ class NaivePytorchLightning(Naive):
         **kwargs
     ) -> None:
         self.model.experience_step = self.experience_step
+        self.model.experience = self.experience
 
         # Create DataModule
         datamodule = PLDataModule(
@@ -70,13 +94,13 @@ class NaivePytorchLightning(Naive):
             devices=self.devices,
             logger=self.train_logger,
             log_every_n_steps=1,
-            max_epochs=self.train_epochs,
-            callbacks=[
-                PLTrainLoopToAvalancheTrainLoopCallback(self, **kwargs),
-                LogSampledImagesCallback(strategy=self, num_images=10),
-                # LogModelWightsCallback(log_every=self.config.validate_every_n),
-            ],
+            max_epochs=self.max_epochs,
+            min_epochs=self.min_epochs,
+            callbacks=self.callbacks,
             accumulate_grad_batches=self.accumulate_grad_batches,
+            resume_from_checkpoint="artifacts/cl_best_model/model"
+            if self.restore_best_model and self.experience_step > 0
+            else None,
         )
 
         trainer.fit(self.model, datamodule=datamodule, ckpt_path=self.resume_from)

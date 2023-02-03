@@ -1,10 +1,11 @@
 import typing as t
 
 import torch
-from avalanche.training.templates import BaseSGDTemplate
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 from torch.optim import Optimizer
+
+from avalanche.training.templates import BaseSGDTemplate
 
 
 class PLTrainLoopToAvalancheTrainLoopCallback(Callback):

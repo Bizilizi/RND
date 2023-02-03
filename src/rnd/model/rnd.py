@@ -5,11 +5,13 @@ import torch
 import torch.nn as nn
 from torchvision import models
 
-from src.rnd.model.rnd.generator import ImageGenerator
+from avalanche.benchmarks import CLExperience
+from src.rnd.model.generator import ImageGenerator
 
 
 class RND(pl.LightningModule):
     experience_step: int
+    experience: CLExperience
 
     def __init__(
         self,

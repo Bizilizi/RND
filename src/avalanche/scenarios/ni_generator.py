@@ -1,9 +1,10 @@
 import typing as t
 
 import torch
+from torch.distributions import Normal
+
 from avalanche.benchmarks import NIScenario, ni_benchmark
 from avalanche.benchmarks.utils import SupportedDataset, concat_datasets_sequentially
-from torch.distributions import Normal
 
 
 def ni_benchmark_rand_normal(
