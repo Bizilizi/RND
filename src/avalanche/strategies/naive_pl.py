@@ -94,6 +94,7 @@ class NaivePytorchLightning(Naive):
             logger=self.train_logger,
             max_epochs=self.max_epochs,
             min_epochs=self.min_epochs,
+            callbacks=self.callbacks,
             accumulate_grad_batches=self.accumulate_grad_batches,
         )
 
