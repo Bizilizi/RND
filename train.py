@@ -255,7 +255,7 @@ def main():
         validate_every_n=config.validate_every_n,
         accumulate_grad_batches=config.accumulate_grad_batches,
         train_logger=cl_strategy_logger,
-        initial_resume_from=args.initial_resume_from,
+        initial_resume_from=args.resume_from,
         model=model,
         device=device,
         optimizer=model.configure_optimizers(),
