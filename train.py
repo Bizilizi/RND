@@ -268,6 +268,7 @@ def main():
         callbacks=get_callbacks(args),
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
+        restore_best_model=False,
     )
 
     # Run training process
