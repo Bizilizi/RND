@@ -60,10 +60,13 @@ class NaivePytorchLightning(Naive):
         self.callbacks.append(
             PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)
         )
+
+        self.restore_best_model_callback = None
         if self.restore_best_model:
-            self.callbacks.append(
-                RestoreBestPerformingModel(monitor="val/loss", mode="min")
+            self.restore_best_model_callback = RestoreBestPerformingModel(
+                monitor="val/loss", mode="min"
             )
+            self.callbacks.append(self.restore_best_model_callback)
 
         super().__init__(*args, **kwargs)
 
@@ -88,7 +91,7 @@ class NaivePytorchLightning(Naive):
 
         # Training
         trainer = Trainer(
-            check_val_every_n_epoch=self.validate_every_n,
+            # check_val_every_n_epoch=self.validate_every_n,
             accelerator=self.accelerator,
             devices=self.devices,
             logger=self.train_logger,
@@ -101,8 +104,8 @@ class NaivePytorchLightning(Naive):
         # Derive from which checkpoint ot resume training
         if self.experience_step == 0 and self.initial_resume_from:
             resume_from = self.initial_resume_from
-        elif self.experience_step > 0 and self.restore_best_model:
-            resume_from = "artifacts/cl_best_model/model"
+        elif self.experience_step > 0 and self.restore_best_model_callback:
+            resume_from = self.restore_best_model_callback.best_model_path
         else:
             resume_from = None
 
