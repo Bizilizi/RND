@@ -9,7 +9,7 @@
 #SBATCH --mem=2gb                          # Job memory request
 #SBATCH --partition=gpu                     # Partition (compute (default) / gpu)
 #SBATCH --gres=gpu:1                        # Requesting 1 GPUs
-#SBATCH --constraint=p40,m40
+#SBATCH --constraint=p40
 # -------------------------------
 nvidia-smi
 eval "$@"
