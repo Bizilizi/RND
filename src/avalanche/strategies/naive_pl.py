@@ -91,7 +91,7 @@ class NaivePytorchLightning(Naive):
 
         # Training
         trainer = Trainer(
-            # check_val_every_n_epoch=self.validate_every_n,
+            check_val_every_n_epoch=self.validate_every_n,
             accelerator=self.accelerator,
             devices=self.devices,
             logger=self.train_logger,

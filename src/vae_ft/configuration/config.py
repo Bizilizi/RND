@@ -7,6 +7,7 @@ class TrainConfig(BaseTrainConfig):
     # Model
     input_dim: int
     z_dim: int
+    model_backbone: str
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":

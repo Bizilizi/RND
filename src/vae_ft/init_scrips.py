@@ -30,6 +30,7 @@ def get_model(config: TrainConfig, device: torch.device) -> MLPVae:
     vae = MLPVae(
         z_dim=config.z_dim,
         input_dim=config.input_dim,
+        backbone=config.model_backbone,
     )
 
     return vae

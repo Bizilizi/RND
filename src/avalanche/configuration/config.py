@@ -2,32 +2,44 @@ from configparser import ConfigParser
 
 from pydantic import BaseModel
 import typing as t
-from pydantic.validators import str_validator
+from pydantic.validators import str_validator, int_validator
 
 
-def empty_to_none(v: str) -> t.Optional[str]:
+def empty_str_to_none(v: str) -> t.Optional[str]:
     if v == "":
         return None
-    return v
+
+    return str_validator(v)
+
+
+def empty_int_to_none(v: str) -> t.Optional[str]:
+    if v == "":
+        return None
+    return int_validator(v)
 
 
 class EmptyStrToNone(str):
     @classmethod
     def __get_validators__(cls):
-        yield str_validator
-        yield empty_to_none
+        yield empty_str_to_none
+
+
+class EmptyIntToNone(str):
+    @classmethod
+    def __get_validators__(cls):
+        yield empty_int_to_none
 
 
 class BaseTrainConfig(BaseModel):
     # Training
     accelerator: str
-    devices: str
+    devices: t.Union[None, str, EmptyStrToNone]
     batch_size: int
     max_epochs: int
     min_epochs: int
     validate_every_n: int
     num_workers: int
-    accumulate_grad_batches: t.Union[None, int, EmptyStrToNone]
+    accumulate_grad_batches: t.Union[None, int, EmptyIntToNone]
     learning_rate: float
 
     # Logging

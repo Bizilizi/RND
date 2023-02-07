@@ -7,21 +7,46 @@ import torch.nn.functional as F
 from avalanche.benchmarks import CLExperience, NCExperience
 
 from src.avalanche.model.cl_model import CLModel
+from src.vae_ft.model.decoder.cnn import CNNDecoder
 from src.vae_ft.model.decoder.mlp import MLPDecoder
+from src.vae_ft.model.encoder.cnn import CNNEncoder
 from src.vae_ft.model.encoder.mlp import MLPEncoder
 
 
 class MLPVae(CLModel):
-    def __init__(self, z_dim: int, input_dim: int, *, learning_rate: float = 0.03):
+    def __init__(
+        self,
+        z_dim: int,
+        input_dim: int,
+        *,
+        learning_rate: float = 0.03,
+        backbone: str = "mlp",
+    ):
         super().__init__()
 
         self.learning_rate = learning_rate
         self.z_dim = z_dim
 
-        self.encoder = MLPEncoder(output_dim=z_dim, input_dim=input_dim)
-        self.decoder = MLPDecoder(
-            input_dim=input_dim, h_dim1=512, h_dim2=256, z_dim=z_dim, apply_sigmoid=True
-        )
+        if backbone == "mlp":
+            self.encoder = MLPEncoder(output_dim=z_dim, input_dim=input_dim)
+            self.decoder = MLPDecoder(
+                input_dim=input_dim,
+                h_dim1=512,
+                h_dim2=256,
+                z_dim=z_dim,
+                apply_sigmoid=True,
+            )
+        elif backbone == "cnn":
+            self.encoder = CNNEncoder(
+                input_chanel=1,
+                output_dim=z_dim,
+            )
+            self.decoder = CNNDecoder(
+                input_dim=z_dim,
+                apply_sigmoid=True,
+            )
+        else:
+            assert False, "VAE. Wrong backbone type!"
 
     @staticmethod
     def criterion(
