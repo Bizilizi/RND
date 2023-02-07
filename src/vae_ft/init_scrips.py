@@ -38,6 +38,6 @@ def get_model(config: TrainConfig, device: torch.device) -> MLPVae:
 def get_callbacks() -> t.List[Callback]:
     return [
         LogLatentSpace(num_images=200),
-        # CLEarlyStopping(monitor="val/loss", mode="min", patience=10),
+        CLEarlyStopping(monitor="val/loss", mode="min", patience=10),
         LogRandomImages(log_every=1),
     ]
