@@ -41,7 +41,7 @@ class CNNDecoder(nn.Module):
         self, num_samples: int, device: t.Optional[torch.device] = None
     ) -> torch.Tensor:
         with torch.no_grad():
-            z = torch.randn(num_samples, self.z_dim).to(device)
+            z = torch.randn(num_samples, self.input_dim).to(device)
             generated = self.forward(z)
             generated = generated.reshape(-1, 1, 28, 28)
 
