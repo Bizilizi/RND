@@ -104,10 +104,12 @@ class NaivePytorchLightning(Naive):
 
         # Derive from which checkpoint ot resume training
         if self.experience_step == 0 and self.initial_resume_from:
-            state_dict = torch.load(self.initial_resume_from)
-            self.model.load_state_dict()
+            state_dict = torch.load(self.initial_resume_from)["state_dict"]
+            self.model.load_state_dict(state_dict)
         elif self.experience_step > 0 and self.restore_best_model_callback:
-            state_dict = torch.load(self.restore_best_model_callback.best_model_path)
+            state_dict = torch.load(self.restore_best_model_callback.best_model_path)[
+                "state_dict"
+            ]
             self.model.load_state_dict(state_dict)
 
         trainer.fit(self.model, datamodule=datamodule)
