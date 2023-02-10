@@ -1,6 +1,7 @@
 import typing as t
 from copy import deepcopy
 
+import torch
 from pytorch_lightning import Callback, Trainer
 
 from avalanche.benchmarks import CLExperience
@@ -103,12 +104,12 @@ class NaivePytorchLightning(Naive):
 
         # Derive from which checkpoint ot resume training
         if self.experience_step == 0 and self.initial_resume_from:
-            resume_from = self.initial_resume_from
+            state_dict = torch.load(self.initial_resume_from)
+            self.model.load_state_dict()
         elif self.experience_step > 0 and self.restore_best_model_callback:
-            resume_from = self.restore_best_model_callback.best_model_path
-        else:
-            resume_from = None
+            state_dict = torch.load(self.restore_best_model_callback.best_model_path)
+            self.model.load_state_dict(state_dict)
 
-        trainer.fit(self.model, datamodule=datamodule, ckpt_path=resume_from)
+        trainer.fit(self.model, datamodule=datamodule)
 
         self.experience_step += 1
