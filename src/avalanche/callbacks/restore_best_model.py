@@ -26,6 +26,7 @@ class RestoreBestPerformingModel(ModelCheckpoint):
             monitor=monitor,
             mode=mode,
             verbose=True,
+            save_weights_only=True,
             *args,
             **kwargs,
         )
@@ -44,6 +45,7 @@ class RestoreBestPerformingModel(ModelCheckpoint):
             monitor=f"{self._monitor}/experience_step_{experience_step}",
             mode=self.mode,
             verbose=True,
+            save_weights_only=True,
             *args,
             **self.kwargs,
         )
