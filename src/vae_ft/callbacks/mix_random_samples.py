@@ -82,7 +82,11 @@ class MixRandomImages(Callback):
                         for row in self._make_rows(artifact_images, num_cols=10):
                             data_table.add_data(*row)
 
-                    wandb.log({"train/dataset/images": data_table})
+                        wandb.log(
+                            {
+                                f"train/dataset/experience_step_{experience_step}": data_table
+                            }
+                        )
 
     @staticmethod
     def _make_rows(
