@@ -65,26 +65,45 @@ class MixRandomImages(Callback):
 
             if self.log_dataset:
                 columns = [f"col_{i}" for i in range(10)]
-                data_table = wandb.Table(columns=columns)
+
+                image_data_table = wandb.Table(columns=columns)
+                class_data_table = wandb.Table(columns=columns)
+
                 dataset = trainer.datamodule.train_dataset
 
                 for logger in trainer.loggers:
                     if isinstance(logger, WandbLogger):
-                        images_idx = torch.randperm(len(dataset))[:500]
-                        artifact_images = [
+                        random_idx = torch.randperm(len(dataset))[:500]
+
+                        images = [
                             wandb.Image(
-                                self._rescale_image(dataset[i][0]).cpu().numpy(),
+                                self._rescale_image(
+                                    dataset[random_idx[i]][0],
+                                )
+                                .cpu()
+                                .numpy(),
                                 caption=f"dataset_image_{i}",
                             )
-                            for i in range(images_idx.shape[0])
+                            for i in range(random_idx.shape[0])
+                        ]
+                        classes = [
+                            dataset[random_idx[i]][1]
+                            for i in range(random_idx.shape[0])
                         ]
 
-                        for row in self._make_rows(artifact_images, num_cols=10):
-                            data_table.add_data(*row)
+                        for row in self._make_rows(images, num_cols=10):
+                            image_data_table.add_data(*row)
+                        for row in self._make_rows(classes, num_cols=10):
+                            class_data_table.add_data(*row)
 
                         wandb.log(
                             {
-                                f"train/dataset/experience_step_{experience_step}": data_table
+                                f"train/dataset/experience_step_{experience_step}/images": image_data_table
+                            }
+                        )
+                        wandb.log(
+                            {
+                                f"train/dataset/experience_step_{experience_step}/classes": class_data_table
                             }
                         )
 
