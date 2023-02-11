@@ -141,13 +141,13 @@ def get_evaluation_plugin(
     return eval_plugin
 
 
-def get_callbacks(args):
+def get_callbacks(args, config):
     # Create CL strategy
     assert args.model, "You have to specify what model to train by '--model' parameter"
     if args.model == "rnd":
         return rnd_get_callbacks()
     elif args.model == "vae-ft":
-        return vae_ft_get_callbacks()
+        return vae_ft_get_callbacks(config=config)
     else:
         assert False, "Unknown value '--model' parameter"
 
@@ -265,7 +265,7 @@ def main():
         train_epochs=config.max_epochs,
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
-        callbacks=get_callbacks(args),
+        callbacks=get_callbacks(args, config),
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
         restore_best_model=True,

@@ -56,7 +56,7 @@ class LogSampledImagesCallback(Callback):
                 for pair in zip(artifact_images, random_images_rnd_loss)
                 for el in pair
             ]
-            self.data_table.add_data()
+            self.data_table.add_data(artifact_data)
 
     def on_fit_end(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
