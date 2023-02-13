@@ -47,7 +47,7 @@ class MixRandomImages(Callback):
         experience_step = trainer.model.experience_step
         model: MLPVae = trainer.model
 
-        if experience_step > 0:
+        if experience_step > 0 and self.num_images != 0:
 
             generated_samples = []
             for _ in range(self.num_images // 200):
