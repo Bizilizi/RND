@@ -48,8 +48,6 @@ class MixRandomImages(Callback):
         model: MLPVae = trainer.model
 
         if experience_step > 0:
-            if self.original_dataset is None:
-                self.original_dataset = trainer.datamodule.train_dataset
 
             generated_samples = []
             for _ in range(self.num_images // 200):
@@ -58,7 +56,7 @@ class MixRandomImages(Callback):
 
             generated_samples = torch.cat(generated_samples).cpu()
             augmented_dataset = AugmentedDataset(
-                self.original_dataset, generated_samples, experience_step
+                trainer.datamodule.train_dataset, generated_samples, experience_step
             )
 
             trainer.datamodule.train_dataset = augmented_dataset
