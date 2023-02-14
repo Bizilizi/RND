@@ -31,10 +31,10 @@ class VAEExperienceLoss(ExperienceLoss):
         loss = 0
 
         if self.with_kl_loss:
-            loss = kl_div
+            loss += kl_div
 
         if self.with_reconstruction_loss:
-            loss = reconstruction_loss
+            loss += reconstruction_loss
 
         self._loss.update(loss, patterns=len(strategy.mb_y), task_label=task_label)
 
@@ -75,10 +75,10 @@ class VAEStreamLoss(StreamLoss):
         loss = 0
 
         if self.with_kl_loss:
-            loss = kl_div
+            loss += kl_div
 
         if self.with_reconstruction_loss:
-            loss = reconstruction_loss
+            loss += reconstruction_loss
 
         self._loss.update(loss, patterns=len(strategy.mb_y), task_label=task_label)
 
