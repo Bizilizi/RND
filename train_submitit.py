@@ -118,12 +118,13 @@ def main():
         mem_gb=12 * num_gpus_per_node,
         gpus_per_node=num_gpus_per_node,
         tasks_per_node=num_gpus_per_node,  # one task per GPU
-        cpus_per_task=10,
+        cpus_per_task=2,
         nodes=nodes,
         timeout_min=timeout_min,  # max is 60 * 72
         # Below are cluster dependent parameters
         slurm_partition=partition,
         slurm_signal_delay_s=120,
+        slurm_signal_constraint="p40",
         **kwargs,
     )
 
