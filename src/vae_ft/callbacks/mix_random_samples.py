@@ -1,4 +1,5 @@
 import torch
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import Dataset
@@ -36,8 +37,15 @@ class MixRandomImages(Callback):
     dataset for current CL step
     """
 
-    def __init__(self, num_images: int = 5_000, log_dataset: bool = True):
-        self.num_images = num_images
+    def __init__(
+        self,
+        num_rand_samples: int = 5_000,
+        num_rand_noise: int = 5_000,
+        log_dataset: bool = True,
+    ):
+        self.num_rand_samples = num_rand_samples
+        self.num_rand_noise = num_rand_noise
+
         self.original_dataset = None
         self.log_dataset = log_dataset
 
@@ -47,63 +55,89 @@ class MixRandomImages(Callback):
         experience_step = trainer.model.experience_step
         model: MLPVae = trainer.model
 
-        if experience_step > 0 and self.num_images != 0:
+        if experience_step > 0 and (
+            self.num_rand_samples != 0 or self.num_rand_noise != 0
+        ):
 
-            generated_samples = []
-            for _ in range(self.num_images // 200):
-                samples = model.decoder.generate(self.num_images // 200, model.device)
-                generated_samples.append(samples)
+            generated_samples = self.sample_random_images(model, experience_step)
+            generated_noise = self.sample_random_noise(experience_step)
 
-            generated_samples = torch.cat(generated_samples).cpu()
+            rehearsed_data = torch.cat([generated_samples, generated_noise])
             augmented_dataset = AugmentedDataset(
-                trainer.datamodule.train_dataset, generated_samples, experience_step
+                original_dataset=trainer.datamodule.train_dataset,
+                rehearsed_data=rehearsed_data,
+                task_id=experience_step,
             )
 
             trainer.datamodule.train_dataset = augmented_dataset
 
             if self.log_dataset:
-                columns = [f"col_{i}" for i in range(10)]
+                self.log_dataset_table(trainer, experience_step)
 
-                image_data_table = wandb.Table(columns=columns)
-                class_data_table = wandb.Table(columns=columns)
+    def sample_random_images(self, model: MLPVae, experience_step: int) -> torch.Tensor:
+        """
+        Samples random images from the model latent space
+        """
+        generated_samples = []
+        num_images_to_generate = self.num_rand_samples * experience_step
+        for _ in range(num_images_to_generate // 200):
+            samples = model.decoder.generate(
+                num_images_to_generate // 200, model.device
+            )
+            generated_samples.append(samples)
 
-                dataset = trainer.datamodule.train_dataset
+        generated_samples = torch.cat(generated_samples).cpu()
 
-                for logger in trainer.loggers:
-                    if isinstance(logger, WandbLogger):
-                        random_idx = torch.randperm(len(dataset))[:500]
+        return generated_samples
 
-                        images = [
-                            wandb.Image(
-                                self._rescale_image(
-                                    dataset[random_idx[i]][0],
-                                )
-                                .cpu()
-                                .numpy(),
-                                caption=f"dataset_image_{i}",
-                            )
-                            for i in range(random_idx.shape[0])
-                        ]
-                        classes = [
-                            dataset[random_idx[i]][1]
-                            for i in range(random_idx.shape[0])
-                        ]
+    def sample_random_noise(self, experience_step: int):
+        """
+        Samples random noise
+        """
+        return torch.randn(self.num_rand_noise * experience_step, 1, 28, 28)
 
-                        for row in self._make_rows(images, num_cols=10):
-                            image_data_table.add_data(*row)
-                        for row in self._make_rows(classes, num_cols=10):
-                            class_data_table.add_data(*row)
+    def log_dataset_table(self, trainer: Trainer, experience_step: int) -> None:
+        columns = [f"col_{i}" for i in range(10)]
 
-                        wandb.log(
-                            {
-                                f"train/dataset/experience_step_{experience_step}/images": image_data_table
-                            }
+        image_data_table = wandb.Table(columns=columns)
+        class_data_table = wandb.Table(columns=columns)
+
+        dataset = trainer.datamodule.train_dataset
+
+        for logger in trainer.loggers:
+            if isinstance(logger, WandbLogger):
+                random_idx = torch.randperm(len(dataset))[:500]
+
+                images = [
+                    wandb.Image(
+                        self._rescale_image(
+                            dataset[random_idx[i]][0],
                         )
-                        wandb.log(
-                            {
-                                f"train/dataset/experience_step_{experience_step}/classes": class_data_table
-                            }
-                        )
+                        .cpu()
+                        .numpy(),
+                        caption=f"dataset_image_{i}",
+                    )
+                    for i in range(random_idx.shape[0])
+                ]
+                classes = [
+                    dataset[random_idx[i]][1] for i in range(random_idx.shape[0])
+                ]
+
+                for row in self._make_rows(images, num_cols=10):
+                    image_data_table.add_data(*row)
+                for row in self._make_rows(classes, num_cols=10):
+                    class_data_table.add_data(*row)
+
+                wandb.log(
+                    {
+                        f"train/dataset/experience_step_{experience_step}/images": image_data_table
+                    }
+                )
+                wandb.log(
+                    {
+                        f"train/dataset/experience_step_{experience_step}/classes": class_data_table
+                    }
+                )
 
     @staticmethod
     def _make_rows(

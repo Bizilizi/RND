@@ -102,7 +102,7 @@ class NaivePytorchLightning(Naive):
             accumulate_grad_batches=self.accumulate_grad_batches,
         )
 
-        # Derive from which checkpoint ot resume training
+        # Derive from which checkpoint to resume training
         if self.experience_step == 0 and self.initial_resume_from:
             state_dict = torch.load(self.initial_resume_from)["state_dict"]
             self.model.load_state_dict(state_dict)

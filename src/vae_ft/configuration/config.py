@@ -9,6 +9,7 @@ class TrainConfig(BaseTrainConfig):
     z_dim: int
     model_backbone: str
     num_random_images: int
+    num_random_noise: int
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
