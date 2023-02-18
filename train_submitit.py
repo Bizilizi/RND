@@ -52,6 +52,13 @@ def parse_args():
         "--partition", default="gpu", type=str, help="Partition where to submit"
     )
     parser.add_argument(
+        "--output_dir",
+        default="./slurm_logs",
+        type=str,
+        help="Where stdout and stderr will write to",
+    )
+
+    parser.add_argument(
         "--comment",
         default="",
         type=str,
