@@ -39,9 +39,7 @@ def chunker(seq, size):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(
-        "Submitit for demo", parents=[train.get_arg_parser()]
-    )
+    parser = argparse.ArgumentParser()
     parser.add_argument(
         "--ngpus", default=1, type=int, help="Number of gpus to request on each node"
     )
@@ -59,6 +57,8 @@ def parse_args():
         type=str,
         help="Comment to pass to scheduler, e.g. priority message",
     )
+
+    train.add_arguments(parser)
 
     return parser.parse_args()
 

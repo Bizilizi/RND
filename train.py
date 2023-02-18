@@ -52,8 +52,7 @@ def train_loop(
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
 
-def get_arg_parser():
-    parser = argparse.ArgumentParser(description="Model trainer")
+def add_arguments(parser):
     parser.add_argument(
         "--model",
         type=str,
@@ -285,7 +284,8 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = get_arg_parser()
+    parser = argparse.ArgumentParser(description="Model trainer")
+    parser = add_arguments(parser)
     args = parse_arguments(parser)
 
     main(args)
