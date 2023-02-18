@@ -149,19 +149,6 @@ def main():
 
     for i, (j, t) in enumerate(zip(jobs, all_trainers)):
         print(f"Submitted job_id: {j.job_id}")
-        print(f"Std out will be saved at: {t.args.output_dir}")
-        print(f"Logs and checkpoints in directory: {t.args.log_dir}")
-        print(f"Dist URL: {t.args.dist_url}")
-
-    print("Slurm JobID")
-    print(j.job_id.split("_")[0])
-
-    print("All experiment identifiers...")
-    all_hex_codes = " ".join(
-        [t.args.log_dir.split("/")[-1].split("_")[-1] for t in all_trainers]
-    )
-    date = t.args.log_dir.split("/")[-1].split("_")[0]
-    print(f"{date}_({all_hex_codes})")
 
 
 if __name__ == "__main__":
