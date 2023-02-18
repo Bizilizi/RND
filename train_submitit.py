@@ -125,7 +125,7 @@ def main():
         # Below are cluster dependent parameters
         slurm_partition=partition,
         slurm_signal_delay_s=120,
-        slurm_signal_constraint="p40",
+        slurm_constraint="p40",
         **kwargs,
     )
 
