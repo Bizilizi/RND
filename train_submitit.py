@@ -19,6 +19,7 @@ Note: output_dir and log_dir serve seperate purposes
     log_dir: Where all tensorboard logs and checkpoints will be written
 """
 import os
+from multiprocessing import Pool
 from re import I
 import sys
 import numpy as np
@@ -63,30 +64,32 @@ def parse_args():
 
 
 class Trainer(object):
-    def __init__(self, args):
-        self.args = args
+    def __init__(self, m_args):
+        self.m_args = m_args
 
     def __call__(self):
         import train
 
-        self._setup_gpu_args()
-        train.main(self.args)
+        def run_train_process(args):
+            self._setup_gpu_args(args)
+            train.main(args)
+
+        with Pool(len(self.m_args)) as p:
+            p.map(run_train_process, self.m_args)
 
     def checkpoint(self):
         # TODO: Need to write this (used during pre-emption)
         ...
 
-    def _setup_gpu_args(self):
+    def _setup_gpu_args(self, args):
         import submitit
         from pathlib import Path
 
         job_env = submitit.JobEnvironment()
-        self.args.output_dir = Path(
-            str(self.args.output_dir).replace("%j", str(job_env.job_id))
-        )
-        self.args.gpu = job_env.local_rank
-        self.args.rank = job_env.global_rank
-        self.args.world_size = job_env.num_tasks
+        args.output_dir = Path(str(args.output_dir).replace("%j", str(job_env.job_id)))
+        args.gpu = job_env.local_rank
+        args.rank = job_env.global_rank
+        args.world_size = job_env.num_tasks
         print(f"Process group: {job_env.num_tasks} tasks, rank: {job_env.global_rank}")
 
 
@@ -120,7 +123,6 @@ def main():
 
     executor.update_parameters(name="att_train")
 
-    all_trainers = []
     all_arguments = []
     for num_random_images in [1_000, 3_000, 5_000, 7_000, 10_000]:
         for num_random_noise in [100, 500, 1_000, 3_000, 5_000]:
@@ -133,9 +135,9 @@ def main():
 
             all_arguments.append(args_new)
 
-    args_per_gpu = chunker(
-        all_arguments,
-    )
+    args_per_gpu = chunker(all_arguments, 20)
+
+    all_trainers = [Trainer(m_args) for m_args in args_per_gpu]
     jobs = executor.submit_array(all_trainers)
 
     for i, (j, t) in enumerate(zip(jobs, all_trainers)):
