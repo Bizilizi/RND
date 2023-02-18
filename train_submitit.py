@@ -81,8 +81,9 @@ class Trainer(object):
             self._setup_gpu_args(args)
             train.main(args)
 
-        with Pool(len(self.m_args)) as p:
-            p.map(run_train_process, self.m_args)
+        run_train_process(self.m_args)
+        # with Pool(len(self.m_args)) as p:
+        #     p.map(run_train_process, self.m_args)
 
     def checkpoint(self):
         # TODO: Need to write this (used during pre-emption)
@@ -131,8 +132,10 @@ def main():
     executor.update_parameters(name="att_train")
 
     all_arguments = []
-    for num_random_images in [1_000, 3_000, 5_000, 7_000, 10_000]:
-        for num_random_noise in [100, 500, 1_000, 3_000, 5_000]:
+    # for num_random_images in [1_000, 3_000, 5_000, 7_000, 10_000]:
+    #     for num_random_noise in [100, 500, 1_000, 3_000, 5_000]:
+    for num_random_images in [1_000]:
+        for num_random_noise in [100]:
             args_new = deepcopy(args)
             args_new.num_random_images = num_random_images
             args_new.num_random_noise = num_random_noise
@@ -144,7 +147,7 @@ def main():
 
     args_per_gpu = chunker(all_arguments, 20)
 
-    all_trainers = [Trainer(m_args) for m_args in args_per_gpu]
+    all_trainers = [Trainer(m_args) for m_args in all_arguments]
     jobs = executor.submit_array(all_trainers)
 
     for i, (j, t) in enumerate(zip(jobs, all_trainers)):
