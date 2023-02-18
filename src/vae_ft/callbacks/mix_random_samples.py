@@ -42,12 +42,14 @@ class MixRandomImages(Callback):
         num_rand_samples: int = 5_000,
         num_rand_noise: int = 5_000,
         log_dataset: bool = True,
+        num_tasks: int = 5,
     ):
         self.num_rand_samples = num_rand_samples
         self.num_rand_noise = num_rand_noise
 
         self.original_dataset = None
         self.log_dataset = log_dataset
+        self.num_tasks = num_tasks
 
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
@@ -55,24 +57,27 @@ class MixRandomImages(Callback):
         experience_step = trainer.model.experience_step
         model: MLPVae = trainer.model
 
-        if experience_step > 0 and (
-            self.num_rand_samples != 0 or self.num_rand_noise != 0
-        ):
+        rehearsed_data = []
 
+        if experience_step > 0 and self.num_rand_samples != 0:
             generated_samples = self.sample_random_images(model, experience_step)
+            rehearsed_data.append(generated_samples)
+
+        if self.num_rand_noise != 0:
             generated_noise = self.sample_random_noise(experience_step)
+            rehearsed_data.append(generated_noise)
 
-            rehearsed_data = torch.cat([generated_samples, generated_noise])
-            augmented_dataset = AugmentedDataset(
-                original_dataset=trainer.datamodule.train_dataset,
-                rehearsed_data=rehearsed_data,
-                task_id=experience_step,
-            )
+        rehearsed_data = torch.cat(rehearsed_data)
+        augmented_dataset = AugmentedDataset(
+            original_dataset=trainer.datamodule.train_dataset,
+            rehearsed_data=rehearsed_data,
+            task_id=experience_step,
+        )
 
-            trainer.datamodule.train_dataset = augmented_dataset
+        trainer.datamodule.train_dataset = augmented_dataset
 
-            if self.log_dataset:
-                self.log_dataset_table(trainer, experience_step)
+        if self.log_dataset:
+            self.log_dataset_table(trainer, experience_step)
 
     def sample_random_images(self, model: MLPVae, experience_step: int) -> torch.Tensor:
         """
@@ -94,7 +99,9 @@ class MixRandomImages(Callback):
         """
         Samples random noise
         """
-        return torch.randn(self.num_rand_noise * experience_step, 1, 28, 28)
+        return torch.randn(
+            self.num_rand_noise * (self.num_tasks - experience_step - 1), 1, 28, 28
+        )
 
     def log_dataset_table(self, trainer: Trainer, experience_step: int) -> None:
         columns = [f"col_{i}" for i in range(10)]

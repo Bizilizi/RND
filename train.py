@@ -52,6 +52,50 @@ def train_loop(
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
 
+def get_arg_parser():
+    parser = argparse.ArgumentParser(description="Model trainer")
+    parser.add_argument(
+        "--model",
+        type=str,
+        help="Name of the model to train",
+    )
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="Path to config file",
+    )
+    parser.add_argument(
+        "--resume_from",
+        nargs="?",
+        type=str,
+        help="path to resume model",
+        default=None,
+    )
+    parser.add_argument(
+        "--experiment_name",
+        nargs="?",
+        type=str,
+        help="Name of experiment",
+        default=None,
+    )
+    parser.add_argument(
+        "--seed",
+        nargs="?",
+        type=int,
+        help="seed for random",
+        default=42,
+    )
+    parser.add_argument(
+        "--run_id",
+        nargs="?",
+        type=str,
+        help="wandb run id",
+        default=None,
+    )
+
+    return parser
+
+
 def get_typed_config(args, ini_config) -> BaseTrainConfig:
     assert args.model, "You have to specify what model to train by '--model' parameter"
     if args.model == "rnd":
@@ -152,48 +196,7 @@ def get_callbacks(args, config):
         assert False, "Unknown value '--model' parameter"
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Model trainer")
-    parser.add_argument(
-        "--model",
-        type=str,
-        help="Name of the model to train",
-    )
-    parser.add_argument(
-        "--config",
-        type=str,
-        help="Path to config file",
-    )
-    parser.add_argument(
-        "--resume_from",
-        nargs="?",
-        type=str,
-        help="path to resume model",
-        default=None,
-    )
-    parser.add_argument(
-        "--experiment_name",
-        nargs="?",
-        type=str,
-        help="Name of experiment",
-        default=None,
-    )
-    parser.add_argument(
-        "--seed",
-        nargs="?",
-        type=int,
-        help="seed for random",
-        default=42,
-    )
-    parser.add_argument(
-        "--run_id",
-        nargs="?",
-        type=str,
-        help="wandb run id",
-        default=None,
-    )
-    args = parse_arguments(parser)
-
+def main(args):
     # Make it deterministic
     seed_everything(args.seed)
 
@@ -282,4 +285,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = get_arg_parser()
+    args = parse_arguments(parser)
+
+    main(args)
