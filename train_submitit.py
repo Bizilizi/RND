@@ -151,7 +151,7 @@ def main():
     args_per_gpu = chunker(all_arguments, 20)
 
     all_trainers = [Trainer(m_args) for m_args in all_arguments]
-    jobs = executor.submit_array(all_trainers)
+    jobs = executor.submit(Trainer(all_arguments[0]))
 
     for i, (j, t) in enumerate(zip(jobs, all_trainers)):
         print(f"Submitted job_id: {j.job_id}")
