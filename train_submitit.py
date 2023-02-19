@@ -125,11 +125,12 @@ def main():
             args_new = deepcopy(args)
 
             args_new.config = "src/vae_ft/configuration/train.ini"
-            args.model = "vae-ft"
-            args.train_logger = "wandb"
-            args.evaluation_logger = "wandb"
-            args.model_backbone = "mlp"
-            args.max_epochs = 100
+            args_new.model = "vae-ft"
+            args_new.train_logger = "wandb"
+            args_new.evaluation_logger = "wandb"
+            args_new.model_backbone = "mlp"
+            args_new.max_epochs = 100
+            args_new.group = "r_images vs r_noise"
 
             args_new.num_random_images = num_random_images
             args_new.num_random_noise = num_random_noise

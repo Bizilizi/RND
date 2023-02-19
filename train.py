@@ -92,6 +92,13 @@ def add_arguments(parser):
         help="wandb run id",
         default=None,
     )
+    parser.add_argument(
+        "--group",
+        nargs="?",
+        type=str,
+        help="wandb run group",
+        default=None,
+    )
 
     return parser
 
@@ -197,8 +204,6 @@ def get_callbacks(args, config):
 
 
 def main(args):
-    os.environ["WANDB_START_METHOD"] = "thread"
-
     # Make it deterministic
     seed_everything(args.seed)
 
@@ -230,6 +235,7 @@ def main(args):
             entity="vgg-continual-learning",
             config=dict(config),
             name=args.experiment_name,
+            group=args.group,
         )
         wandb.init(**wandb_params)
     else:
