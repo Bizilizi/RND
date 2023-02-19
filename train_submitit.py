@@ -55,7 +55,7 @@ class Trainer(object):
         import train
 
         wandb.setup()
-        joblib.Parallel(n_jobs=len(self.m_args))(
+        joblib.Parallel(n_jobs=len(self.m_args), backend="multiprocessing")(
             joblib.delayed(train.main)(args) for args in self.m_args
         )
 
