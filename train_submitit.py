@@ -28,6 +28,8 @@ import argparse
 import uuid
 from pathlib import Path
 
+import wandb
+
 import train
 
 from copy import deepcopy
@@ -80,6 +82,7 @@ class Trainer(object):
     def __call__(self):
         import train
 
+        wandb.setup()
         with Pool(len(self.m_args)) as p:
             p.map(train.main, self.m_args)
 
