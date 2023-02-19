@@ -110,6 +110,7 @@ def main():
             args_new.model_backbone = "mlp"
             args_new.max_epochs = 100
             args_new.group = "r_images vs r_noise"
+            args_new.num_workers = 0
 
             args_new.num_random_images = num_random_images
             args_new.num_random_noise = num_random_noise
