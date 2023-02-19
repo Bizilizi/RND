@@ -140,6 +140,14 @@ def main():
     for num_random_images in [1_000]:
         for num_random_noise in [0, 100]:
             args_new = deepcopy(args)
+
+            args_new.config = "src/vae_ft/configuration/train.ini"
+            args.model = "vae-ft"
+            args.train_logger = "wandb"
+            args.evaluation_logger = "wandb"
+            args.model_backbone = "mlp"
+            args.max_epochs = 100
+
             args_new.num_random_images = num_random_images
             args_new.num_random_noise = num_random_noise
             args_new.experiment_name = (
@@ -151,7 +159,7 @@ def main():
     args_per_gpu = chunker(all_arguments, 20)
 
     all_trainers = [Trainer(m_args) for m_args in all_arguments]
-    jobs = executor.submit(Trainer(all_arguments[0]))
+    jobs = executor.submit_array(all_trainers)
 
     for i, (j, t) in enumerate(zip(jobs, all_trainers)):
         print(f"Submitted job_id: {j.job_id}")
