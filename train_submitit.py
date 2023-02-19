@@ -78,7 +78,6 @@ class Trainer(object):
         import train
 
         def run_train_process(args):
-            # self._setup_gpu_args(args)
             train.main(args)
 
         run_train_process(self.m_args)
@@ -126,6 +125,10 @@ def main():
         slurm_partition=partition,
         slurm_signal_delay_s=120,
         slurm_constraint="p40",
+        slurm_additional_parameters={
+            "mail-type": "BEGIN,END,FAIL",
+            "mail-user": "dzverev@robots.ox.ac.uk",
+        },
         **kwargs,
     )
 
