@@ -1,33 +1,5 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-"""
-A script to run multinode training with submitit.
-Almost copy-paste from https://github.com/facebookresearch/deit/blob/main/run_with_submitit.py
-Note: output_dir and log_dir serve seperate purposes
-    output_dir: Where all SLURM stdout and stderr will be written
-    log_dir: Where all tensorboard logs and checkpoints will be written
-"""
-import os
-from multiprocessing import Pool
-from re import I
-import sys
-import numpy as np
-
 import argparse
-import uuid
-from pathlib import Path
-
+import joblib
 import wandb
 
 import train
@@ -83,8 +55,9 @@ class Trainer(object):
         import train
 
         wandb.setup()
-        with Pool(len(self.m_args)) as p:
-            p.map(train.main, self.m_args)
+        joblib.Parallel(n_jobs=len(self.m_args))(
+            joblib.delayed(train.main)(args) for args in self.m_args
+        )
 
     def checkpoint(self):
         # TODO: Need to write this (used during pre-emption)
