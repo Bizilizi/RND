@@ -47,7 +47,6 @@ def parse_args():
         "--nodes", default=1, type=int, help="Number of nodes to request"
     )
     parser.add_argument("--timeout", default=4320, type=int, help="Duration of the job")
-
     parser.add_argument(
         "--partition", default="gpu", type=str, help="Partition where to submit"
     )
@@ -57,12 +56,16 @@ def parse_args():
         type=str,
         help="Where stdout and stderr will write to",
     )
-
     parser.add_argument(
         "--comment",
         default="",
         type=str,
         help="Comment to pass to scheduler, e.g. priority message",
+    )
+    parser.add_argument(
+        "--jobs_per_task",
+        default=8,
+        type=int,
     )
 
     train.add_arguments(parser)
@@ -140,7 +143,7 @@ def main():
 
             all_arguments.append(args_new)
 
-    args_per_gpu = chunker(all_arguments, 20)
+    args_per_gpu = chunker(all_arguments, args.jobs_per_task)
     all_trainers = [Trainer(m_args) for m_args in args_per_gpu]
 
     jobs = executor.submit_array(all_trainers)
