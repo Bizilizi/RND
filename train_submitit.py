@@ -77,27 +77,12 @@ class Trainer(object):
     def __call__(self):
         import train
 
-        def run_train_process(args):
-            train.main(args)
-
-        run_train_process(self.m_args)
-        # with Pool(len(self.m_args)) as p:
-        #     p.map(run_train_process, self.m_args)
+        with Pool(len(self.m_args)) as p:
+            p.map(train.main, self.m_args)
 
     def checkpoint(self):
         # TODO: Need to write this (used during pre-emption)
         ...
-
-    def _setup_gpu_args(self, args):
-        import submitit
-        from pathlib import Path
-
-        job_env = submitit.JobEnvironment()
-        args.output_dir = Path(str(args.output_dir).replace("%j", str(job_env.job_id)))
-        args.gpu = job_env.local_rank
-        args.rank = job_env.global_rank
-        args.world_size = job_env.num_tasks
-        print(f"Process group: {job_env.num_tasks} tasks, rank: {job_env.global_rank}")
 
 
 def main():
@@ -118,7 +103,7 @@ def main():
         mem_gb=12 * num_gpus_per_node,
         gpus_per_node=num_gpus_per_node,
         tasks_per_node=num_gpus_per_node,  # one task per GPU
-        cpus_per_task=2,
+        cpus_per_task=8,
         nodes=nodes,
         timeout_min=timeout_min,  # max is 60 * 72
         # Below are cluster dependent parameters
@@ -135,10 +120,8 @@ def main():
     executor.update_parameters(name="att_train")
 
     all_arguments = []
-    # for num_random_images in [1_000, 3_000, 5_000, 7_000, 10_000]:
-    #     for num_random_noise in [100, 500, 1_000, 3_000, 5_000]:
-    for num_random_images in [1_000]:
-        for num_random_noise in [0, 100]:
+    for num_random_images in [0, 1_000, 3_000, 5_000, 7_000, 10_000]:
+        for num_random_noise in [100, 500, 1_000, 3_000, 5_000]:
             args_new = deepcopy(args)
 
             args_new.config = "src/vae_ft/configuration/train.ini"
@@ -157,8 +140,8 @@ def main():
             all_arguments.append(args_new)
 
     args_per_gpu = chunker(all_arguments, 20)
+    all_trainers = [Trainer(m_args) for m_args in args_per_gpu]
 
-    all_trainers = [Trainer(m_args) for m_args in all_arguments]
     jobs = executor.submit_array(all_trainers)
 
     for i, (j, t) in enumerate(zip(jobs, all_trainers)):
