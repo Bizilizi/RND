@@ -78,7 +78,7 @@ class Trainer(object):
         import train
 
         def run_train_process(args):
-            self._setup_gpu_args(args)
+            # self._setup_gpu_args(args)
             train.main(args)
 
         run_train_process(self.m_args)
@@ -135,7 +135,7 @@ def main():
     # for num_random_images in [1_000, 3_000, 5_000, 7_000, 10_000]:
     #     for num_random_noise in [100, 500, 1_000, 3_000, 5_000]:
     for num_random_images in [1_000]:
-        for num_random_noise in [100]:
+        for num_random_noise in [0, 100]:
             args_new = deepcopy(args)
             args_new.num_random_images = num_random_images
             args_new.num_random_noise = num_random_noise
