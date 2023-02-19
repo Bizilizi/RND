@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import logging
+import os
 import typing as t
 from configparser import ConfigParser
 
@@ -196,6 +197,8 @@ def get_callbacks(args, config):
 
 
 def main(args):
+    os.environ["WANDB_START_METHOD"] = "thread"
+
     # Make it deterministic
     seed_everything(args.seed)
 
