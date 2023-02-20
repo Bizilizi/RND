@@ -67,17 +67,18 @@ class MixRandomImages(Callback):
             generated_noise = self.sample_random_noise(experience_step)
             rehearsed_data.append(generated_noise)
 
-        rehearsed_data = torch.cat(rehearsed_data)
-        augmented_dataset = AugmentedDataset(
-            original_dataset=trainer.datamodule.train_dataset,
-            rehearsed_data=rehearsed_data,
-            task_id=experience_step,
-        )
+        if rehearsed_data:
+            rehearsed_data = torch.cat(rehearsed_data)
+            augmented_dataset = AugmentedDataset(
+                original_dataset=trainer.datamodule.train_dataset,
+                rehearsed_data=rehearsed_data,
+                task_id=experience_step,
+            )
 
-        trainer.datamodule.train_dataset = augmented_dataset
+            trainer.datamodule.train_dataset = augmented_dataset
 
-        if self.log_dataset:
-            self.log_dataset_table(trainer, experience_step)
+            if self.log_dataset:
+                self.log_dataset_table(trainer, experience_step)
 
     def sample_random_images(self, model: MLPVae, experience_step: int) -> torch.Tensor:
         """
