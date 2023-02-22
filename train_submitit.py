@@ -53,7 +53,9 @@ class Trainer(object):
 
     def __call__(self):
         processes = [
-            Popen(["python", "train.py"] + [i for k_v in args.items() for i in k_v])
+            Popen(
+                ["python", "train.py"] + [str(i) for k_v in args.items() for i in k_v]
+            )
             for args in self.m_args
         ]
 
