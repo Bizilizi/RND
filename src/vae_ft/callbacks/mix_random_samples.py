@@ -1,3 +1,5 @@
+import typing as t
+
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
@@ -6,15 +8,19 @@ from torch.utils.data import Dataset
 
 import wandb
 from src.vae_ft.model.vae import MLPVae
-import typing as t
 
 
 class AugmentedDataset(Dataset):
     def __init__(
-        self, original_dataset: Dataset, rehearsed_data: torch.Tensor, task_id: int
+        self,
+        original_dataset: Dataset,
+        rehearsed_data: torch.Tensor,
+        rehearsed_classes: torch.Tensor,
+        task_id: int,
     ) -> None:
         self.original_dataset = original_dataset
         self.rehearsed_data = rehearsed_data
+        self.rehearsed_classes = rehearsed_classes
         self.task_id = task_id
 
     def __getitem__(self, index):
@@ -23,7 +29,7 @@ class AugmentedDataset(Dataset):
         else:
             return (
                 self.rehearsed_data[index - len(self.original_dataset)],
-                -1,
+                self.rehearsed_classes[index - len(self.original_dataset)],
                 self.task_id,
             )
 
@@ -58,20 +64,26 @@ class MixRandomImages(Callback):
         model: MLPVae = trainer.model
 
         rehearsed_data = []
+        rehearsed_classes = []
 
         if experience_step > 0 and self.num_rand_samples != 0:
             generated_samples = self.sample_random_images(model, experience_step)
             rehearsed_data.append(generated_samples)
+            rehearsed_classes.append(torch.full_like(generated_samples, -1))
 
         if self.num_rand_noise != 0:
             generated_noise = self.sample_random_noise(experience_step)
             rehearsed_data.append(generated_noise)
+            rehearsed_classes.append(torch.full_like(generated_noise, -2))
 
         if rehearsed_data:
             rehearsed_data = torch.cat(rehearsed_data)
+            rehearsed_classes = torch.cat(rehearsed_classes)
+
             augmented_dataset = AugmentedDataset(
                 original_dataset=trainer.datamodule.train_dataset,
                 rehearsed_data=rehearsed_data,
+                rehearsed_classes=rehearsed_classes,
                 task_id=experience_step,
             )
 

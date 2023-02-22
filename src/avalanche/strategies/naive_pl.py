@@ -3,12 +3,11 @@ from copy import deepcopy
 
 import torch
 from pytorch_lightning import Callback, Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
 
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
-from pytorch_lightning.callbacks import ModelCheckpoint
-
 from src.avalanche.callbacks.lightning_training_to_avalanche import (
     PLTrainLoopToAvalancheTrainLoopCallback,
 )

@@ -1,6 +1,8 @@
 import typing as t
+
 import pytorch_lightning as pl
 import torch
+
 from avalanche.benchmarks import CLExperience, NCExperience
 
 

@@ -5,7 +5,6 @@ import torch
 import torch.nn.functional as F
 
 from avalanche.benchmarks import CLExperience, NCExperience
-
 from src.avalanche.model.cl_model import CLModel
 from src.vae_ft.model.decoder.cnn import CNNDecoder
 from src.vae_ft.model.decoder.mlp import MLPDecoder
@@ -76,10 +75,17 @@ class MLPVae(CLModel):
         return x_pred, x, log_sigma, mu
 
     def training_step(self, batch, batch_idx):
-        x, *_ = batch
+        x, y, *_ = batch
 
         x_pred, _, log_sigma, mu = self.forward(x)
 
+        # We don't calculate KL loss for the noise, so we filter it out.
+        # Noise inputs has class -2
+        non_zero_mask = y != -2
+        log_sigma = log_sigma[non_zero_mask]
+        mu = mu[non_zero_mask]
+
+        # Calculate final VAE loss
         kl_div, reconstruction_loss = self.criterion((x_pred, x, log_sigma, mu))
         loss = kl_div + reconstruction_loss
 

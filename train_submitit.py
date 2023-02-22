@@ -1,11 +1,11 @@
 import argparse
+from subprocess import Popen
+
 import joblib
-import wandb
+import submitit
 
 import train
-
-from copy import deepcopy
-import submitit
+import wandb
 
 
 def chunker(seq, size):
@@ -52,12 +52,15 @@ class Trainer(object):
         self.m_args = m_args
 
     def __call__(self):
-        import train
+        processes = [
+            Popen(
+                f"python train.py {' '.join([f'--{k} {v}' for k, v in args.items()])}"
+            )
+            for args in self.m_args
+        ]
 
-        wandb.setup()
-        joblib.Parallel(n_jobs=len(self.m_args), backend="multiprocessing")(
-            joblib.delayed(train.main)(args) for args in self.m_args
-        )
+        for p in processes:
+            p.wait()
 
     def checkpoint(self):
         # TODO: Need to write this (used during pre-emption)
@@ -101,22 +104,22 @@ def main():
     all_arguments = []
     for num_random_images in [0, 1_000, 3_000, 5_000, 7_000, 10_000]:
         for num_random_noise in [100, 500, 1_000, 3_000, 5_000]:
-            args_new = deepcopy(args)
+            args_new = {}
 
-            args_new.config = "src/vae_ft/configuration/train.ini"
-            args_new.model = "vae-ft"
-            args_new.train_logger = "wandb"
-            args_new.evaluation_logger = "wandb"
-            args_new.model_backbone = "mlp"
-            args_new.max_epochs = 100
-            args_new.group = "r_images vs r_noise"
-            args_new.num_workers = 0
+            args_new["config"] = "src/vae_ft/configuration/train.ini"
+            args_new["model"] = "vae-ft"
+            args_new["train_logger"] = "wandb"
+            args_new["evaluation_logger"] = "wandb"
+            args_new["model_backbone"] = "mlp"
+            args_new["max_epochs"] = 100
+            args_new["group"] = "r_images vs r_noise"
+            args_new["num_workers"] = 4
 
-            args_new.num_random_images = num_random_images
-            args_new.num_random_noise = num_random_noise
-            args_new.experiment_name = (
-                f"MLP.RI-{num_random_images}.RN-{num_random_noise}"
-            )
+            args_new["num_random_images"] = num_random_images
+            args_new["num_random_noise"] = num_random_noise
+            args_new[
+                "experiment_name"
+            ] = f"MLP.RI-{num_random_images}.RN-{num_random_noise}"
 
             all_arguments.append(args_new)
 

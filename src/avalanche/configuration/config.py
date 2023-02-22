@@ -1,8 +1,8 @@
+import typing as t
 from configparser import ConfigParser
 
 from pydantic import BaseModel
-import typing as t
-from pydantic.validators import str_validator, int_validator
+from pydantic.validators import int_validator, str_validator
 
 
 def empty_str_to_none(v: str) -> t.Optional[str]:
