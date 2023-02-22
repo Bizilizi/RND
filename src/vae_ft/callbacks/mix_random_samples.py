@@ -15,7 +15,7 @@ class AugmentedDataset(Dataset):
         self,
         original_dataset: Dataset,
         rehearsed_data: torch.Tensor,
-        rehearsed_classes: torch.Tensor,
+        rehearsed_classes: t.List[int],
         task_id: int,
     ) -> None:
         self.original_dataset = original_dataset
@@ -69,16 +69,15 @@ class MixRandomImages(Callback):
         if experience_step > 0 and self.num_rand_samples != 0:
             generated_samples = self.sample_random_images(model, experience_step)
             rehearsed_data.append(generated_samples)
-            rehearsed_classes.append(torch.full_like(generated_samples, -1))
+            rehearsed_classes.extend([-1] * generated_samples.shape[0])
 
         if self.num_rand_noise != 0:
             generated_noise = self.sample_random_noise(experience_step)
             rehearsed_data.append(generated_noise)
-            rehearsed_classes.append(torch.full_like(generated_noise, -2))
+            rehearsed_classes.extend([-2] * generated_noise.shape[0])
 
         if rehearsed_data:
             rehearsed_data = torch.cat(rehearsed_data)
-            rehearsed_classes = torch.cat(rehearsed_classes)
 
             augmented_dataset = AugmentedDataset(
                 original_dataset=trainer.datamodule.train_dataset,
