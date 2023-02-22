@@ -53,9 +53,7 @@ class Trainer(object):
 
     def __call__(self):
         processes = [
-            Popen(
-                f"python train.py {' '.join([f'--{k} {v}' for k, v in args.items()])}"
-            )
+            Popen(["python", "train.py"] + [i for k_v in args.items() for i in k_v])
             for args in self.m_args
         ]
 
@@ -103,22 +101,22 @@ def main():
 
     all_arguments = []
     for num_random_images in [0, 1_000, 3_000, 5_000, 7_000, 10_000]:
-        for num_random_noise in [100, 500, 1_000, 3_000, 5_000]:
+        for num_random_noise in [0, 100, 500, 1_000, 3_000, 5_000]:
             args_new = {}
 
-            args_new["config"] = "src/vae_ft/configuration/train.ini"
-            args_new["model"] = "vae-ft"
-            args_new["train_logger"] = "wandb"
-            args_new["evaluation_logger"] = "wandb"
-            args_new["model_backbone"] = "mlp"
-            args_new["max_epochs"] = 100
-            args_new["group"] = "r_images vs r_noise"
-            args_new["num_workers"] = 4
+            args_new["--config"] = "src/vae_ft/configuration/train.ini"
+            args_new["--model"] = "vae-ft"
+            args_new["--train_logger"] = "wandb"
+            args_new["--evaluation_logger"] = "wandb"
+            args_new["--model_backbone"] = "mlp"
+            args_new["--max_epochs"] = 100
+            args_new["--group"] = "r_images vs r_noise"
+            args_new["--num_workers"] = 4
 
-            args_new["num_random_images"] = num_random_images
-            args_new["num_random_noise"] = num_random_noise
+            args_new["--num_random_images"] = num_random_images
+            args_new["--num_random_noise"] = num_random_noise
             args_new[
-                "experiment_name"
+                "--experiment_name"
             ] = f"MLP.RI-{num_random_images}.RN-{num_random_noise}"
 
             all_arguments.append(args_new)
