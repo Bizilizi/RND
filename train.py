@@ -332,6 +332,7 @@ if __name__ == "__main__":
             args.sweep_id,
             partial(main, args),
             project=args.model.upper(),
+            count=5,
         )
     else:
         main(args)
