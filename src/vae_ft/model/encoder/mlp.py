@@ -8,19 +8,32 @@ class MLPEncoder(nn.Module):
         self,
         output_dim: int,
         input_dim: int,
+        regularization: str = "",
+        dropout: float = 0.5,
     ) -> None:
         super().__init__()
 
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        self.module = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(self.input_dim, 512),
-            nn.ReLU(),
-            nn.Linear(512, 256),
-            nn.ReLU(),
-        )
+        if regularization == "dropout":
+            self.module = nn.Sequential(
+                nn.Flatten(),
+                nn.Linear(self.input_dim, 512),
+                nn.Dropout(dropout),
+                nn.ReLU(),
+                nn.Linear(512, 256),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+            )
+        else:
+            self.module = nn.Sequential(
+                nn.Flatten(),
+                nn.Linear(self.input_dim, 512),
+                nn.ReLU(),
+                nn.Linear(512, 256),
+                nn.ReLU(),
+            )
 
         self.mu_head = nn.Linear(256, self.output_dim)
         self.sigma_head = nn.Linear(256, self.output_dim)

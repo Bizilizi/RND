@@ -3,7 +3,11 @@ from torch import nn
 
 class CNNEncoder(nn.Module):
     def __init__(
-        self, output_dim: int, input_chanel: int, regularization: str == ""
+        self,
+        output_dim: int,
+        input_chanel: int,
+        regularization: str = "",
+        dropout: float = 0.5,
     ) -> None:
         super().__init__()
 
@@ -11,9 +15,21 @@ class CNNEncoder(nn.Module):
         self.input_chanel = input_chanel
 
         if regularization == "dropout":
-            ...
-        elif regularization == "weight":
-            ...
+            self.module = nn.Sequential(
+                nn.Conv2d(self.input_chanel, 3, kernel_size=1),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Conv2d(3, 32, kernel_size=3, stride=2),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Conv2d(32, 64, kernel_size=3, stride=2),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Conv2d(64, 16, kernel_size=2),
+                nn.AvgPool2d(5),
+                nn.ReLU(),
+                nn.Flatten(),
+            )
         else:
             self.module = nn.Sequential(
                 nn.Conv2d(self.input_chanel, 3, kernel_size=1),

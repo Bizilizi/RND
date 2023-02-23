@@ -10,6 +10,9 @@ class TrainConfig(BaseTrainConfig):
     model_backbone: str
     num_random_images: int
     num_random_noise: int
+    regularization: str
+    regularization_dropout: int
+    regularization_lambda: int
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":

@@ -14,21 +14,37 @@ class MLPDecoder(nn.Module):
         z_dim: int,
         transforms=None,
         apply_sigmoid=True,
+        regularization: str = "",
+        dropout: float = 0.5,
     ) -> None:
         super().__init__()
 
         self.apply_sigmoid = apply_sigmoid
-        self.fc4 = nn.Linear(z_dim, h_dim2)
-        self.fc5 = nn.Linear(h_dim2, h_dim1)
-        self.fc6 = nn.Linear(h_dim1, input_dim)
+
+        if regularization == "dropout":
+            self.module = nn.Sequential(
+                nn.Linear(z_dim, h_dim2),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Linear(h_dim2, h_dim1),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.Linear(h_dim1, input_dim),
+            )
+        else:
+            self.module = nn.Sequential(
+                nn.Linear(z_dim, h_dim2),
+                nn.ReLU(),
+                nn.Linear(h_dim2, h_dim1),
+                nn.ReLU(),
+                nn.Linear(h_dim1, input_dim),
+            )
 
         self.z_dim = z_dim
         self.transforms = transforms
 
     def forward(self, z):
-        h = F.relu(self.fc4(z))
-        h = F.relu(self.fc5(h))
-        h = self.fc6(h)
+        h = self.module(z)
 
         if self.apply_sigmoid:
             h = torch.sigmoid(h)

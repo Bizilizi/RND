@@ -10,6 +10,8 @@ class CNNDecoder(nn.Module):
         input_dim: int,
         apply_sigmoid: bool,
         transforms=None,
+        regularization: str = "",
+        dropout: float = 0.5,
     ) -> None:
         super().__init__()
 
@@ -19,13 +21,25 @@ class CNNDecoder(nn.Module):
         self.output_dim = 28 * 28
 
         self.fc1 = nn.Linear(input_dim, 5 * 5 * 32)
-        self.upscale_module = nn.Sequential(
-            nn.ConvTranspose2d(32, 64, kernel_size=3, stride=2),
-            nn.ReLU(),
-            nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1),
-            nn.ReLU(),
-            nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2),
-        )
+
+        if regularization == "dropout":
+            self.upscale_module = nn.Sequential(
+                nn.ConvTranspose2d(32, 64, kernel_size=3, stride=2),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+                nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2),
+            )
+        else:
+            self.upscale_module = nn.Sequential(
+                nn.ConvTranspose2d(32, 64, kernel_size=3, stride=2),
+                nn.ReLU(),
+                nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1),
+                nn.ReLU(),
+                nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2),
+            )
 
     def forward(self, x):
         x = self.fc1(x)
