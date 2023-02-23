@@ -240,10 +240,6 @@ def main(args):
     config = get_typed_config(args=args, ini_config=ini_config)
     overwrite_config_with_args(args, config)
 
-    # Generate experiment name if necessary
-    if args.experiment_name is None:
-        args.experiment_name = get_experiment_name(args, config)
-
     # Construct wandb params if necessary
     is_using_wandb = (
         config.train_logger == "wandb" or config.evaluation_logger == "wandb"
@@ -253,7 +249,6 @@ def main(args):
             project=args.model.upper(),
             id=args.run_id,
             entity="vgg-continual-learning",
-            name=args.experiment_name,
             group=args.group,
         )
         wandb.init(**wandb_params)
@@ -264,7 +259,9 @@ def main(args):
                 setattr(config, k, v)
 
             wandb.config.update(dict(config))
+            wandb.run.name = args.experiment_name or get_experiment_name(args, config)
 
+        wandb_params["name"] = wandb.run.name
         wandb_params["config"] = wandb.config
     else:
         wandb_params = None
