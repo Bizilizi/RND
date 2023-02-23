@@ -1,4 +1,5 @@
 import argparse
+import random
 from subprocess import Popen
 
 import joblib
@@ -102,8 +103,15 @@ def main():
     executor.update_parameters(name="att_train")
 
     all_arguments = []
-    for num_random_images in [0, 1_000, 3_000, 5_000, 7_000, 10_000]:
-        for num_random_noise in [0, 100, 500, 1_000, 3_000, 5_000]:
+    ri_vs_rn = {
+        0: [1000, 3000],
+        1000: [100, 1000, 3000],
+        3000: [100, 500, 1000, 3000],
+        5000: [100, 500, 1000, 3000],
+        10000: [100, 500, 1000, 3000],
+    }
+    for num_random_images, num_random_noises in ri_vs_rn.items():
+        for num_random_noise in num_random_noises:
             args_new = {}
 
             args_new["--config"] = "src/vae_ft/configuration/train.ini"
@@ -123,6 +131,7 @@ def main():
 
             all_arguments.append(args_new)
 
+    random.shuffle(all_arguments)
     args_per_gpu = chunker(all_arguments, args.jobs_per_task)
     all_trainers = [Trainer(m_args) for m_args in args_per_gpu]
 
