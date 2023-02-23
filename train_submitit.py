@@ -93,7 +93,7 @@ def main():
         mem=0,
         gpus_per_node=num_gpus_per_node,
         tasks_per_node=num_gpus_per_node,  # one task per GPU
-        cpus_per_task=2 * args.jobs_per_task,
+        cpus_per_task=2 * args.agents_per_task,
         nodes=nodes,
         timeout_min=timeout_min,  # max is 60 * 72
         # Below are cluster dependent parameters
