@@ -6,15 +6,14 @@ class CNNEncoder(nn.Module):
         self,
         output_dim: int,
         input_chanel: int,
-        regularization: str = "",
-        dropout: float = 0.5,
+        dropout: float = 0.0,
     ) -> None:
         super().__init__()
 
         self.output_dim = output_dim
         self.input_chanel = input_chanel
 
-        if regularization == "dropout":
+        if dropout == 0.0:
             self.module = nn.Sequential(
                 nn.Conv2d(self.input_chanel, 3, kernel_size=1),
                 nn.ReLU(),

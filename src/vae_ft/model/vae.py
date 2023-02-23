@@ -20,22 +20,19 @@ class MLPVae(CLModel):
         *,
         learning_rate: float = 0.03,
         backbone: str = "mlp",
-        regularization: str = "",
-        regularization_dropout: float = 0.5,
-        regularization_lambda: float = 0.01,
+        regularization_dropout: float = 0.0,
+        regularization_lambda: float = 0.0,
     ):
         super().__init__()
 
         self.learning_rate = learning_rate
         self.z_dim = z_dim
-        self.regularization = regularization
-        self.regularization_lambda = regularization_lambda
+        self.weight_decay = regularization_lambda
 
         if backbone == "mlp":
             self.encoder = MLPEncoder(
                 output_dim=z_dim,
                 input_dim=input_dim,
-                regularization=regularization,
                 dropout=regularization_dropout,
             )
             self.decoder = MLPDecoder(
@@ -44,20 +41,17 @@ class MLPVae(CLModel):
                 h_dim2=256,
                 z_dim=z_dim,
                 apply_sigmoid=True,
-                regularization=regularization,
                 dropout=regularization_dropout,
             )
         elif backbone == "cnn":
             self.encoder = CNNEncoder(
                 input_chanel=1,
                 output_dim=z_dim,
-                regularization=regularization,
                 dropout=regularization_dropout,
             )
             self.decoder = CNNDecoder(
                 input_dim=z_dim,
                 apply_sigmoid=True,
-                regularization=regularization,
                 dropout=regularization_dropout,
             )
         else:
@@ -154,11 +148,10 @@ class MLPVae(CLModel):
         }
 
     def configure_optimizers(self):
-        weight_decay = (
-            self.regularization_lambda if self.regularization == "weight" else 0.0
-        )
         optimizer = torch.optim.Adam(
-            self.parameters(), lr=self.learning_rate, weight_decay=weight_decay
+            self.parameters(),
+            lr=self.learning_rate,
+            weight_decay=self.weight_decay,
         )
         return optimizer
 

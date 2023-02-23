@@ -14,14 +14,13 @@ class MLPDecoder(nn.Module):
         z_dim: int,
         transforms=None,
         apply_sigmoid=True,
-        regularization: str = "",
-        dropout: float = 0.5,
+        dropout: float = 0.0,
     ) -> None:
         super().__init__()
 
         self.apply_sigmoid = apply_sigmoid
 
-        if regularization == "dropout":
+        if dropout == 0.0:
             self.module = nn.Sequential(
                 nn.Linear(z_dim, h_dim2),
                 nn.ReLU(),

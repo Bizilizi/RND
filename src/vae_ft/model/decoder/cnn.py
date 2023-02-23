@@ -10,8 +10,7 @@ class CNNDecoder(nn.Module):
         input_dim: int,
         apply_sigmoid: bool,
         transforms=None,
-        regularization: str = "",
-        dropout: float = 0.5,
+        dropout: float = 0.0,
     ) -> None:
         super().__init__()
 
@@ -22,7 +21,7 @@ class CNNDecoder(nn.Module):
 
         self.fc1 = nn.Linear(input_dim, 5 * 5 * 32)
 
-        if regularization == "dropout":
+        if dropout == 0.0:
             self.upscale_module = nn.Sequential(
                 nn.ConvTranspose2d(32, 64, kernel_size=3, stride=2),
                 nn.ReLU(),

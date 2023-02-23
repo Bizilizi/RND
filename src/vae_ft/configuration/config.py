@@ -10,7 +10,6 @@ class TrainConfig(BaseTrainConfig):
     model_backbone: str
     num_random_images: int
     num_random_noise: int
-    regularization: str
     regularization_dropout: float
     regularization_lambda: float
 

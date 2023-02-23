@@ -8,15 +8,14 @@ class MLPEncoder(nn.Module):
         self,
         output_dim: int,
         input_dim: int,
-        regularization: str = "",
-        dropout: float = 0.5,
+        dropout: float = 0.0,
     ) -> None:
         super().__init__()
 
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        if regularization == "dropout":
+        if dropout == 0.0:
             self.module = nn.Sequential(
                 nn.Flatten(),
                 nn.Linear(self.input_dim, 512),

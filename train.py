@@ -4,6 +4,7 @@ import logging
 import os
 import typing as t
 from configparser import ConfigParser
+from functools import partial
 
 import pytorch_lightning as pl
 import torch
@@ -97,6 +98,13 @@ def add_arguments(parser):
         nargs="?",
         type=str,
         help="wandb run group",
+        default=None,
+    )
+    parser.add_argument(
+        "--sweep_id",
+        nargs="?",
+        type=str,
+        help="wandb sweep id",
         default=None,
     )
 
@@ -203,6 +211,20 @@ def get_callbacks(args, config):
         assert False, "Unknown value '--model' parameter"
 
 
+def get_experiment_name(args, config):
+    assert args.model, "You have to specify what model to train by '--model' parameter"
+    if args.model == "vae-ft":
+        return (
+            f"{config.model_backbone.upper()}."
+            f"RI-{config.num_random_images}."
+            f"RN-{config.num_random_noise}."
+            f"Dr-{config.regularization_dropout}."
+            f"Wd-{config.regularization_lambda}."
+        )
+
+    return f"CL-train. Time: {datetime.datetime.now():%Y-%m-%d %H:%M}"
+
+
 def main(args):
     # Make it deterministic
     seed_everything(args.seed)
@@ -220,9 +242,7 @@ def main(args):
 
     # Generate experiment name if necessary
     if args.experiment_name is None:
-        args.experiment_name = (
-            f"CL-train. Time: {datetime.datetime.now():%Y-%m-%d %H:%M}"
-        )
+        args.experiment_name = get_experiment_name(args, config)
 
     # Construct wandb params if necessary
     is_using_wandb = (
@@ -233,11 +253,19 @@ def main(args):
             project=args.model.upper(),
             id=args.run_id,
             entity="vgg-continual-learning",
-            config=dict(config),
             name=args.experiment_name,
             group=args.group,
         )
         wandb.init(**wandb_params)
+
+        # Override config with sweep
+        if wandb.config:
+            for k, v in wandb.config.items():
+                setattr(config, k, v)
+
+            wandb.config.update(dict(config))
+
+        wandb_params["config"] = wandb.config
     else:
         wandb_params = None
 
@@ -298,4 +326,13 @@ if __name__ == "__main__":
     parser = add_arguments(parser)
     args = parse_arguments(parser)
 
-    main(args)
+    # If we run training in sweep mode
+    if args.sweep_id:
+        wandb.agent(
+            args.sweep_id,
+            partial(main, args),
+            project=args.model.upper(),
+            count=5,
+        )
+    else:
+        main(args)

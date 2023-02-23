@@ -5,7 +5,6 @@ from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
-from src.avalanche.callbacks.cl_early_stopping import CLEarlyStopping
 from src.vae_ft.callbacks.log_latent_space import LogLatentSpace
 from src.vae_ft.callbacks.log_sampled_images import LogRandomImages
 from src.vae_ft.callbacks.mix_random_samples import MixRandomImages
@@ -33,6 +32,8 @@ def get_model(config: TrainConfig, device: torch.device) -> MLPVae:
         input_dim=config.input_dim,
         backbone=config.model_backbone,
         learning_rate=config.learning_rate,
+        regularization_dropout=config.regularization_dropout,
+        regularization_lambda=config.regularization_lambda,
     )
 
     return vae

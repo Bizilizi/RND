@@ -38,8 +38,13 @@ def parse_args():
         help="Comment to pass to scheduler, e.g. priority message",
     )
     parser.add_argument(
-        "--jobs_per_task",
-        default=8,
+        "--agents_per_task",
+        default=20,
+        type=int,
+    )
+    parser.add_argument(
+        "--num_tasks",
+        default=3,
         type=int,
     )
 
@@ -49,15 +54,17 @@ def parse_args():
 
 
 class Trainer(object):
-    def __init__(self, m_args):
-        self.m_args = m_args
+    def __init__(self, agents_per_task, args):
+        self.agents_per_task = agents_per_task
+        self.args = args
 
     def __call__(self):
         processes = [
             Popen(
-                ["python", "train.py"] + [str(i) for k_v in args.items() for i in k_v]
+                ["python", "train.py"]
+                + [str(i) for k_v in self.args.items() for i in k_v]
             )
-            for args in self.m_args
+            for _ in range(self.agents_per_task)
         ]
 
         for p in processes:
@@ -83,7 +90,7 @@ def main():
         kwargs["slurm_comment"] = args.comment
 
     executor.update_parameters(
-        mem_gb=64 * num_gpus_per_node,
+        mem=0,
         gpus_per_node=num_gpus_per_node,
         tasks_per_node=num_gpus_per_node,  # one task per GPU
         cpus_per_task=2 * args.jobs_per_task,
@@ -102,38 +109,19 @@ def main():
 
     executor.update_parameters(name="att_train")
 
-    all_arguments = []
-    ri_vs_rn = {
-        0: [1000, 3000],
-        1000: [100, 1000, 3000],
-        3000: [100, 500, 1000, 3000],
-        5000: [100, 500, 1000, 3000],
-        10000: [100, 500, 1000, 3000],
-    }
-    for num_random_images, num_random_noises in ri_vs_rn.items():
-        for num_random_noise in num_random_noises:
-            args_new = {}
+    exp_args = {}
 
-            args_new["--config"] = "src/vae_ft/configuration/train.ini"
-            args_new["--model"] = "vae-ft"
-            args_new["--train_logger"] = "wandb"
-            args_new["--evaluation_logger"] = "wandb"
-            args_new["--model_backbone"] = "mlp"
-            args_new["--max_epochs"] = 100
-            args_new["--group"] = "r_images vs r_noise"
-            args_new["--num_workers"] = 4
+    exp_args["--config"] = "src/vae_ft/configuration/train.ini"
+    exp_args["--model"] = "vae-ft"
+    exp_args["--train_logger"] = "wandb"
+    exp_args["--evaluation_logger"] = "wandb"
+    exp_args["--max_epochs"] = 100
+    exp_args["--num_workers"] = 4
+    exp_args["--sweep_id"] = args.sweep_id
 
-            args_new["--num_random_images"] = num_random_images
-            args_new["--num_random_noise"] = num_random_noise
-            args_new[
-                "--experiment_name"
-            ] = f"MLP.RI-{num_random_images}.RN-{num_random_noise}"
-
-            all_arguments.append(args_new)
-
-    random.shuffle(all_arguments)
-    args_per_gpu = chunker(all_arguments, args.jobs_per_task)
-    all_trainers = [Trainer(m_args) for m_args in args_per_gpu]
+    all_trainers = [
+        Trainer(args.agents_per_task, exp_args) for _ in range(args.num_tasks)
+    ]
 
     jobs = executor.submit_array(all_trainers)
 
