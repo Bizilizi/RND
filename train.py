@@ -248,6 +248,7 @@ def main(args):
         train_transform=ToTensor(),
         eval_transform=ToTensor(),
         shuffle=False,
+        dataset_root=config.dataset_path,
     )
     model, device = get_model_and_device(args, config)
 
