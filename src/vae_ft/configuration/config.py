@@ -11,8 +11,8 @@ class TrainConfig(BaseTrainConfig):
     num_random_images: int
     num_random_noise: int
     regularization: str
-    regularization_dropout: int
-    regularization_lambda: int
+    regularization_dropout: float
+    regularization_lambda: float
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
