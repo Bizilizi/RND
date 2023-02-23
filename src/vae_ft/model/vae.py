@@ -155,7 +155,7 @@ class MLPVae(CLModel):
 
     def configure_optimizers(self):
         weight_decay = (
-            self.regularization_lambda if self.regularization == "weight" else None
+            self.regularization_lambda if self.regularization == "weight" else 0.0
         )
         optimizer = torch.optim.Adam(
             self.parameters(), lr=self.learning_rate, weight_decay=weight_decay
