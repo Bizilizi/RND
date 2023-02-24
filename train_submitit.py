@@ -96,7 +96,7 @@ def main():
         nodes=nodes,
         timeout_min=timeout_min,  # max is 60 * 72
         # Below are cluster dependent parameters
-        slurm_mem=64,
+        slurm_mem=80,
         slurm_partition=partition,
         slurm_signal_delay_s=120,
         slurm_constraint="p40",
