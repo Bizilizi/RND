@@ -47,6 +47,16 @@ def parse_args():
         default=3,
         type=int,
     )
+    parser.add_argument(
+        "--slurm_mem",
+        default=12,
+        type=int,
+    )
+    parser.add_argument(
+        "--cpus_per_task",
+        default=4,
+        type=int,
+    )
 
     train.add_arguments(parser)
 
@@ -92,11 +102,11 @@ def main():
     executor.update_parameters(
         gpus_per_node=num_gpus_per_node,
         tasks_per_node=num_gpus_per_node,  # one task per GPU
-        cpus_per_task=20,
+        cpus_per_task=args.cpus_per_task,
         nodes=nodes,
         timeout_min=timeout_min,  # max is 60 * 72
         # Below are cluster dependent parameters
-        slurm_mem=80,
+        slurm_mem=args.slurm_mem,
         slurm_partition=partition,
         slurm_signal_delay_s=120,
         slurm_constraint="p40",
