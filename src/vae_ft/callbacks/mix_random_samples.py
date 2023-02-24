@@ -109,9 +109,13 @@ class MixRandomImages(Callback):
         """
         Samples random noise
         """
-        return torch.randn(
+        noise = torch.randn(
             self.num_rand_noise * (self.num_tasks - experience_step - 1), 1, 28, 28
         )
+        noise = noise - noise.min()
+        noise = noise / noise.max()
+
+        return noise
 
     def log_dataset_table(self, trainer: Trainer, experience_step: int) -> None:
         columns = [f"col_{i}" for i in range(10)]
