@@ -97,8 +97,10 @@ class MixRandomImages(Callback):
         """
         generated_samples = []
         num_images_to_generate = self.num_rand_samples * experience_step
-        for _ in range(num_images_to_generate // 100):
-            samples = model.decoder.generate(100, model.device)
+
+        sampling_size = min(200, num_images_to_generate)
+        for _ in range(num_images_to_generate // sampling_size):
+            samples = model.decoder.generate(sampling_size, model.device)
             generated_samples.append(samples)
 
         generated_samples = torch.cat(generated_samples).cpu()
