@@ -71,7 +71,7 @@ class MixRandomImages(Callback):
             rehearsed_data.append(generated_samples)
             rehearsed_classes.extend([-1] * generated_samples.shape[0])
 
-        if self.num_rand_noise != 0:
+        if self.num_rand_noise != 0 and experience_step < self.num_tasks - 1:
             generated_noise = self.sample_random_noise(experience_step)
             rehearsed_data.append(generated_noise)
             rehearsed_classes.extend([-2] * generated_noise.shape[0])
@@ -97,8 +97,8 @@ class MixRandomImages(Callback):
         """
         generated_samples = []
         num_images_to_generate = self.num_rand_samples * experience_step
-        for _ in range(num_images_to_generate // 200):
-            samples = model.decoder.generate(200, model.device)
+        for _ in range(num_images_to_generate // 100):
+            samples = model.decoder.generate(100, model.device)
             generated_samples.append(samples)
 
         generated_samples = torch.cat(generated_samples).cpu()
