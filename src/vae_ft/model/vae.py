@@ -65,12 +65,15 @@ class MLPVae(CLModel):
         x_pred, x_input, log_sigma, mu = x
 
         if not torch.isfinite(x_pred.flatten()).all():
-            for name, params in self.named_parameters():
-                assert torch.isfinite(params).all(), name
-
             print(x_pred.flatten())
-            assert torch.isfinite(x_pred.flatten()).all(), "input"
+
             assert torch.isfinite(x_input.flatten()).all(), "target"
+            for name, params in self.named_parameters():
+                if not torch.isfinite(params).all():
+                    print(params)
+                    assert False, name
+
+            assert torch.isfinite(x_pred.flatten()).all(), "input"
 
         kl_div = (
             -0.5
