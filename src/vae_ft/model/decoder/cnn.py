@@ -24,9 +24,11 @@ class CNNDecoder(nn.Module):
         if dropout == 0.0:
             self.upscale_module = nn.Sequential(
                 nn.ConvTranspose2d(32, 64, kernel_size=3, stride=2),
+                nn.BatchNorm2d(64),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1),
+                nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2),
@@ -34,8 +36,10 @@ class CNNDecoder(nn.Module):
         else:
             self.upscale_module = nn.Sequential(
                 nn.ConvTranspose2d(32, 64, kernel_size=3, stride=2),
+                nn.BatchNorm2d(64),
                 nn.ReLU(),
                 nn.ConvTranspose2d(64, 32, kernel_size=3, stride=1),
+                nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.ConvTranspose2d(32, 1, kernel_size=4, stride=2),
             )
