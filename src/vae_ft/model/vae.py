@@ -64,13 +64,11 @@ class MLPVae(CLModel):
     ) -> t.Tuple[torch.Tensor, torch.Tensor]:
         x_pred, x_input, log_sigma, mu = x
 
-        if (
-            not torch.isfinite(x_pred.flatten()).all()
-            or not torch.isfinite(x_input.flatten()).all()
-        ):
+        if not torch.isfinite(x_pred.flatten()).all():
             for name, params in self.named_parameters():
                 assert torch.isfinite(params).all(), name
 
+            print(x_pred.flatten())
             assert torch.isfinite(x_pred.flatten()).all(), "input"
             assert torch.isfinite(x_input.flatten()).all(), "target"
 
