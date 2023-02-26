@@ -106,7 +106,7 @@ def main():
         # Below are cluster dependent parameters
         slurm_partition=partition,
         slurm_signal_delay_s=120,
-        slurm_constraint="p40",
+        slurm_constraint="m40",
         slurm_additional_parameters={
             "mail-type": "BEGIN,END,FAIL",
             "mail-user": "dzverev@robots.ox.ac.uk",

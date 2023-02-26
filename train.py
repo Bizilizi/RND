@@ -9,7 +9,6 @@ from torchvision.transforms import ToTensor
 
 import wandb
 from avalanche.benchmarks import SplitMNIST
-
 from src.avalanche.strategies import NaivePytorchLightning
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args, parse_arguments

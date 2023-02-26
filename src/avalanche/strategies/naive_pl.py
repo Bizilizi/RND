@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import torch
 from pytorch_lightning import Callback, Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
