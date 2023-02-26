@@ -63,7 +63,9 @@ def main(args):
 
     # Construct wandb params if necessary
     is_using_wandb = (
-        config.train_logger == "wandb" or config.evaluation_logger == "wandb"
+        config.train_logger == "wandb"
+        or config.evaluation_logger == "wandb"
+        or args.run_id
     )
     if is_using_wandb:
         wandb_params = dict(
