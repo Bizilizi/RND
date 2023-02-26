@@ -61,6 +61,9 @@ class LogLatentSpace(Callback):
                             break
 
                         x_pred, x, log_sigma, mu = model.forward(x.to(model.device))
+                        if not model.decoder.apply_sigmoid:
+                            x_pred = torch.sigmoid(x_pred)
+
                         kl_div = -0.5 * torch.sum(
                             1 + log_sigma - mu.pow(2) - log_sigma.exp(), dim=1
                         )
