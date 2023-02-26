@@ -16,15 +16,12 @@ class CNNEncoder(nn.Module):
         if dropout == 0.0:
             self.module = nn.Sequential(
                 nn.Conv2d(self.input_chanel, 3, kernel_size=1),
-                nn.BatchNorm2d(3),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Conv2d(3, 32, kernel_size=3, stride=2),
-                nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Conv2d(32, 64, kernel_size=3, stride=2),
-                nn.BatchNorm2d(64),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Conv2d(64, 16, kernel_size=2),
@@ -35,13 +32,10 @@ class CNNEncoder(nn.Module):
         else:
             self.module = nn.Sequential(
                 nn.Conv2d(self.input_chanel, 3, kernel_size=1),
-                nn.BatchNorm2d(3),
                 nn.ReLU(),
                 nn.Conv2d(3, 32, kernel_size=3, stride=2),
-                nn.BatchNorm2d(32),
                 nn.ReLU(),
                 nn.Conv2d(32, 64, kernel_size=3, stride=2),
-                nn.BatchNorm2d(64),
                 nn.ReLU(),
                 nn.Conv2d(64, 16, kernel_size=2),
                 nn.AvgPool2d(5),

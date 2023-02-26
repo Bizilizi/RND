@@ -85,6 +85,8 @@ class MLPVae(CLModel):
         return x_pred, x, log_sigma, mu
 
     def training_step(self, batch, batch_idx):
+        self.patch_weights()
+
         x, y, *_ = batch
 
         x_pred, _, log_sigma, mu = self.forward(x)
@@ -118,6 +120,8 @@ class MLPVae(CLModel):
         }
 
     def validation_step(self, batch, batch_idx):
+        self.patch_weights()
+
         x, y, *_ = batch
 
         x_pred, _, log_sigma, mu = self.forward(x)
@@ -146,6 +150,10 @@ class MLPVae(CLModel):
             "loss": loss,
             "forward_output": x,
         }
+
+    def patch_weights(self):
+        for params in self.parameters():
+            torch.nan_to_num(params.data, 0, 0, 0, out=params.data)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(

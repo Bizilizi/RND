@@ -23,11 +23,9 @@ class MLPDecoder(nn.Module):
         if dropout == 0.0:
             self.module = nn.Sequential(
                 nn.Linear(z_dim, h_dim2),
-                nn.BatchNorm1d(h_dim2),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(h_dim2, h_dim1),
-                nn.BatchNorm1d(h_dim1),
                 nn.ReLU(),
                 nn.Dropout(dropout),
                 nn.Linear(h_dim1, input_dim),
@@ -35,10 +33,8 @@ class MLPDecoder(nn.Module):
         else:
             self.module = nn.Sequential(
                 nn.Linear(z_dim, h_dim2),
-                nn.BatchNorm1d(h_dim2),
                 nn.ReLU(),
                 nn.Linear(h_dim2, h_dim1),
-                nn.BatchNorm1d(h_dim1),
                 nn.ReLU(),
                 nn.Linear(h_dim1, input_dim),
             )

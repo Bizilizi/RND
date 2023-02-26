@@ -19,11 +19,9 @@ class MLPEncoder(nn.Module):
             self.module = nn.Sequential(
                 nn.Flatten(),
                 nn.Linear(self.input_dim, 512),
-                nn.BatchNorm1d(512),
                 nn.Dropout(dropout),
                 nn.ReLU(),
                 nn.Linear(512, 256),
-                nn.BatchNorm1d(256),
                 nn.Dropout(dropout),
                 nn.ReLU(),
             )
@@ -31,10 +29,8 @@ class MLPEncoder(nn.Module):
             self.module = nn.Sequential(
                 nn.Flatten(),
                 nn.Linear(self.input_dim, 512),
-                nn.BatchNorm1d(512),
                 nn.ReLU(),
                 nn.Linear(512, 256),
-                nn.BatchNorm1d(256),
                 nn.ReLU(),
             )
 

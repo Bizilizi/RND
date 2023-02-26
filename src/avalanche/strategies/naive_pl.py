@@ -115,3 +115,6 @@ class NaivePytorchLightning(Naive):
             self.model.load_state_dict(state_dict)
 
         self.experience_step += 1
+
+    def eval_on_classification_head(self):
+        ...
