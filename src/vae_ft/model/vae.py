@@ -57,16 +57,27 @@ class MLPVae(CLModel):
         else:
             assert False, "VAE. Wrong backbone type!"
 
-    @staticmethod
     def criterion(
+        self,
         x: t.Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
         y: t.Optional[torch.Tensor] = None,
     ) -> t.Tuple[torch.Tensor, torch.Tensor]:
         x_pred, x_input, log_sigma, mu = x
 
-        kl_div = -0.5 * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
-        reconstruction_loss = F.binary_cross_entropy(
-            x_pred.flatten(1), x_input.flatten(1), reduction="sum"
+        if not torch.isfinite(x_pred.flatten()).all():
+            for name, params in self.named_parameters():
+                assert torch.isfinite(params).all(), name
+
+        kl_div = (
+            -0.5
+            * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
+            / x_input.shape[0]
+        )
+        reconstruction_loss = (
+            F.binary_cross_entropy(
+                x_pred.flatten(1), x_input.flatten(1), reduction="sum"
+            )
+            / x_input.shape[0]
         )
 
         return kl_div, reconstruction_loss
