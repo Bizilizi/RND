@@ -64,15 +64,6 @@ class MLPVae(CLModel):
     ) -> t.Tuple[torch.Tensor, torch.Tensor]:
         x_pred, x_input, log_sigma, mu = x
 
-        # nan check
-        if not torch.isfinite(x_pred.flatten()).all():
-            for name, params in self.named_parameters():
-                if not torch.isfinite(params).all():
-                    print(params)
-                    assert False, name
-
-            assert torch.isfinite(x_pred.flatten()).all(), "input"
-
         kl_div = -0.5 * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
         reconstruction_loss = F.binary_cross_entropy(
             x_pred.flatten(1), x_input.flatten(1), reduction="sum"
