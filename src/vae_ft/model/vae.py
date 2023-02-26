@@ -2,6 +2,7 @@ import typing as t
 
 import torch
 import torch.nn.functional as F
+from torch import nn
 
 from src.avalanche.model.cl_model import CLModel
 from src.vae_ft.model.decoder.cnn import CNNDecoder
@@ -38,7 +39,7 @@ class MLPVae(CLModel):
                 h_dim1=512,
                 h_dim2=256,
                 z_dim=z_dim,
-                apply_sigmoid=True,
+                apply_sigmoid=False,
                 dropout=regularization_dropout,
             )
         elif backbone == "cnn":
@@ -49,11 +50,13 @@ class MLPVae(CLModel):
             )
             self.decoder = CNNDecoder(
                 input_dim=z_dim,
-                apply_sigmoid=True,
+                apply_sigmoid=False,
                 dropout=regularization_dropout,
             )
         else:
             assert False, "VAE. Wrong backbone type!"
+
+        self.reconstruction_loss_fn = nn.CrossEntropyLoss()
 
     def criterion(
         self,
@@ -67,11 +70,8 @@ class MLPVae(CLModel):
             * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
             / x_input.shape[0]
         )
-        reconstruction_loss = (
-            F.binary_cross_entropy(
-                x_pred.flatten(1), x_input.flatten(1), reduction="sum"
-            )
-            / x_input.shape[0]
+        reconstruction_loss = self.reconstruction_loss_fn(
+            x_pred.flatten(1), x_input.flatten(1)
         )
 
         return kl_div, reconstruction_loss
@@ -86,6 +86,7 @@ class MLPVae(CLModel):
 
         # compute losses
         x_pred = self.decoder(z)
+        x_pred = torch.nan_to_num(x_pred, 0, 0, 0)
 
         return x_pred, x, log_sigma, mu
 
@@ -158,7 +159,7 @@ class MLPVae(CLModel):
 
     def patch_weights(self):
         for params in self.parameters():
-            torch.nan_to_num(params.data, 0, 0, 0, out=params.data)
+            params.data = torch.nan_to_num(params.data, 0, 0, 0)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(

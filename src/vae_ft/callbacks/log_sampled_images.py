@@ -1,5 +1,6 @@
 import typing as t
 
+import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
 from torchvision.utils import make_grid
@@ -27,6 +28,10 @@ class LogRandomImages(Callback):
         for logger in trainer.loggers:
             if isinstance(logger, WandbLogger):
                 generated = model.decoder.generate(self.num_images, model.device)
+
+                if not model.decoder.apply_sigmoid:
+                    generated = torch.sigmoid(generated)
+
                 generated = (
                     (make_grid(generated, nrow=self.num_rows).permute(1, 2, 0) * 255)
                     .cpu()

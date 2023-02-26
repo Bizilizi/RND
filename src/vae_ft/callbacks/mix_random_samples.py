@@ -101,6 +101,9 @@ class MixRandomImages(Callback):
         sampling_size = min(200, num_images_to_generate)
         for _ in range(num_images_to_generate // sampling_size):
             samples = model.decoder.generate(sampling_size, model.device)
+            if not model.decoder.apply_sigmoid:
+                samples = torch.sigmoid(samples)
+
             generated_samples.append(samples)
 
         generated_samples = torch.cat(generated_samples).cpu()
