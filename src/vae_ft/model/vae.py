@@ -1,10 +1,8 @@
 import typing as t
 
-import pytorch_lightning as pl
 import torch
 import torch.nn.functional as F
 
-from avalanche.benchmarks import CLExperience, NCExperience
 from src.avalanche.model.cl_model import CLModel
 from src.vae_ft.model.decoder.cnn import CNNDecoder
 from src.vae_ft.model.decoder.mlp import MLPDecoder

@@ -1,9 +1,10 @@
+import os
 import typing as t
 from copy import deepcopy
 
 import torch
 from pytorch_lightning import Callback, Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
@@ -42,7 +43,7 @@ class NaivePytorchLightning(Naive):
         accumulate_grad_batches: t.Optional[int] = None,
         callbacks: t.Optional[t.Union[t.List[Callback], Callback]] = None,
         *args,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.initial_resume_from = initial_resume_from
         self.train_logger = train_logger
@@ -76,7 +77,7 @@ class NaivePytorchLightning(Naive):
         self,
         experiences: t.Union[CLExperience, ExpSequence],
         eval_streams: t.Optional[t.Sequence[t.Union[CLExperience, ExpSequence]]] = None,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.model.experience_step = self.experience_step
         self.model.experience = self.experience
@@ -97,7 +98,16 @@ class NaivePytorchLightning(Naive):
             logger=self.train_logger,
             max_epochs=self.max_epochs,
             min_epochs=self.min_epochs,
-            callbacks=self.callbacks,
+            callbacks=(
+                self.callbacks
+                + [
+                    EarlyStopping(
+                        monitor=f"val/loss/experience_step_{self.experience_step}",
+                        mode="min",
+                        patience=10,
+                    )
+                ]
+            ),
             accumulate_grad_batches=self.accumulate_grad_batches,
         )
 
@@ -113,8 +123,6 @@ class NaivePytorchLightning(Naive):
                 "state_dict"
             ]
             self.model.load_state_dict(state_dict)
+            os.remove(self.restore_best_model_callback.best_model_path)
 
         self.experience_step += 1
-
-    def eval_on_classification_head(self):
-        ...

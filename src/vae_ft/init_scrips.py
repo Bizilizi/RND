@@ -46,6 +46,5 @@ def get_callbacks(config: TrainConfig) -> t.List[Callback]:
             num_rand_samples=config.num_random_images,
             num_rand_noise=config.num_random_noise,
         ),
-        # CLEarlyStopping(monitor="val/loss", mode="min", patience=10),
         LogRandomImages(log_every=1),
     ]

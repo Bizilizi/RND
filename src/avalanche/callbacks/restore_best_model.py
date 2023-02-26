@@ -1,4 +1,5 @@
 import typing as t
+from uuid import uuid4
 
 from pytorch_lightning.callbacks import Callback, ModelCheckpoint
 from pytorch_lightning.utilities.types import STEP_OUTPUT
@@ -15,6 +16,7 @@ class RestoreBestPerformingModel(ModelCheckpoint):
     def __init__(self, monitor: str, mode: str, *args, **kwargs):
         self._monitor = monitor
         self.mode = mode
+        self.unique_id = str(uuid4())
 
         self.args = (monitor, args)
         self.kwargs = kwargs
@@ -39,7 +41,7 @@ class RestoreBestPerformingModel(ModelCheckpoint):
         monitor, args = self.args
 
         super().__init__(
-            dirpath="artifacts/cl_best_model",
+            dirpath=f"artifacts/cl_best_model_{self.unique_id}",
             filename="model",
             save_top_k=1,
             monitor=f"{self._monitor}/experience_step_{experience_step}",
