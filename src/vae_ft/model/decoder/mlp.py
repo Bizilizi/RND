@@ -20,24 +20,15 @@ class MLPDecoder(nn.Module):
 
         self.apply_sigmoid = apply_sigmoid
 
-        if dropout == 0.0:
-            self.module = nn.Sequential(
-                nn.Linear(z_dim, h_dim2),
-                nn.ReLU(),
-                nn.Dropout(dropout),
-                nn.Linear(h_dim2, h_dim1),
-                nn.ReLU(),
-                nn.Dropout(dropout),
-                nn.Linear(h_dim1, input_dim),
-            )
-        else:
-            self.module = nn.Sequential(
-                nn.Linear(z_dim, h_dim2),
-                nn.ReLU(),
-                nn.Linear(h_dim2, h_dim1),
-                nn.ReLU(),
-                nn.Linear(h_dim1, input_dim),
-            )
+        self.module = nn.Sequential(
+            nn.Linear(z_dim, h_dim2),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(h_dim2, h_dim1),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(h_dim1, input_dim),
+        )
 
         self.z_dim = z_dim
         self.transforms = transforms

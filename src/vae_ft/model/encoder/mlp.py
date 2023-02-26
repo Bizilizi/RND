@@ -15,24 +15,15 @@ class MLPEncoder(nn.Module):
         self.input_dim = input_dim
         self.output_dim = output_dim
 
-        if dropout == 0.0:
-            self.module = nn.Sequential(
-                nn.Flatten(),
-                nn.Linear(self.input_dim, 512),
-                nn.Dropout(dropout),
-                nn.ReLU(),
-                nn.Linear(512, 256),
-                nn.Dropout(dropout),
-                nn.ReLU(),
-            )
-        else:
-            self.module = nn.Sequential(
-                nn.Flatten(),
-                nn.Linear(self.input_dim, 512),
-                nn.ReLU(),
-                nn.Linear(512, 256),
-                nn.ReLU(),
-            )
+        self.module = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(self.input_dim, 512),
+            nn.Dropout(dropout),
+            nn.ReLU(),
+            nn.Linear(512, 256),
+            nn.Dropout(dropout),
+            nn.ReLU(),
+        )
 
         self.mu_head = nn.Linear(256, self.output_dim)
         self.sigma_head = nn.Linear(256, self.output_dim)

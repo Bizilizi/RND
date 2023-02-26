@@ -79,6 +79,8 @@ def main(args):
         # Override config with sweep
         if wandb.config:
             for k, v in wandb.config.items():
+                if k == "accelerator":
+                    continue
                 setattr(config, k, v)
 
             wandb.config.update(dict(config))
