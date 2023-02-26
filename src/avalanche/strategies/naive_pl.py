@@ -34,7 +34,7 @@ class NaivePytorchLightning(Naive):
         train_logger: t.Optional["Logger"],
         max_epochs: int,
         min_epochs: int,
-        restore_best_model: bool = True,
+        best_model_path_prefix: str = "",
         train_mb_num_workers: int = 2,
         initial_resume_from: t.Optional[str] = None,
         accelerator: str = "cpu",
@@ -54,7 +54,7 @@ class NaivePytorchLightning(Naive):
         self.devices = devices
         self.min_epochs = min_epochs
         self.max_epochs = max_epochs
-        self.restore_best_model = restore_best_model
+        self.best_model_path_prefix = best_model_path_prefix
 
         # Modify callback to
         self.callbacks = callbacks
@@ -63,9 +63,9 @@ class NaivePytorchLightning(Naive):
         )
 
         self.restore_best_model_callback = None
-        if self.restore_best_model:
+        if self.best_model_path_prefix:
             self.restore_best_model_callback = RestoreBestPerformingModel(
-                monitor="val/loss", mode="min"
+                path_prefix=self.best_model_path_prefix, monitor="val/loss", mode="min"
             )
             self.callbacks.append(self.restore_best_model_callback)
 

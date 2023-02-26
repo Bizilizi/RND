@@ -120,6 +120,7 @@ def main():
 
     exp_args["--config"] = "src/vae_ft/configuration/train.ini"
     exp_args["--dataset_path"] = "/work/dzverev/datasets"
+    exp_args["--best_model_prefix"] = "/work/dzverev/artifacts"
     exp_args["--model"] = "vae-ft"
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"

@@ -42,6 +42,7 @@ class BaseTrainConfig(BaseModel):
     accumulate_grad_batches: t.Union[None, int, EmptyIntToNone]
     learning_rate: float
     dataset_path: str
+    best_model_prefix: str
 
     # Logging
     evaluation_logger: str
