@@ -73,16 +73,9 @@ class MLPVae(CLModel):
 
             assert torch.isfinite(x_pred.flatten()).all(), "input"
 
-        kl_div = (
-            -0.5
-            * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
-            / x_input.shape[0]
-        )
-        reconstruction_loss = (
-            F.binary_cross_entropy(
-                x_pred.flatten(1), x_input.flatten(1), reduction="sum"
-            )
-            / x_input.shape[0]
+        kl_div = -0.5 * torch.sum(1 + log_sigma - mu.pow(2) - log_sigma.exp())
+        reconstruction_loss = F.binary_cross_entropy(
+            x_pred.flatten(1), x_input.flatten(1), reduction="sum"
         )
 
         return kl_div, reconstruction_loss
