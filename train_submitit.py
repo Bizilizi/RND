@@ -123,7 +123,7 @@ def main():
     exp_args["--model"] = "vae-ft"
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"
-    exp_args["--max_epochs"] = 100
+    exp_args["--max_epochs"] = 300
     exp_args["--num_workers"] = 4
     exp_args["--sweep_id"] = args.sweep_id
 
