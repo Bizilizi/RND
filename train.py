@@ -5,13 +5,16 @@ from configparser import ConfigParser
 from functools import partial
 
 from pytorch_lightning import seed_everything
-from torchvision.transforms import ToTensor
+from torchvision import transforms
 
 import wandb
 from avalanche.benchmarks import SplitCIFAR10, SplitMNIST
 from src.avalanche.strategies import NaivePytorchLightning
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args, parse_arguments
+from src.vq_vae.callbacks.reconstruction_visualization_plugin import (
+    ReconstructionVisualizationPlugin,
+)
 from train_utils import (
     add_arguments,
     get_callbacks,
@@ -94,11 +97,21 @@ def main(args):
     # Create benchmark, model and loggers
     benchmark = SplitCIFAR10(
         n_experiences=5,
-        seed=args.seed,
-        train_transform=ToTensor(),
-        eval_transform=ToTensor(),
+        return_task_id=True,
         shuffle=False,
-        dataset_root=config.dataset_path,
+        dataset_root="./datasets",
+        train_transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+            ]
+        ),
+        eval_transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+            ]
+        ),
     )
     model, device = get_model_and_device(args, config)
 
@@ -131,6 +144,7 @@ def main(args):
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
         best_model_path_prefix=config.best_model_prefix,
+        plugins=[ReconstructionVisualizationPlugin()],
     )
 
     # Run training process

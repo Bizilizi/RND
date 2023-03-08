@@ -28,6 +28,7 @@ class NaivePytorchLightning(Naive):
     """
 
     experience_step: int
+    trainer: Trainer
 
     def __init__(
         self,
@@ -91,7 +92,7 @@ class NaivePytorchLightning(Naive):
         )
 
         # Training
-        trainer = Trainer(
+        self.trainer = Trainer(
             check_val_every_n_epoch=self.validate_every_n,
             accelerator=self.accelerator,
             devices=self.devices,
@@ -116,7 +117,7 @@ class NaivePytorchLightning(Naive):
             state_dict = torch.load(self.initial_resume_from)["state_dict"]
             self.model.load_state_dict(state_dict)
 
-        trainer.fit(self.model, datamodule=datamodule)
+        self.trainer.fit(self.model, datamodule=datamodule)
 
         if self.experience_step > 0 and self.restore_best_model_callback:
             state_dict = torch.load(self.restore_best_model_callback.best_model_path)[
