@@ -99,7 +99,7 @@ def main(args):
         n_experiences=5,
         return_task_id=True,
         shuffle=False,
-        dataset_root="./datasets",
+        dataset_root=config.dataset_path,
         train_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
