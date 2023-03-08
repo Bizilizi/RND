@@ -125,6 +125,7 @@ def main():
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"
     exp_args["--max_epochs"] = 300
+    exp_args["--batch_size"] = 256
     exp_args["--min_epochs"] = 150
     exp_args["--num_workers"] = 4
     exp_args["--sweep_id"] = args.sweep_id
