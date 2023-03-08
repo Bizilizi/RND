@@ -19,6 +19,10 @@ from src.vae_ft.configuration.config import TrainConfig as VAEFtConfig
 from src.vae_ft.init_scrips import get_callbacks as vae_ft_get_callbacks
 from src.vae_ft.init_scrips import get_evaluation_plugin as vae_ft_get_evaluation_plugin
 from src.vae_ft.init_scrips import get_model as vae_ft_get_model
+from src.vq_vae.init_scrips import get_callbacks as vq_vae_get_callbacks
+from src.vq_vae.init_scrips import get_evaluation_plugin as vq_vae_get_evaluation_plugin
+from src.vq_vae.init_scrips import get_model as vq_vae_get_model
+from src.vq_vae.configuration.config import TrainConfig as VqVaeConfig
 
 # configure logging at the root level of Lightning
 logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
@@ -87,6 +91,8 @@ def get_typed_config(args, ini_config) -> BaseTrainConfig:
         config = RNDConfig.construct_typed_config(ini_config)
     elif args.model == "vae-ft":
         config = VAEFtConfig.construct_typed_config(ini_config)
+    elif args.model == "vq-vae":
+        config = VqVaeConfig.construct_typed_config(ini_config)
     else:
         assert False, "Unknown value '--model' parameter"
 
@@ -145,6 +151,8 @@ def get_model_and_device(args, config: t.Union[RNDConfig, VAEFtConfig]):
         model = rnd_get_model_and_device(config, device)
     elif args.model == "vae-ft":
         model = vae_ft_get_model(config, device)
+    elif args.model == "vq-vae":
+        model = vq_vae_get_model(config, device)
     else:
         assert False, "Unknown value '--model' parameter"
 
@@ -164,6 +172,8 @@ def get_evaluation_plugin(
         )
     elif args.model == "vae-ft":
         eval_plugin = vae_ft_get_evaluation_plugin(evaluation_loggers)
+    elif args.model == "vq-vae":
+        eval_plugin = vq_vae_get_evaluation_plugin(evaluation_loggers)
     else:
         assert False, "Unknown value '--model' parameter"
 
@@ -177,6 +187,8 @@ def get_callbacks(args, config):
         return rnd_get_callbacks()
     elif args.model == "vae-ft":
         return vae_ft_get_callbacks(config=config)
+    elif args.model == "vq-vae":
+        return vq_vae_get_callbacks(config=config)
     else:
         assert False, "Unknown value '--model' parameter"
 

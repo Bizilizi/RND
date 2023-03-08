@@ -8,7 +8,7 @@ from pytorch_lightning import seed_everything
 from torchvision.transforms import ToTensor
 
 import wandb
-from avalanche.benchmarks import SplitMNIST
+from avalanche.benchmarks import SplitMNIST, SplitCIFAR10
 from src.avalanche.strategies import NaivePytorchLightning
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args, parse_arguments
@@ -91,7 +91,7 @@ def main(args):
         wandb_params = None
 
     # Create benchmark, model and loggers
-    benchmark = SplitMNIST(
+    benchmark = SplitCIFAR10(
         n_experiences=5,
         seed=args.seed,
         train_transform=ToTensor(),
