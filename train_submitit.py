@@ -118,13 +118,14 @@ def main():
 
     exp_args = {}
 
-    exp_args["--config"] = "src/vae_ft/configuration/train.ini"
+    exp_args["--config"] = "src/vq_vae/configuration/train.ini"
     exp_args["--dataset_path"] = "/work/dzverev/datasets"
     exp_args["--best_model_prefix"] = "/scratch/shared/beegfs/dzverev/artifacts"
-    exp_args["--model"] = "vae-ft"
+    exp_args["--model"] = "vq-vae"
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"
     exp_args["--max_epochs"] = 300
+    exp_args["--min_epochs"] = 150
     exp_args["--num_workers"] = 4
     exp_args["--sweep_id"] = args.sweep_id
     exp_args["--wandb_dir"] = "/scratch/shared/beegfs/dzverev/wandb"

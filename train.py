@@ -30,7 +30,7 @@ logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
 
 
 def train_loop(
-    benchmark: t.Union[SplitMNIST],
+    benchmark: t.Union[SplitMNIST, SplitCIFAR10],
     cl_strategy: NaivePytorchLightning,
     is_using_wandb: bool,
 ) -> None:
