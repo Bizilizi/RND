@@ -165,4 +165,4 @@ class MixRandomNoise(Callback):
         image = torch.clone(image) + 0.5
         image = torch.clamp(image, 0) * 255
 
-        return image.int()
+        return image.permute(1, 2, 0).int()

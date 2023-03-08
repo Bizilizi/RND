@@ -72,6 +72,7 @@ def main(args):
             id=args.run_id,
             entity="vgg-continual-learning",
             group=args.group,
+            dir=args.wandb_dir,
         )
         wandb.init(**wandb_params)
 

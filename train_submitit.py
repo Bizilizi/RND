@@ -120,13 +120,14 @@ def main():
 
     exp_args["--config"] = "src/vae_ft/configuration/train.ini"
     exp_args["--dataset_path"] = "/work/dzverev/datasets"
-    exp_args["--best_model_prefix"] = "/work/dzverev/artifacts"
+    exp_args["--best_model_prefix"] = "/scratch/shared/beegfs/dzverev/artifacts"
     exp_args["--model"] = "vae-ft"
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"
     exp_args["--max_epochs"] = 300
     exp_args["--num_workers"] = 4
     exp_args["--sweep_id"] = args.sweep_id
+    exp_args["--wandb_dir"] = "/scratch/shared/beegfs/dzverev/wandb"
 
     all_trainers = [
         Trainer(args.agents_per_task, exp_args) for _ in range(args.num_tasks)

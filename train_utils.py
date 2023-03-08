@@ -68,6 +68,13 @@ def add_arguments(parser):
         default=None,
     )
     parser.add_argument(
+        "--wandb_dir",
+        nargs="?",
+        type=str,
+        help="wandb run id",
+        default=".wandb",
+    )
+    parser.add_argument(
         "--group",
         nargs="?",
         type=str,
