@@ -19,10 +19,10 @@ from src.vae_ft.configuration.config import TrainConfig as VAEFtConfig
 from src.vae_ft.init_scrips import get_callbacks as vae_ft_get_callbacks
 from src.vae_ft.init_scrips import get_evaluation_plugin as vae_ft_get_evaluation_plugin
 from src.vae_ft.init_scrips import get_model as vae_ft_get_model
+from src.vq_vae.configuration.config import TrainConfig as VqVaeConfig
 from src.vq_vae.init_scrips import get_callbacks as vq_vae_get_callbacks
 from src.vq_vae.init_scrips import get_evaluation_plugin as vq_vae_get_evaluation_plugin
 from src.vq_vae.init_scrips import get_model as vq_vae_get_model
-from src.vq_vae.configuration.config import TrainConfig as VqVaeConfig
 
 # configure logging at the root level of Lightning
 logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
