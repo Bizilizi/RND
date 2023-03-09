@@ -1,7 +1,10 @@
 import typing as t
 
 from avalanche.evaluation import PluginMetric
+from avalanche.evaluation.metric_results import MetricValue, MetricResult
+from avalanche.evaluation.metric_utils import get_metric_name
 from avalanche.evaluation.metrics import ExperienceLoss, StreamLoss
+from avalanche.training.templates import SupervisedTemplate
 
 
 class VqVaeExperienceLoss(ExperienceLoss):
@@ -46,6 +49,25 @@ class VqVaeExperienceLoss(ExperienceLoss):
             return "test/loss_exp/reconstruction"
         else:
             return "test/loss_exp/kl"
+
+    def _package_result(self, strategy: "SupervisedTemplate") -> "MetricResult":
+        metric_value = self.result(strategy)
+        add_exp = False
+        plot_x_position = strategy.clock.train_iterations
+
+        if isinstance(metric_value, dict):
+            metrics = []
+            for k, v in metric_value.items():
+                metric_name = get_metric_name(
+                    self, strategy, add_experience=add_exp, add_task=k
+                )
+                metrics.append(MetricValue(self, metric_name, v, plot_x_position))
+            return metrics
+        else:
+            metric_name = get_metric_name(
+                self, strategy, add_experience=add_exp, add_task=True
+            )
+            return [MetricValue(self, metric_name, metric_value, plot_x_position)]
 
 
 class VqVaeStreamLoss(StreamLoss):
