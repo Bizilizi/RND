@@ -1,6 +1,8 @@
 import typing as t
 
 from avalanche.evaluation import PluginMetric
+from avalanche.evaluation.metric_results import MetricResult, MetricValue
+from avalanche.evaluation.metric_utils import get_metric_name
 from avalanche.evaluation.metrics import (
     GenericExperienceForgetting,
     GenericStreamForgetting,
@@ -91,6 +93,21 @@ class VqVaeExperienceForgetting(GenericExperienceForgetting):
             return "test/forgetting_exp/reconstruction"
         else:
             return "test/forgetting_exp/vq"
+
+    def _package_result(self, strategy: "SupervisedTemplate") -> MetricResult:
+        # this checks if the evaluation experience has been
+        # already encountered at training time
+        # before the last training.
+        # If not, forgetting should not be returned.
+        forgetting = self.result(k=self.eval_exp_id)
+        if forgetting is not None:
+            metric_name = get_metric_name(self, strategy)
+            plot_x_position = strategy.clock.train_iterations
+
+            metric_values = [
+                MetricValue(self, metric_name, forgetting, plot_x_position)
+            ]
+            return metric_values
 
 
 def vq_vae_forgetting_metrics(

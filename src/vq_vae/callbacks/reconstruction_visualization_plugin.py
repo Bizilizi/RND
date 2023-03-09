@@ -12,6 +12,7 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
     def __init__(self):
         super().__init__()
 
+    @torch.no_grad()
     def before_eval(self, strategy: "NaivePytorchLightning", **kwargs):
         """Update the buffer."""
 
