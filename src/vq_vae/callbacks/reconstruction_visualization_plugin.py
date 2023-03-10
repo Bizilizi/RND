@@ -80,7 +80,7 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
 
         wandb.log(
             {
-                f"val/reconstructions/experience_step_{strategy.experience_step}": image_data_table
+                f"val/reconstructions/experience_step_{strategy.experience_step - 1}": image_data_table
             }
         )
 

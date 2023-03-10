@@ -12,24 +12,30 @@ from avalanche.evaluation.metrics import (
 
 class VqVaeStreamForgetting(GenericStreamForgetting):
     def __init__(
-        self, with_vq_loss: bool = True, with_reconstruction_loss: bool = True
+        self,
+        with_vq_loss: bool = False,
+        with_reconstruction_loss: bool = False,
+        with_lin_loss: bool = False,
+        with_lin_acc: bool = False,
     ):
 
         super().__init__()
-
         assert (
-            with_vq_loss or with_reconstruction_loss
+            with_vq_loss or with_reconstruction_loss or with_lin_loss or with_lin_acc
         ), "One of the parameters (with_rnd_loss, with_downstream_loss) have to present"
 
         self.with_vq_loss = with_vq_loss
         self.with_reconstruction_loss = with_reconstruction_loss
+        self.with_lin_acc = with_lin_acc
+        self.with_lin_loss = with_lin_loss
+
         self._current_metric = Mean()
         """
         The average over the current evaluation experience
         """
 
     def metric_update(self, strategy):
-        vq_loss, reconstruction_loss, _ = strategy.loss
+        vq_loss, reconstruction_loss, clf_loss, clf_acc, _ = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
@@ -37,6 +43,12 @@ class VqVaeStreamForgetting(GenericStreamForgetting):
 
         if self.with_reconstruction_loss:
             loss -= reconstruction_loss
+
+        if self.with_lin_loss:
+            loss -= clf_loss
+
+        if self.with_lin_acc:
+            loss += clf_acc
 
         self._current_metric.update(loss, 1)
 
@@ -48,30 +60,43 @@ class VqVaeStreamForgetting(GenericStreamForgetting):
             return "test/forgetting_stream/full"
         elif self.with_reconstruction_loss:
             return "test/forgetting_stream/reconstruction"
-        else:
+        elif self.with_reconstruction_loss:
             return "test/forgetting_stream/vq"
+        elif self.with_lin_loss:
+            return "test/forgetting_stream/clf_loss"
+        elif self.with_lin_acc:
+            return "test/forgetting_stream/clf_accuracy"
+
+        return "undefined"
 
 
 class VqVaeExperienceForgetting(GenericExperienceForgetting):
     def __init__(
-        self, with_vq_loss: bool = True, with_reconstruction_loss: bool = True
+        self,
+        with_vq_loss: bool = False,
+        with_reconstruction_loss: bool = False,
+        with_lin_loss: bool = False,
+        with_lin_acc: bool = False,
     ):
 
         super().__init__()
 
         assert (
-            with_vq_loss or with_reconstruction_loss
+            with_vq_loss or with_reconstruction_loss or with_lin_loss or with_lin_acc
         ), "One of the parameters (with_rnd_loss, with_downstream_loss) have to present"
 
         self.with_vq_loss = with_vq_loss
         self.with_reconstruction_loss = with_reconstruction_loss
+        self.with_lin_acc = with_lin_acc
+        self.with_lin_loss = with_lin_loss
+
         self._current_metric = Mean()
         """
         The average over the current evaluation experience
         """
 
     def metric_update(self, strategy):
-        vq_loss, reconstruction_loss, _ = strategy.loss
+        vq_loss, reconstruction_loss, clf_loss, clf_acc, _ = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
@@ -79,6 +104,12 @@ class VqVaeExperienceForgetting(GenericExperienceForgetting):
 
         if self.with_reconstruction_loss:
             loss -= reconstruction_loss
+
+        if self.with_lin_loss:
+            loss -= clf_loss
+
+        if self.with_lin_acc:
+            loss += clf_acc
 
         self._current_metric.update(loss, 1)
 
@@ -88,11 +119,17 @@ class VqVaeExperienceForgetting(GenericExperienceForgetting):
     def __str__(self):
 
         if self.with_reconstruction_loss and self.with_vq_loss:
-            return "test/forgetting_exp/full"
+            return "test/forgetting_stream/full"
         elif self.with_reconstruction_loss:
-            return "test/forgetting_exp/reconstruction"
-        else:
-            return "test/forgetting_exp/vq"
+            return "test/forgetting_stream/reconstruction"
+        elif self.with_reconstruction_loss:
+            return "test/forgetting_stream/vq"
+        elif self.with_lin_loss:
+            return "test/forgetting_stream/clf_loss"
+        elif self.with_lin_acc:
+            return "test/forgetting_stream/clf_accuracy"
+
+        return "undefined"
 
     def _package_result(self, strategy: "SupervisedTemplate") -> MetricResult:
         # this checks if the evaluation experience has been
@@ -131,18 +168,24 @@ def vq_vae_forgetting_metrics(
     if experience:
         metrics.extend(
             [
-                VqVaeExperienceForgetting(),
-                VqVaeExperienceForgetting(with_reconstruction_loss=False),
-                VqVaeExperienceForgetting(with_vq_loss=False),
+                VqVaeExperienceForgetting(
+                    with_reconstruction_loss=True, with_vq_loss=True
+                ),
+                VqVaeExperienceForgetting(with_reconstruction_loss=True),
+                VqVaeExperienceForgetting(with_vq_loss=True),
+                VqVaeExperienceForgetting(with_lin_loss=True),
+                VqVaeExperienceForgetting(with_lin_acc=True),
             ]
         )
 
     if stream:
         metrics.extend(
             [
-                VqVaeStreamForgetting(),
-                VqVaeStreamForgetting(with_reconstruction_loss=False),
-                VqVaeStreamForgetting(with_vq_loss=False),
+                VqVaeStreamForgetting(with_reconstruction_loss=True, with_vq_loss=True),
+                VqVaeStreamForgetting(with_reconstruction_loss=True),
+                VqVaeStreamForgetting(with_vq_loss=True),
+                VqVaeStreamForgetting(with_lin_loss=True),
+                VqVaeStreamForgetting(with_lin_acc=True),
             ]
         )
 

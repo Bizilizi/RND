@@ -9,12 +9,18 @@ from avalanche.training.templates import SupervisedTemplate
 
 class VqVaeExperienceLoss(ExperienceLoss):
     def __init__(
-        self, with_vq_loss: bool = True, with_reconstruction_loss: bool = True
+        self,
+        with_vq_loss: bool = False,
+        with_reconstruction_loss: bool = False,
+        with_lin_loss: bool = False,
+        with_lin_acc: bool = False,
     ):
         super().__init__()
 
         self.with_vq_loss = with_vq_loss
         self.with_reconstruction_loss = with_reconstruction_loss
+        self.with_lin_acc = with_lin_acc
+        self.with_lin_loss = with_lin_loss
 
     def update(self, strategy):
         # task labels defined for each experience
@@ -30,7 +36,7 @@ class VqVaeExperienceLoss(ExperienceLoss):
         else:
             task_label = task_labels[0]
 
-        vq_loss, reconstruction_loss, _ = strategy.loss
+        vq_loss, reconstruction_loss, clf_loss, clf_acc, _ = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
@@ -38,6 +44,12 @@ class VqVaeExperienceLoss(ExperienceLoss):
 
         if self.with_reconstruction_loss:
             loss += reconstruction_loss
+
+        if self.with_lin_loss:
+            loss -= clf_loss
+
+        if self.with_lin_acc:
+            loss += clf_acc
 
         self._loss.update(loss, patterns=len(strategy.mb_y), task_label=task_label)
 
@@ -47,8 +59,12 @@ class VqVaeExperienceLoss(ExperienceLoss):
 
         elif self.with_reconstruction_loss:
             return "test/loss_exp/reconstruction"
-        else:
+        elif self.with_vq_loss:
             return "test/loss_exp/kl"
+        elif self.with_lin_loss:
+            return "test/loss_exp/clf_loss"
+        elif self.with_lin_acc:
+            return "test/loss_exp/clf_accuracy"
 
     def _package_result(self, strategy: "SupervisedTemplate") -> "MetricResult":
         metric_value = self.result(strategy)
@@ -72,12 +88,18 @@ class VqVaeExperienceLoss(ExperienceLoss):
 
 class VqVaeStreamLoss(StreamLoss):
     def __init__(
-        self, with_vq_loss: bool = True, with_reconstruction_loss: bool = True
+        self,
+        with_vq_loss: bool = False,
+        with_reconstruction_loss: bool = False,
+        with_lin_loss: bool = False,
+        with_lin_acc: bool = False,
     ):
         super().__init__()
 
         self.with_vq_loss = with_vq_loss
         self.with_reconstruction_loss = with_reconstruction_loss
+        self.with_lin_acc = with_lin_acc
+        self.with_lin_loss = with_lin_loss
 
     def update(self, strategy):
         # task labels defined for each experience
@@ -93,7 +115,7 @@ class VqVaeStreamLoss(StreamLoss):
         else:
             task_label = task_labels[0]
 
-        vq_loss, reconstruction_loss, _ = strategy.loss
+        vq_loss, reconstruction_loss, clf_loss, clf_acc, _ = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
@@ -102,16 +124,25 @@ class VqVaeStreamLoss(StreamLoss):
         if self.with_reconstruction_loss:
             loss += reconstruction_loss
 
+        if self.with_lin_loss:
+            loss -= clf_loss
+
+        if self.with_lin_acc:
+            loss += clf_acc
+
         self._loss.update(loss, patterns=len(strategy.mb_y), task_label=task_label)
 
     def __str__(self):
         if self.with_vq_loss and self.with_reconstruction_loss:
             return "test/loss_stream/full"
-
         elif self.with_reconstruction_loss:
-            return "test/loss_stream/reconstruction"
-        else:
-            return "test/loss_stream/kl"
+            return "test/loss_exp/reconstruction"
+        elif self.with_vq_loss:
+            return "test/loss_exp/kl"
+        elif self.with_lin_loss:
+            return "test/loss_exp/clf_loss"
+        elif self.with_lin_acc:
+            return "test/loss_exp/clf_accuracy"
 
 
 def vq_vae_loss_metrics(*, experience=False, stream=False) -> t.List[PluginMetric]:
@@ -132,18 +163,22 @@ def vq_vae_loss_metrics(*, experience=False, stream=False) -> t.List[PluginMetri
     if experience:
         metrics.extend(
             [
-                VqVaeExperienceLoss(),
-                VqVaeExperienceLoss(with_vq_loss=False),
-                VqVaeExperienceLoss(with_reconstruction_loss=False),
+                VqVaeExperienceLoss(with_reconstruction_loss=True, with_vq_loss=True),
+                VqVaeExperienceLoss(with_vq_loss=True),
+                VqVaeExperienceLoss(with_reconstruction_loss=True),
+                VqVaeExperienceLoss(with_lin_loss=True),
+                VqVaeExperienceLoss(with_lin_acc=True),
             ]
         )
 
     if stream:
         metrics.extend(
             [
-                VqVaeStreamLoss(),
-                VqVaeStreamLoss(with_vq_loss=False),
-                VqVaeStreamLoss(with_reconstruction_loss=False),
+                VqVaeStreamLoss(with_reconstruction_loss=True, with_vq_loss=True),
+                VqVaeStreamLoss(with_vq_loss=True),
+                VqVaeStreamLoss(with_reconstruction_loss=True),
+                VqVaeStreamLoss(with_lin_loss=True),
+                VqVaeStreamLoss(with_lin_acc=True),
             ]
         )
 

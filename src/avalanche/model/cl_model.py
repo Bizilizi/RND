@@ -12,8 +12,8 @@ class CLModel(pl.LightningModule):
 
     @staticmethod
     def criterion(
-        x: t.Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
-        y: t.Optional[torch.Tensor] = None,
+        x: t.Any,
+        y: t.Any,
     ) -> t.Any:
         raise NotImplementedError
 

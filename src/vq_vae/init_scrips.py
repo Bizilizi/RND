@@ -5,21 +5,33 @@ from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
-from src.vae_ft.callbacks.log_latent_space import LogLatentSpace
-from src.vae_ft.callbacks.log_sampled_images import LogRandomImages
-from src.vae_ft.callbacks.mix_random_samples import MixRandomImages
 from src.vq_vae.callbacks.mix_random_samples import MixRandomNoise
 from src.vq_vae.configuration.config import TrainConfig
-from src.vq_vae.metrics.rnd_forgetting import vq_vae_forgetting_metrics
-from src.vq_vae.metrics.vae_loss import vq_vae_loss_metrics
+from src.vq_vae.metrics.vq_vae_confusion_matrix import vq_vae_confusion_matrix_metrics
+from src.vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
+from src.vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
 from src.vq_vae.model.vq_vae import VQVae
 
 
-def get_evaluation_plugin(evaluation_loggers) -> t.Optional[EvaluationPlugin]:
+def get_evaluation_plugin(
+    benchmark, evaluation_loggers, is_using_wandb
+) -> t.Optional[EvaluationPlugin]:
     eval_plugin = EvaluationPlugin(
         timing_metrics(epoch_running=True),
         vq_vae_forgetting_metrics(experience=True, stream=True),
         vq_vae_loss_metrics(experience=True, stream=True),
+        vq_vae_confusion_matrix_metrics(
+            num_classes=benchmark.n_classes,
+            save_image=False,
+            stream=True,
+            wandb=is_using_wandb,
+        ),
+        vq_vae_confusion_matrix_metrics(
+            num_classes=benchmark.n_classes,
+            save_image=False,
+            stream=False,
+            wandb=is_using_wandb,
+        ),
         suppress_warnings=True,
         loggers=evaluation_loggers,
     )

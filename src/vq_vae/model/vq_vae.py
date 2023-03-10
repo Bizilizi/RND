@@ -9,6 +9,9 @@ from src.vq_vae.model.decoder import Decoder
 from src.vq_vae.model.encoder import Encoder
 from src.vq_vae.model.quiantizer import VectorQuantizer, VectorQuantizerEMA
 
+if t.TYPE_CHECKING:
+    from src.vq_vae.model.classification_head import CnnClassifier
+
 
 class VQVae(CLModel):
     def __init__(
@@ -32,25 +35,25 @@ class VQVae(CLModel):
         self._weight_decay = regularization_lambda
         self._regularization_dropout = regularization_dropout
 
-        self._encoder = Encoder(
+        self.encoder = Encoder(
             in_channels=3,
             num_hiddens=num_hiddens,
             num_residual_layers=num_residual_layers,
             num_residual_hiddens=num_residual_hiddens,
             regularization_dropout=regularization_dropout,
         )
-        self._pre_vq_conv = nn.Conv2d(
+        self.pre_vq_conv = nn.Conv2d(
             in_channels=num_hiddens, out_channels=embedding_dim, kernel_size=1, stride=1
         )
         if decay > 0.0:
-            self._vq_vae = VectorQuantizerEMA(
+            self.vq_vae = VectorQuantizerEMA(
                 num_embeddings, embedding_dim, commitment_cost, decay
             )
         else:
-            self._vq_vae = VectorQuantizer(
+            self.vq_vae = VectorQuantizer(
                 num_embeddings, embedding_dim, commitment_cost
             )
-        self._decoder = Decoder(
+        self.decoder = Decoder(
             in_channels=embedding_dim,
             num_hiddens=num_hiddens,
             num_residual_layers=num_residual_layers,
@@ -58,30 +61,50 @@ class VQVae(CLModel):
             regularization_dropout=regularization_dropout,
         )
 
-    def criterion(
-        self,
-        x: t.Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor],
-        y: t.Optional[torch.Tensor] = None,
-    ) -> t.Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        self.clf_head = None
 
-        loss, x_recon, x_data, perplexity = x
+    def set_clf_head(self, model: "CnnClassifier"):
+        self.__dict__["clf_head"] = model
+
+        for param in model.parameters():
+            param.requires_grad = False
+
+    def reset_clf_head(self):
+        self.clf_head = None
+
+    def criterion(self, x, y):
+        loss, x_recon, quantized, x_data, perplexity, logits = x
         reconstruction_loss = F.mse_loss(x_recon, x_data) / self._data_variance
 
-        return loss, reconstruction_loss, perplexity
+        if logits:
+            clf_loss = F.cross_entropy(logits, y)
+            clf_acc = (logits.argmax(dim=-1) == y).float().mean().item()
+        else:
+            clf_loss = clf_acc = None
+
+        return loss, reconstruction_loss, clf_loss, clf_acc, perplexity
 
     def forward(self, x):
-        z = self._encoder(x)
-        z = self._pre_vq_conv(z)
-        loss, quantized, perplexity = self._vq_vae(z)
-        x_recon = self._decoder(quantized)
+        z = self.encoder(x)
+        z = self.pre_vq_conv(z)
+        loss, quantized, perplexity = self.vq_vae(z)
+        x_recon = self.decoder(quantized)
 
-        return loss, x_recon, x, perplexity
+        if self.clf_head:
+            self.clf_head.to(self.device)
+            logits = self.clf_head.forward(quantized)
+        else:
+            logits = None
+
+        return loss, x_recon, quantized, x, perplexity, logits
 
     def training_step(self, batch, batch_idx):
         x, y, *_ = batch
 
-        vq_loss, x_recon, _, perplexity = self.forward(x)
-        _, reconstruction_loss, _ = self.criterion((vq_loss, x_recon, x, perplexity))
+        vq_loss, x_recon, quantized, x, perplexity, logits = self.forward(x)
+        _, reconstruction_loss, clf_loss, clf_acc, _ = self.criterion(
+            (vq_loss, x_recon, quantized, x, perplexity, logits), y
+        )
 
         loss = vq_loss + reconstruction_loss
 
@@ -105,15 +128,16 @@ class VQVae(CLModel):
 
         return {
             "loss": loss,
-            "forward_output": (vq_loss, x_recon, x, perplexity),
+            "forward_output": (vq_loss, x_recon, quantized, x, perplexity),
         }
 
     def validation_step(self, batch, batch_idx):
         x, y, *_ = batch
 
-        vq_loss, x_recon, _, perplexity = self.forward(x)
-        _, reconstruction_loss, _ = self.criterion((vq_loss, x_recon, x, perplexity))
-
+        vq_loss, x_recon, quantized, _, perplexity, logits = self.forward(x)
+        _, reconstruction_loss, clf_loss, clf_acc, _ = self.criterion(
+            (vq_loss, x_recon, quantized, x, perplexity, logits), y
+        )
         loss = vq_loss + reconstruction_loss
 
         # LOGGING
@@ -136,7 +160,7 @@ class VQVae(CLModel):
 
         return {
             "loss": loss,
-            "forward_output": (vq_loss, x_recon, x, perplexity),
+            "forward_output": (vq_loss, x_recon, quantized, x, perplexity),
         }
 
     def configure_optimizers(self):
