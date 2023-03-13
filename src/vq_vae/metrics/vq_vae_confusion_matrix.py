@@ -10,8 +10,8 @@ from avalanche.evaluation.metrics import (
 
 class VQVaeWandBStreamConfusionMatrix(WandBStreamConfusionMatrix):
     def after_eval_iteration(self, strategy: "SupervisedTemplate"):
-        _, _, module_downstream_pred = strategy.mb_output
-        self.update(module_downstream_pred, strategy.mb_y)
+        *_, logits = strategy.mb_output
+        self.update(logits, strategy.mb_y)
 
     def __str__(self):
         return "test/confusion_matrix_stream"
