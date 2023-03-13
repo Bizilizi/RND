@@ -44,8 +44,6 @@ class CnnClassifier(pl.LightningModule):
         x, y = batch
 
         with torch.no_grad():
-            self.vq_vae.to(self.device)
-
             z = self.vq_vae.encoder(x)
             z = self.vq_vae.pre_vq_conv(z)
             _, quantized, _ = self.vq_vae.vq_vae(z)
@@ -69,8 +67,6 @@ class CnnClassifier(pl.LightningModule):
         x, y = batch
 
         with torch.no_grad():
-            self.vq_vae.to(self.device)
-
             z = self.vq_vae.encoder(x)
             z = self.vq_vae.pre_vq_conv(z)
             _, quantized, _ = self.vq_vae.vq_vae(z)

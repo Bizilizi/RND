@@ -66,9 +66,6 @@ class VQVae(CLModel):
     def set_clf_head(self, model: "CnnClassifier"):
         self.__dict__["clf_head"] = model
 
-        for param in model.parameters():
-            param.requires_grad = False
-
     def reset_clf_head(self):
         self.clf_head = None
 
@@ -91,8 +88,7 @@ class VQVae(CLModel):
         x_recon = self.decoder(quantized)
 
         if self.clf_head is not None:
-            self.clf_head.to(self.device)
-            logits = self.clf_head.forward(quantized)
+            logits = self.clf_head(quantized)
         else:
             logits = None
 

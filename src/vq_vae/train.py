@@ -1,6 +1,7 @@
 import pathlib
 from configparser import ConfigParser
 
+import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from torchvision import transforms
@@ -31,14 +32,15 @@ def train_classifier(
     strategy: NaivePytorchLightning,
     config: TrainConfig,
     benchmark: SplitCIFAR10,
+    device: torch.device,
 ):
-    model = strategy.model
+    model = strategy.model.to(device)
     clf_head = CnnClassifier(
         in_channels=config.embedding_dim,
         num_classes=benchmark.n_classes,
         vq_vae=model,
         experience_step=strategy.experience_step,
-    )
+    ).to(device)
 
     train_dataset = datasets.CIFAR10(
         root=config.dataset_path,
@@ -93,6 +95,7 @@ def train_loop(
     cl_strategy: NaivePytorchLightning,
     is_using_wandb: bool,
     config: TrainConfig,
+    device: torch.device,
 ) -> None:
     """
     :return:
@@ -101,15 +104,22 @@ def train_loop(
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
-        # Train VQ-VAE and linear classifier
+        # Train VQ-VAE
         cl_strategy.train(train_experience, [test_experience])
-        cl_strategy.model.set_clf_head(
-            train_classifier(strategy=cl_strategy, config=config, benchmark=benchmark)
-        )
+
+        # Train linear classifier, but before we freeze model params
+        cl_strategy.model.freeze()
+        clf_head = train_classifier(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+        cl_strategy.model.set_clf_head(clf_head)
 
         # Evaluate VQ-VAE and linear classifier
         cl_strategy.eval(benchmark.test_stream)
+
+        # Reset linear classifier and unfreeze params
         cl_strategy.model.reset_clf_head()
+        cl_strategy.model.unfreeze()
 
     if is_using_wandb:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
@@ -222,6 +232,7 @@ def main(args):
             cl_strategy=cl_strategy,
             is_using_wandb=is_using_wandb,
             config=config,
+            device=device,
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")
