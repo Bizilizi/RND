@@ -148,11 +148,14 @@ def main(args):
 
     # Create benchmark, model and loggers
     datasets_dir = pathlib.Path(config.dataset_path)
+    target_dataset_dir = pathlib.Path("/tmp/dzverev_data/")
+    target_dataset_dir.mkdir(exist_ok=True)
 
     zip_path = datasets_dir / "cifar-10-python.tar.gz"
     dataset_path = datasets_dir / "cifar-10-batches-py"
-    target_zip_path = pathlib.Path("/tmp/dzverev_data/cifar-10-python.tar.gz")
-    target_dataset_path = pathlib.Path("/tmp/dzverev_data/cifar-10-batches-py")
+
+    target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
+    target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
 
     if zip_path.exists() and not target_zip_path.exists():
         shutil.copy(str(zip_path), str(target_zip_path))
