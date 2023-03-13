@@ -78,7 +78,7 @@ class VQVae(CLModel):
 
         if logits is not None:
             clf_loss = F.cross_entropy(logits, y)
-            clf_acc = (logits.argmax(dim=-1) == y).float().mean().item()
+            clf_acc = (logits.argmax(dim=-1) == y).float().mean()
         else:
             clf_loss = clf_acc = None
 
