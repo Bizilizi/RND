@@ -1,10 +1,10 @@
+import pathlib
 from configparser import ConfigParser
 
-import torch.optim.optimizer
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from torchvision import transforms
-
+import shutil
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
 from torchvision import datasets
@@ -147,11 +147,19 @@ def main(args):
         wandb_params = None
 
     # Create benchmark, model and loggers
+    datasets_dir = pathlib.Path(config.dataset_path)
+    zip_path = datasets_dir / "cifar-10-python.tar.gz"
+    dataset_path = datasets_dir / "cifar-10-batches-py"
+
+    if zip_path.exists() and dataset_path.exists():
+        shutil.copy(str(zip_path), "/tmp/dzverev_data/cifar-10-python.tar.gz")
+        shutil.copytree(str(dataset_path), "/tmp/dzverev_data/cifar-10-batches-py")
+
     benchmark = SplitCIFAR10(
         n_experiences=5,
         return_task_id=True,
         shuffle=False,
-        dataset_root=config.dataset_path,
+        dataset_root="/tmp/dzverev_data",
         train_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
