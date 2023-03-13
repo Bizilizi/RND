@@ -76,7 +76,7 @@ class VQVae(CLModel):
         loss, x_recon, quantized, x_data, perplexity, logits = x
         reconstruction_loss = F.mse_loss(x_recon, x_data) / self._data_variance
 
-        if logits:
+        if logits is not None:
             clf_loss = F.cross_entropy(logits, y)
             clf_acc = (logits.argmax(dim=-1) == y).float().mean().item()
         else:
@@ -90,7 +90,7 @@ class VQVae(CLModel):
         loss, quantized, perplexity = self.vq_vae(z)
         x_recon = self.decoder(quantized)
 
-        if self.clf_head:
+        if self.clf_head is not None:
             self.clf_head.to(self.device)
             logits = self.clf_head.forward(quantized)
         else:
