@@ -32,12 +32,12 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
                 shuffle=False,
             )
 
-            for x, *_ in dataloader:
+            for x, y, _ in dataloader:
                 x = x.to(model.device)
 
-                vq_loss, x_recon, _, perplexity = model.forward(x)
+                vq_loss, x_recon, quantized, _, perplexity, logits = model.forward(x)
                 _, reconstruction_loss, _ = model.criterion(
-                    (vq_loss, x_recon, x, perplexity)
+                    (vq_loss, x_recon, quantized, x, perplexity, logits), y
                 )
 
                 reconstruction_images.extend(
