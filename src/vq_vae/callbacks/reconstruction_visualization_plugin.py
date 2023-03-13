@@ -34,6 +34,7 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
 
             for x, y, _ in dataloader:
                 x = x.to(model.device)
+                y = y.to(model.device)
 
                 vq_loss, x_recon, quantized, _, perplexity, logits = model.forward(x)
                 _, reconstruction_loss, _ = model.criterion(
