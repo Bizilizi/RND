@@ -82,7 +82,7 @@ def train_classifier(
                 patience=10,
             )
         ],
-        max_epochs=2,
+        max_epochs=200,
     )
 
     trainer.fit(clf_head, datamodule=datamodule)
