@@ -20,13 +20,13 @@ def get_evaluation_plugin(
         timing_metrics(epoch_running=True),
         vq_vae_forgetting_metrics(experience=True, stream=True),
         vq_vae_loss_metrics(experience=True, stream=True),
-        # vq_vae_confusion_matrix_metrics(
-        #     num_classes=benchmark.n_classes,
-        #     class_names=list(map(str, range(benchmark.n_classes))),
-        #     save_image=False,
-        #     stream=True,
-        #     wandb=is_using_wandb,
-        # ),
+        vq_vae_confusion_matrix_metrics(
+            num_classes=benchmark.n_classes,
+            class_names=list(map(str, range(benchmark.n_classes))),
+            save_image=False,
+            stream=True,
+            wandb=is_using_wandb,
+        ),
         suppress_warnings=True,
         loggers=evaluation_loggers,
     )
