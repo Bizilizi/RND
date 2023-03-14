@@ -22,14 +22,9 @@ def get_evaluation_plugin(
         vq_vae_loss_metrics(experience=True, stream=True),
         vq_vae_confusion_matrix_metrics(
             num_classes=benchmark.n_classes,
+            class_names=list(map(str, range(benchmark.n_classes))),
             save_image=False,
             stream=True,
-            wandb=is_using_wandb,
-        ),
-        vq_vae_confusion_matrix_metrics(
-            num_classes=benchmark.n_classes,
-            save_image=False,
-            stream=False,
             wandb=is_using_wandb,
         ),
         suppress_warnings=True,

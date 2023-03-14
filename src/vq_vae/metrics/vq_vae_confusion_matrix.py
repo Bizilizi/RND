@@ -1,20 +1,54 @@
 import typing as t
 
+import wandb
 from avalanche.evaluation import PluginMetric
-from avalanche.evaluation.metric_utils import default_cm_image_creator
+from avalanche.evaluation.metric_results import (
+    MetricResult,
+    MetricValue,
+    AlternativeValues,
+)
+from avalanche.evaluation.metric_utils import (
+    default_cm_image_creator,
+    phase_and_task,
+    stream_type,
+)
 from avalanche.evaluation.metrics import (
     StreamConfusionMatrix,
     WandBStreamConfusionMatrix,
 )
+from wandb.wandb_torch import torch
+
+from src.avalanche.strategies import NaivePytorchLightning
 
 
 class VQVaeWandBStreamConfusionMatrix(WandBStreamConfusionMatrix):
-    def after_eval_iteration(self, strategy: "SupervisedTemplate"):
+    def after_eval_iteration(self, strategy: "NaivePytorchLightning"):
         *_, logits = strategy.mb_output
         self.update(logits, strategy.mb_y)
 
     def __str__(self):
         return "test/confusion_matrix_stream"
+
+    def _package_result(self, strategy: "NaivePytorchLightning") -> MetricResult:
+        outputs, targets = self.result()
+        phase_name, _ = phase_and_task(strategy)
+        stream = stream_type(strategy.experience)
+        metric_name = f"{str(self)}/experience_step_{strategy.experience_step}"
+        plot_x_position = strategy.clock.train_iterations
+
+        # compute predicted classes
+        preds = torch.argmax(outputs, dim=1).cpu().numpy()
+        result = wandb.plot.confusion_matrix(
+            preds=preds,
+            y_true=targets.cpu().numpy(),
+            class_names=self.class_names,
+        )
+
+        metric_representation = MetricValue(
+            self, metric_name, AlternativeValues(result), plot_x_position
+        )
+
+        return [metric_representation]
 
 
 class VQVaeStreamConfusionMatrix(StreamConfusionMatrix):

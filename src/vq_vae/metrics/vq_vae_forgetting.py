@@ -2,12 +2,13 @@ import typing as t
 
 from avalanche.evaluation import PluginMetric
 from avalanche.evaluation.metric_results import MetricResult, MetricValue
-from avalanche.evaluation.metric_utils import get_metric_name
 from avalanche.evaluation.metrics import (
     GenericExperienceForgetting,
     GenericStreamForgetting,
     Mean,
 )
+
+from src.avalanche.strategies import NaivePytorchLightning
 
 
 class VqVaeStreamForgetting(GenericStreamForgetting):
@@ -69,6 +70,13 @@ class VqVaeStreamForgetting(GenericStreamForgetting):
 
         return "undefined"
 
+    def _package_result(self, strategy: "NaivePytorchLightning") -> MetricResult:
+        metric_value = self.result()
+        metric_name = str(self)
+        plot_x_position = strategy.clock.train_iterations
+
+        return [MetricValue(self, metric_name, metric_value, plot_x_position)]
+
 
 class VqVaeExperienceForgetting(GenericExperienceForgetting):
     def __init__(
@@ -119,26 +127,26 @@ class VqVaeExperienceForgetting(GenericExperienceForgetting):
     def __str__(self):
 
         if self.with_reconstruction_loss and self.with_vq_loss:
-            return "test/forgetting_stream/full"
+            return "test/forgetting_exp/full"
         elif self.with_reconstruction_loss:
-            return "test/forgetting_stream/reconstruction"
+            return "test/forgetting_exp/reconstruction"
         elif self.with_reconstruction_loss:
-            return "test/forgetting_stream/vq"
+            return "test/forgetting_exp/vq"
         elif self.with_lin_loss:
-            return "test/forgetting_stream/clf_loss"
+            return "test/forgetting_exp/clf_loss"
         elif self.with_lin_acc:
-            return "test/forgetting_stream/clf_accuracy"
+            return "test/forgetting_exp/clf_accuracy"
 
         return "undefined"
 
-    def _package_result(self, strategy: "SupervisedTemplate") -> MetricResult:
+    def _package_result(self, strategy: "NaivePytorchLightning") -> MetricResult:
         # this checks if the evaluation experience has been
         # already encountered at training time
         # before the last training.
         # If not, forgetting should not be returned.
         forgetting = self.result(k=self.eval_exp_id)
         if forgetting is not None:
-            metric_name = get_metric_name(self, strategy)
+            metric_name = f"{self}/experience_step_{strategy.experience_step}"
             plot_x_position = strategy.clock.train_iterations
 
             metric_values = [

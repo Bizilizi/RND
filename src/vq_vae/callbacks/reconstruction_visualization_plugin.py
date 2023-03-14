@@ -21,8 +21,12 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
 
         reconstruction_images = []
         target_images = []
+
         reconstruction_losses = []
         experience_id = []
+
+        predicted_classes = []
+        target_classes = []
 
         for exp in eval_stream:
             dataloader = DataLoader(
@@ -37,10 +41,8 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
                 y = y.to(model.device)
 
                 vq_loss, x_recon, quantized, _, perplexity, logits = model.forward(x)
-                _, reconstruction_loss, *_ = model.criterion(
-                    (vq_loss, x_recon, quantized, x, perplexity, logits), y
-                )
 
+                # Add images and predicted classes
                 reconstruction_images.extend(
                     [
                         wandb.Image(
@@ -68,16 +70,31 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
                     ]
                 )
 
+                predicted_classes.extend(logits.argmax(dim=-1).cpu().tolist())
+                target_classes.extend(y.cpu().tolist())
+
                 experience_id.extend([exp.current_experience] * x.shape[0])
 
         # Log table with images
-        columns = ["target", "reconstruction", "loss", "experience_step"]
+        columns = [
+            "target",
+            "reconstruction",
+            "loss",
+            "target_class",
+            "predicted_class",
+            "experience_step",
+        ]
         image_data_table = wandb.Table(columns=columns)
 
-        for rec_image, target_image, loss, exp_id in zip(
-            reconstruction_images, target_images, reconstruction_losses, experience_id
+        for row in zip(
+            target_images,
+            reconstruction_images,
+            reconstruction_losses,
+            target_classes,
+            predicted_classes,
+            experience_id,
         ):
-            image_data_table.add_data(target_image, rec_image, loss, exp_id)
+            image_data_table.add_data(*row)
 
         wandb.log(
             {

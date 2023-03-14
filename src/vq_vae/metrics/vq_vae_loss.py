@@ -2,9 +2,9 @@ import typing as t
 
 from avalanche.evaluation import PluginMetric
 from avalanche.evaluation.metric_results import MetricValue, MetricResult
-from avalanche.evaluation.metric_utils import get_metric_name
 from avalanche.evaluation.metrics import ExperienceLoss, StreamLoss
-from avalanche.training.templates import SupervisedTemplate
+
+from src.avalanche.strategies import NaivePytorchLightning
 
 
 class VqVaeExperienceLoss(ExperienceLoss):
@@ -66,7 +66,7 @@ class VqVaeExperienceLoss(ExperienceLoss):
         elif self.with_lin_acc:
             return "test/loss_exp/clf_accuracy"
 
-    def _package_result(self, strategy: "SupervisedTemplate") -> "MetricResult":
+    def _package_result(self, strategy: "NaivePytorchLightning") -> "MetricResult":
         metric_value = self.result(strategy)
         add_exp = False
         plot_x_position = strategy.clock.train_iterations
@@ -74,15 +74,13 @@ class VqVaeExperienceLoss(ExperienceLoss):
         if isinstance(metric_value, dict):
             metrics = []
             for k, v in metric_value.items():
-                metric_name = get_metric_name(
-                    self, strategy, add_experience=add_exp, add_task=k
+                metric_name = (
+                    f"{self}/experience_step_{strategy.experience_step}/task_{k}"
                 )
                 metrics.append(MetricValue(self, metric_name, v, plot_x_position))
             return metrics
         else:
-            metric_name = get_metric_name(
-                self, strategy, add_experience=add_exp, add_task=True
-            )
+            metric_name = f"{self}/experience_step_{strategy.experience_step}"
             return [MetricValue(self, metric_name, metric_value, plot_x_position)]
 
 
@@ -136,13 +134,29 @@ class VqVaeStreamLoss(StreamLoss):
         if self.with_vq_loss and self.with_reconstruction_loss:
             return "test/loss_stream/full"
         elif self.with_reconstruction_loss:
-            return "test/loss_exp/reconstruction"
+            return "test/loss_stream/reconstruction"
         elif self.with_vq_loss:
-            return "test/loss_exp/kl"
+            return "test/loss_stream/kl"
         elif self.with_lin_loss:
-            return "test/loss_exp/clf_loss"
+            return "test/loss_stream/clf_loss"
         elif self.with_lin_acc:
-            return "test/loss_exp/clf_accuracy"
+            return "test/loss_stream/clf_accuracy"
+
+    def _package_result(self, strategy: "NaivePytorchLightning") -> "MetricResult":
+        metric_value = self.result(strategy)
+        plot_x_position = strategy.clock.train_iterations
+
+        if isinstance(metric_value, dict):
+            metrics = []
+            for k, v in metric_value.items():
+                metric_name = (
+                    f"{self}/experience_step_{strategy.experience_step}/task_{k}"
+                )
+                metrics.append(MetricValue(self, metric_name, v, plot_x_position))
+            return metrics
+        else:
+            metric_name = f"{self}/experience_step_{strategy.experience_step}"
+            return [MetricValue(self, metric_name, metric_value, plot_x_position)]
 
 
 def vq_vae_loss_metrics(*, experience=False, stream=False) -> t.List[PluginMetric]:

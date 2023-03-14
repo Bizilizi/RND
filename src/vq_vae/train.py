@@ -54,7 +54,7 @@ def train_classifier(
     )
     test_dataset = datasets.CIFAR10(
         root=config.dataset_path,
-        train=True,
+        train=False,
         transform=transforms.Compose(
             [
                 transforms.ToTensor(),
