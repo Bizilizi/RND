@@ -71,7 +71,9 @@ class VQVae(CLModel):
 
     def criterion(self, x, y):
         loss, x_recon, quantized, x_data, perplexity, logits = x
-        reconstruction_loss = F.mse_loss(x_recon, x_data) / self._data_variance
+        reconstruction_loss = (
+            F.mse_loss(x_recon, x_data, reduction="mean") / self._data_variance
+        )
 
         if logits is not None:
             clf_loss = F.cross_entropy(logits, y)
