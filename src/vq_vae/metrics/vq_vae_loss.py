@@ -1,9 +1,8 @@
 import typing as t
 
 from avalanche.evaluation import PluginMetric
-from avalanche.evaluation.metric_results import MetricValue, MetricResult
+from avalanche.evaluation.metric_results import MetricResult, MetricValue
 from avalanche.evaluation.metrics import ExperienceLoss, StreamLoss
-
 from src.avalanche.strategies import NaivePytorchLightning
 
 

@@ -1,8 +1,9 @@
 import typing as t
-from torch.nn import functional as F
+
+import pytorch_lightning as pl
 import torch
 from torch import nn
-import pytorch_lightning as pl
+from torch.nn import functional as F
 
 from src.vq_vae.model.resnet import ResidualStack
 

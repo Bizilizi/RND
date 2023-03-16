@@ -11,7 +11,7 @@ from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from src.vae_ft.configuration.config import TrainConfig
 from src.vae_ft.init_scrips import get_callbacks, get_evaluation_plugin, get_model
-from train_utils import get_loggers, get_device, get_wandb_params
+from train_utils import get_device, get_loggers, get_wandb_params
 
 
 def train_loop(
@@ -28,6 +28,7 @@ def train_loop(
     ):
         cl_strategy.train(train_experience, [test_experience])
         cl_strategy.eval(benchmark.test_stream)
+        cl_strategy.experience_step += 1
 
     if is_using_wandb:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)

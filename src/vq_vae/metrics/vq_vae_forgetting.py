@@ -7,7 +7,6 @@ from avalanche.evaluation.metrics import (
     GenericStreamForgetting,
     Mean,
 )
-
 from src.avalanche.strategies import NaivePytorchLightning
 
 

@@ -116,5 +116,3 @@ class NaivePytorchLightning(Naive):
             ]
             self.model.load_state_dict(state_dict)
             os.remove(self.restore_best_model_callback.best_model_path)
-
-        self.experience_step += 1

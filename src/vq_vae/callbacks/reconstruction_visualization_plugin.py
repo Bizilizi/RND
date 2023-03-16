@@ -1,9 +1,9 @@
 import torch
-import wandb
 from torch.nn import functional as F
-from avalanche.core import SupervisedPlugin
 from torch.utils.data import DataLoader, Subset
 
+import wandb
+from avalanche.core import SupervisedPlugin
 from src.avalanche.strategies import NaivePytorchLightning
 from src.vq_vae.model.vq_vae import VQVae
 
@@ -42,10 +42,7 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
                 x = x.to(model.device)
 
                 # We shift class w.r.t to experience step due to avalanche return format
-                y = (
-                    y.to(model.device)
-                    + exp.current_experience * self.num_tasks_in_batch
-                )
+                y = y.to(model.device)
 
                 vq_loss, x_recon, quantized, _, perplexity, logits = model.forward(x)
 
@@ -105,7 +102,7 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
 
         wandb.log(
             {
-                f"val/reconstructions/experience_step_{strategy.experience_step - 1}": image_data_table
+                f"val/reconstructions/experience_step_{strategy.experience_step}": image_data_table
             }
         )
 

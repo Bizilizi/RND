@@ -1,31 +1,27 @@
 import pathlib
+import shutil
 from configparser import ConfigParser
 
 import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
-from torchvision import transforms
-import shutil
+from torchvision import datasets, transforms
+
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
-from torchvision import datasets
-
 from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
+from src.utils.shift_class_targets import shift_experiences_classes
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from src.vq_vae.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
 )
 from src.vq_vae.configuration.config import TrainConfig
-from src.vq_vae.init_scrips import get_evaluation_plugin, get_callbacks, get_model
+from src.vq_vae.init_scrips import get_callbacks, get_evaluation_plugin, get_model
 from src.vq_vae.model.classification_head import CnnClassifier
 from src.vq_vae.model.vq_vae import VQVae
-from train_utils import (
-    get_device,
-    get_loggers,
-    get_wandb_params,
-)
+from train_utils import get_device, get_loggers, get_wandb_params
 
 
 def train_classifier(
@@ -122,6 +118,8 @@ def train_loop(
         cl_strategy.model.reset_clf_head()
         cl_strategy.model.unfreeze()
 
+        cl_strategy.experience_step += 1
+
     if is_using_wandb:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
@@ -192,6 +190,7 @@ def main(args):
             ]
         ),
     )
+    shift_experiences_classes(benchmark, num_tasks_in_batch=2)
 
     device = get_device(config)
     model = get_model(config, device)

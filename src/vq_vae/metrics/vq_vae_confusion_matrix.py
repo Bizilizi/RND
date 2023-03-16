@@ -1,11 +1,13 @@
 import typing as t
 
+from wandb.wandb_torch import torch
+
 import wandb
 from avalanche.evaluation import PluginMetric
 from avalanche.evaluation.metric_results import (
+    AlternativeValues,
     MetricResult,
     MetricValue,
-    AlternativeValues,
 )
 from avalanche.evaluation.metric_utils import (
     default_cm_image_creator,
@@ -16,8 +18,6 @@ from avalanche.evaluation.metrics import (
     StreamConfusionMatrix,
     WandBStreamConfusionMatrix,
 )
-from wandb.wandb_torch import torch
-
 from src.avalanche.strategies import NaivePytorchLightning
 
 
