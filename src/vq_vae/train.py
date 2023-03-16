@@ -82,7 +82,8 @@ def train_classifier(
                 patience=50,
             )
         ],
-        max_epochs=200,
+        max_epochs=config.max_epochs_lin_eval,
+        min_epochs=config.min_epochs_lin_eval,
     )
 
     trainer.fit(clf_head, datamodule=datamodule)
@@ -221,7 +222,7 @@ def main(args):
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
         best_model_path_prefix=config.best_model_prefix,
-        plugins=[ReconstructionVisualizationPlugin()],
+        plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
     )
 
     # Run training process

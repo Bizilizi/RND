@@ -9,8 +9,10 @@ from src.vq_vae.model.vq_vae import VQVae
 
 
 class ReconstructionVisualizationPlugin(SupervisedPlugin):
-    def __init__(self):
+    def __init__(self, num_tasks_in_batch: int):
         super().__init__()
+
+        self.num_tasks_in_batch = num_tasks_in_batch
 
     @torch.no_grad()
     def before_eval(self, strategy: "NaivePytorchLightning", **kwargs):
@@ -38,7 +40,12 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
 
             for x, y, _ in dataloader:
                 x = x.to(model.device)
-                y = y.to(model.device)
+
+                # We shift class w.r.t to experience step due to avalanche return format
+                y = (
+                    y.to(model.device)
+                    + exp.current_experience * self.num_tasks_in_batch
+                )
 
                 vq_loss, x_recon, quantized, _, perplexity, logits = model.forward(x)
 

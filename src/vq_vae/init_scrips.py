@@ -5,6 +5,8 @@ from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
+
+from src.vq_vae.callbacks.cifar10_shift_class_targets import Cifar10ClassShift
 from src.vq_vae.callbacks.mix_random_samples import MixRandomNoise
 from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.metrics.vq_vae_confusion_matrix import vq_vae_confusion_matrix_metrics
@@ -54,4 +56,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VQVae:
 
 
 def get_callbacks(config: TrainConfig) -> t.List[Callback]:
-    return [MixRandomNoise(num_rand_samples=0, num_rand_noise=config.num_random_noise)]
+    return [
+        MixRandomNoise(num_rand_samples=0, num_rand_noise=config.num_random_noise),
+        Cifar10ClassShift(num_tasks_in_batch=2),
+    ]

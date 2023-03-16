@@ -19,6 +19,10 @@ class TrainConfig(BaseTrainConfig):
 
     use_lpips: bool
 
+    # training
+    max_epochs_lin_eval: int
+    min_epochs_lin_eval: int
+
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
         """
