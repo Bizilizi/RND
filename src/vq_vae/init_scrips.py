@@ -47,6 +47,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VQVae:
         regularization_lambda=config.regularization_lambda,
         regularization_dropout=config.regularization_dropout,
         data_variance=0.06328692405746414,
+        use_lpips=config.use_lpips,
     )
 
     return vae

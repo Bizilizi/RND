@@ -20,6 +20,7 @@ avalanche-lib = "^0.2.1"
 torch-summary = "^1.4.5"
 submitit = "^1.4.5"
 joblib = "^1.2.0"
+lpips = "^0.1.4"
 
 [tool.poetry.group.dev.dependencies]
 lovely-tensors = "^0.1.10"

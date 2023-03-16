@@ -1,5 +1,6 @@
 import typing as t
 
+import lpips
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -27,6 +28,7 @@ class VQVae(CLModel):
         learning_rate: float = 1e-3,
         regularization_dropout: float = 0.0,
         regularization_lambda: float = 0.0,
+        use_lpips: bool = True,
     ):
         super().__init__()
 
@@ -63,6 +65,14 @@ class VQVae(CLModel):
 
         self.clf_head = None
 
+        if use_lpips:
+            self._lpips = lpips.LPIPS(net="vgg")
+            self.reconstruction_loss_fn = lambda x, y: self._lpips(x, y).mean()
+        else:
+            self.reconstruction_loss_fn = (
+                lambda x, y: F.mse_loss(x, y, reduction="mean") / self._data_variance
+            )
+
     def set_clf_head(self, model: "CnnClassifier"):
         self.__dict__["clf_head"] = model
 
@@ -71,9 +81,7 @@ class VQVae(CLModel):
 
     def criterion(self, x, y):
         loss, x_recon, quantized, x_data, perplexity, logits = x
-        reconstruction_loss = (
-            F.mse_loss(x_recon, x_data, reduction="mean") / self._data_variance
-        )
+        reconstruction_loss = self.reconstruction_loss_fn(x_recon, x_data)
 
         if logits is not None:
             clf_loss = F.cross_entropy(logits, y)

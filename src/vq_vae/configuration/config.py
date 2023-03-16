@@ -17,6 +17,8 @@ class TrainConfig(BaseTrainConfig):
     regularization_lambda: float
     regularization_dropout: float
 
+    use_lpips: bool
+
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
         """

@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 
 from src.vq_vae.model.resnet import ResidualStack
@@ -47,4 +48,4 @@ class Decoder(nn.Module):
         )
 
     def forward(self, inputs):
-        return self._model(inputs)
+        return torch.tanh(self._model(inputs))
