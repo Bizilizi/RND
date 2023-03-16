@@ -79,7 +79,7 @@ def train_classifier(
             EarlyStopping(
                 monitor=f"val/clf_accuracy/experience_step_{strategy.experience_step}",
                 mode="max",
-                patience=10,
+                patience=50,
             )
         ],
         max_epochs=200,
