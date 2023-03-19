@@ -1,4 +1,5 @@
 import typing as t
+from itertools import chain
 
 import lpips
 import torch
@@ -66,7 +67,7 @@ class VQVae(CLModel):
         self.clf_head = None
 
         if use_lpips:
-            self.__dict__["_lpips"] = lpips.LPIPS(net="vgg")
+            self._lpips = lpips.LPIPS(net="vgg")
             self.reconstruction_loss_fn = lambda x, y: self._lpips(x, y).mean()
         else:
             self.reconstruction_loss_fn = (
@@ -171,7 +172,12 @@ class VQVae(CLModel):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
-            self.parameters(),
+            chain(
+                self.encoder.parameters(),
+                self.pre_vq_conv.parameters(),
+                self.vq_vae.parameters(),
+                self.decoder.parameters(),
+            ),
             lr=self._learning_rate,
             weight_decay=self._weight_decay,
         )
