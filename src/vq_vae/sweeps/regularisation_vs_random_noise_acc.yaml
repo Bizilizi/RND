@@ -1,7 +1,7 @@
 method: random
 metric:
-  goal: minimize
-  name: test/forgetting_stream/clf_accuracy/eval_phase/test_stream
+  goal: maximize
+  name: val/observed_only_cls_accuracy/experience_step_4
 parameters:
   num_random_noise:
     values: [0, 100, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]

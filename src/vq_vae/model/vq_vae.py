@@ -95,7 +95,7 @@ class VQVae(CLModel):
     def forward(self, x):
         z = self.encoder(x)
         z = self.pre_vq_conv(z)
-        loss, quantized, perplexity = self.vq_vae(z)
+        loss, quantized, perplexity, _ = self.vq_vae(z)
         x_recon = self.decoder(quantized)
 
         if self.clf_head is not None:

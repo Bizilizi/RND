@@ -1,13 +1,11 @@
 import typing as t
 
 from avalanche.evaluation import PluginMetric
-from avalanche.evaluation.metric_results import MetricResult, MetricValue
 from avalanche.evaluation.metrics import (
     GenericExperienceForgetting,
     GenericStreamForgetting,
     Mean,
 )
-from src.avalanche.strategies import NaivePytorchLightning
 
 
 class VqVaeStreamForgetting(GenericStreamForgetting):
@@ -68,13 +66,6 @@ class VqVaeStreamForgetting(GenericStreamForgetting):
             return "test/forgetting_stream/clf_accuracy"
 
         return "undefined"
-
-    def _package_result(self, strategy: "NaivePytorchLightning") -> MetricResult:
-        metric_value = self.result()
-        metric_name = str(self)
-        plot_x_position = strategy.clock.train_iterations
-
-        return [MetricValue(self, metric_name, metric_value, plot_x_position)]
 
 
 class VqVaeExperienceForgetting(GenericExperienceForgetting):
@@ -137,21 +128,6 @@ class VqVaeExperienceForgetting(GenericExperienceForgetting):
             return "test/forgetting_exp/clf_accuracy"
 
         return "undefined"
-
-    def _package_result(self, strategy: "NaivePytorchLightning") -> MetricResult:
-        # this checks if the evaluation experience has been
-        # already encountered at training time
-        # before the last training.
-        # If not, forgetting should not be returned.
-        forgetting = self.result(k=self.eval_exp_id)
-        if forgetting is not None:
-            metric_name = f"{self}/experience_step_{strategy.experience_step}"
-            plot_x_position = strategy.clock.train_iterations
-
-            metric_values = [
-                MetricValue(self, metric_name, forgetting, plot_x_position)
-            ]
-            return metric_values
 
 
 def vq_vae_forgetting_metrics(

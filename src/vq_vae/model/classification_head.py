@@ -49,7 +49,7 @@ class CnnClassifier(pl.LightningModule):
         with torch.no_grad():
             z = self.vq_vae.encoder(x)
             z = self.vq_vae.pre_vq_conv(z)
-            _, quantized, _ = self.vq_vae.vq_vae(z)
+            _, quantized, *_ = self.vq_vae.vq_vae(z)
 
         logits = self.forward(z)
         loss = F.cross_entropy(logits, y)
@@ -72,7 +72,7 @@ class CnnClassifier(pl.LightningModule):
         with torch.no_grad():
             z = self.vq_vae.encoder(x)
             z = self.vq_vae.pre_vq_conv(z)
-            _, quantized, _ = self.vq_vae.vq_vae(z)
+            _, quantized, *_ = self.vq_vae.vq_vae(z)
 
         logits = self.forward(z)
         loss = F.cross_entropy(logits, y)
