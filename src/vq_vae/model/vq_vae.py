@@ -66,7 +66,7 @@ class VQVae(CLModel):
         self.clf_head = None
 
         if use_lpips:
-            self._lpips = lpips.LPIPS(net="vgg")
+            self.__dict__["_lpips"] = lpips.LPIPS(net="vgg")
             self.reconstruction_loss_fn = lambda x, y: self._lpips(x, y).mean()
         else:
             self.reconstruction_loss_fn = (
