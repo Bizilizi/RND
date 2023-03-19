@@ -19,72 +19,11 @@ from src.vq_vae.callbacks.reconstruction_visualization_plugin import (
 )
 from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.init_scrips import get_callbacks, get_evaluation_plugin, get_model
-from src.vq_vae.model.classification_head import CnnClassifier
-from src.vq_vae.model.vq_vae import VQVae
+from src.vq_vae.train_classifier import (
+    train_classifier_on_all_classes,
+    train_classifier_on_observed_only_classes,
+)
 from train_utils import get_device, get_loggers, get_wandb_params
-
-
-def train_classifier(
-    strategy: NaivePytorchLightning,
-    config: TrainConfig,
-    benchmark: SplitCIFAR10,
-    device: torch.device,
-):
-    model = strategy.model.to(device)
-    clf_head = CnnClassifier(
-        in_channels=config.embedding_dim,
-        num_classes=benchmark.n_classes,
-        vq_vae=model,
-        experience_step=strategy.experience_step,
-    ).to(device)
-
-    train_dataset = datasets.CIFAR10(
-        root=config.dataset_path,
-        train=True,
-        transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
-            ]
-        ),
-    )
-    test_dataset = datasets.CIFAR10(
-        root=config.dataset_path,
-        train=False,
-        transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
-            ]
-        ),
-    )
-    datamodule = PLDataModule(
-        batch_size=256,
-        num_workers=config.num_workers,
-        train_dataset=train_dataset,
-        val_dataset=test_dataset,
-    )
-
-    # Training
-    trainer = Trainer(
-        check_val_every_n_epoch=strategy.validate_every_n,
-        accelerator=strategy.accelerator,
-        devices=strategy.devices,
-        logger=strategy.train_logger,
-        callbacks=[
-            EarlyStopping(
-                monitor=f"val/clf_accuracy/experience_step_{strategy.experience_step}",
-                mode="max",
-                patience=50,
-            )
-        ],
-        max_epochs=config.max_epochs_lin_eval,
-        min_epochs=config.min_epochs_lin_eval,
-    )
-
-    trainer.fit(clf_head, datamodule=datamodule)
-
-    return clf_head
 
 
 def train_loop(
@@ -105,11 +44,18 @@ def train_loop(
         cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
+        # We train two classifiers. One to predict all classes,
+        # another to predict only observed so far classes.
         cl_strategy.model.freeze()
-        clf_head = train_classifier(
+
+        train_classifier_on_all_classes(
             strategy=cl_strategy, config=config, benchmark=benchmark, device=device
         ).to(device)
-        cl_strategy.model.set_clf_head(clf_head)
+        observed_only_clf_head = train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+
+        cl_strategy.model.set_clf_head(observed_only_clf_head)
 
         # Evaluate VQ-VAE and linear classifier
         cl_strategy.eval(benchmark.test_stream)

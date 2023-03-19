@@ -19,9 +19,11 @@ class CnnClassifier(pl.LightningModule):
         vq_vae: "VQVae",
         experience_step: int,
         learning_rate: float = 1e-3,
+        dataset_mode: str = "",
     ):
         super().__init__()
 
+        self._dataset_mode = dataset_mode
         self._learning_rate = learning_rate
         self.experience_step = experience_step
         self.model = nn.Sequential(
@@ -42,7 +44,7 @@ class CnnClassifier(pl.LightningModule):
         return self.model(z)
 
     def training_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, *_ = batch
 
         with torch.no_grad():
             z = self.vq_vae.encoder(x)
@@ -54,18 +56,18 @@ class CnnClassifier(pl.LightningModule):
         acc = (logits.argmax(dim=-1) == y).float().mean().item()
 
         self.log(
-            f"train/clf_loss/experience_step_{self.experience_step}",
+            f"train/{self._dataset_mode}_loss/experience_step_{self.experience_step}",
             loss,
         )
         self.log(
-            f"train/clf_accuracy/experience_step_{self.experience_step}",
+            f"train/{self._dataset_mode}_accuracy/experience_step_{self.experience_step}",
             acc,
         )
 
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y = batch
+        x, y, *_ = batch
 
         with torch.no_grad():
             z = self.vq_vae.encoder(x)
@@ -77,11 +79,11 @@ class CnnClassifier(pl.LightningModule):
         acc = (logits.argmax(dim=-1) == y).float().mean().item()
 
         self.log(
-            f"val/clf_loss/experience_step_{self.experience_step}",
+            f"val/{self._dataset_mode}_loss/experience_step_{self.experience_step}",
             loss,
         )
         self.log(
-            f"val/clf_accuracy/experience_step_{self.experience_step}",
+            f"val/{self._dataset_mode}_accuracy/experience_step_{self.experience_step}",
             acc,
         )
 
