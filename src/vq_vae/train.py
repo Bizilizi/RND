@@ -3,15 +3,11 @@ import shutil
 from configparser import ConfigParser
 
 import torch
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping
-from torchvision import datasets, transforms
+from torchvision import transforms
 
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
-from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
-from src.utils.shift_class_targets import shift_experiences_classes
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from src.vq_vae.callbacks.reconstruction_visualization_plugin import (
@@ -121,7 +117,7 @@ def main(args):
     benchmark = SplitCIFAR10(
         n_experiences=5,
         return_task_id=True,
-        shuffle=False,
+        shuffle=True,
         dataset_root="/tmp/dzverev_data",
         train_transform=transforms.Compose(
             [
@@ -136,7 +132,6 @@ def main(args):
             ]
         ),
     )
-    # shift_experiences_classes(benchmark, num_tasks_in_batch=2)
 
     device = get_device(config)
     model = get_model(config, device)
