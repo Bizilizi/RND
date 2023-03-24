@@ -27,7 +27,6 @@ def get_evaluation_plugin(
             stream=True,
             wandb=is_using_wandb,
         ),
-        suppress_warnings=True,
         loggers=evaluation_loggers,
     )
 

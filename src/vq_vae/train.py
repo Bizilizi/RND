@@ -136,7 +136,7 @@ def main(args):
             ]
         ),
     )
-    shift_experiences_classes(benchmark, num_tasks_in_batch=2)
+    # shift_experiences_classes(benchmark, num_tasks_in_batch=2)
 
     device = get_device(config)
     model = get_model(config, device)
