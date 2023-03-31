@@ -15,6 +15,25 @@ if t.TYPE_CHECKING:
     from src.vq_vae.model.classification_head import CnnClassifier
 
 
+class LinearBottleneck(nn.Module):
+    def __init__(self, width, height, hidden_dim):
+        super().__init__()
+
+        self.width = width
+        self.height = height
+        self.hidden_dim = hidden_dim
+
+        self.module = nn.Sequential(
+            nn.Flatten(), nn.LazyLinear(width * height * hidden_dim)
+        )
+
+    def forward(self, x):
+        x = self.module(x)
+        x = x.reshape(-1, self.height, self.width, self.hidden_dim)
+
+        return x
+
+
 class VQVae(CLModel):
     def __init__(
         self,
@@ -37,6 +56,7 @@ class VQVae(CLModel):
         self._learning_rate = learning_rate
         self._weight_decay = regularization_lambda
         self._regularization_dropout = regularization_dropout
+        self._embedding_dim = embedding_dim
 
         self.encoder = Encoder(
             in_channels=3,
@@ -45,8 +65,14 @@ class VQVae(CLModel):
             num_residual_hiddens=num_residual_hiddens,
             regularization_dropout=regularization_dropout,
         )
-        self.pre_vq_conv = nn.Conv2d(
-            in_channels=num_hiddens, out_channels=embedding_dim, kernel_size=1, stride=1
+        self.pre_vq_conv = nn.Sequential(
+            nn.Conv2d(
+                in_channels=num_hiddens,
+                out_channels=embedding_dim,
+                kernel_size=1,
+                stride=1,
+            ),
+            # LinearBottleneck(8, 8, embedding_dim),
         )
         if decay > 0.0:
             self.vq_vae = VectorQuantizerEMA(
@@ -56,12 +82,15 @@ class VQVae(CLModel):
             self.vq_vae = VectorQuantizer(
                 num_embeddings, embedding_dim, commitment_cost
             )
-        self.decoder = Decoder(
-            in_channels=embedding_dim,
-            num_hiddens=num_hiddens,
-            num_residual_layers=num_residual_layers,
-            num_residual_hiddens=num_residual_hiddens,
-            regularization_dropout=regularization_dropout,
+        self.decoder = nn.Sequential(
+            # LinearBottleneck(8, 8, embedding_dim),
+            Decoder(
+                in_channels=embedding_dim,
+                num_hiddens=num_hiddens,
+                num_residual_layers=num_residual_layers,
+                num_residual_hiddens=num_residual_hiddens,
+                regularization_dropout=regularization_dropout,
+            ),
         )
 
         self.clf_head = None

@@ -20,23 +20,31 @@ class CnnClassifier(pl.LightningModule):
         experience_step: int,
         learning_rate: float = 1e-3,
         dataset_mode: str = "",
+        use_cnn: bool = False,
     ):
         super().__init__()
 
         self._dataset_mode = dataset_mode
         self._learning_rate = learning_rate
         self.experience_step = experience_step
-        self.model = nn.Sequential(
-            ResidualStack(
-                in_channels=in_channels,
-                num_hiddens=in_channels,
-                num_residual_layers=1,
-                num_residual_hiddens=32,
-                regularization_dropout=0,
-            ),
-            nn.Flatten(),
-            nn.LazyLinear(num_classes),
-        )
+
+        if use_cnn:
+            self.model = nn.Sequential(
+                ResidualStack(
+                    in_channels=in_channels,
+                    num_hiddens=in_channels,
+                    num_residual_layers=1,
+                    num_residual_hiddens=32,
+                    regularization_dropout=0,
+                ),
+                nn.Flatten(),
+                nn.LazyLinear(num_classes),
+            )
+        else:
+            self.model = nn.Sequential(
+                nn.Flatten(),
+                nn.LazyLinear(num_classes),
+            )
 
         self.__dict__["vq_vae"] = vq_vae
 

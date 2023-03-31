@@ -25,6 +25,7 @@ def train_classifier_on_all_classes(
         vq_vae=model,
         experience_step=strategy.experience_step,
         dataset_mode="all_cls",
+        use_cnn=False,
     ).to(device)
 
     train_dataset = datasets.CIFAR10(
@@ -64,7 +65,7 @@ def train_classifier_on_all_classes(
             EarlyStopping(
                 monitor=f"val/all_cls_accuracy/experience_step_{strategy.experience_step}",
                 mode="max",
-                patience=10,
+                patience=50,
             )
         ],
         max_epochs=config.max_epochs_lin_eval,
@@ -90,6 +91,7 @@ def train_classifier_on_observed_only_classes(
         vq_vae=model,
         experience_step=strategy.experience_step,
         dataset_mode="observed_only_cls",
+        use_cnn=False,
     ).to(device)
 
     train_dataset = ConcatDataset(
@@ -122,7 +124,7 @@ def train_classifier_on_observed_only_classes(
             EarlyStopping(
                 monitor=f"val/observed_only_cls_accuracy/experience_step_{strategy.experience_step}",
                 mode="max",
-                patience=10,
+                patience=50,
             )
         ],
         max_epochs=config.max_epochs_lin_eval,
