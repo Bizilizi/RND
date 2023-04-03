@@ -118,7 +118,7 @@ def main(args):
         n_experiences=1,
         return_task_id=True,
         shuffle=True,
-        # dataset_root="/tmp/dzverev_data",
+        dataset_root=config.dataset_path,
     )
 
     device = get_device(config)
