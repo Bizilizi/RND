@@ -33,7 +33,7 @@ class VqVaeExperienceLoss(ExperienceLoss):
         else:
             task_label = task_labels[0]
 
-        vq_loss, reconstruction_loss, clf_loss, clf_acc, _ = strategy.loss
+        vq_loss, reconstruction_loss, clf_loss, clf_acc, *_ = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
@@ -93,7 +93,7 @@ class VqVaeStreamLoss(StreamLoss):
         else:
             task_label = task_labels[0]
 
-        vq_loss, reconstruction_loss, clf_loss, clf_acc, _ = strategy.loss
+        vq_loss, reconstruction_loss, clf_loss, clf_acc, *_ = strategy.loss
         loss = 0
 
         if self.with_vq_loss:

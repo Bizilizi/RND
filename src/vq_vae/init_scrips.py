@@ -10,7 +10,7 @@ from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.metrics.vq_vae_confusion_matrix import vq_vae_confusion_matrix_metrics
 from src.vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
 from src.vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
-from src.vq_vae.model.vq_vae import VQVae
+from src.vq_vae.model.vq_vae import VQVae, VitVQVae
 
 
 def get_evaluation_plugin(
@@ -33,20 +33,14 @@ def get_evaluation_plugin(
     return eval_plugin
 
 
-def get_model(config: TrainConfig, device: torch.device) -> VQVae:
-    vae = VQVae(
-        num_hiddens=config.num_hiddens,
-        num_residual_layers=config.num_residual_layers,
-        num_residual_hiddens=config.num_residual_hiddens,
+def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae, VitVQVae]:
+    vae = VitVQVae(
         num_embeddings=config.num_embeddings,
         embedding_dim=config.embedding_dim,
         commitment_cost=config.commitment_cost,
         decay=config.decay,
         learning_rate=config.learning_rate,
-        regularization_lambda=config.regularization_lambda,
-        regularization_dropout=config.regularization_dropout,
         data_variance=0.06328692405746414,
-        use_lpips=config.use_lpips,
     )
 
     return vae

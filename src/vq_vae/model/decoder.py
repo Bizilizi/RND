@@ -2,6 +2,10 @@ import torch
 from torch import nn
 
 from src.vq_vae.model.resnet import ResidualStack
+from transformers import (
+    ImageGPTConfig,
+    ImageGPTModel,
+)
 
 
 class Decoder(nn.Module):
@@ -49,3 +53,40 @@ class Decoder(nn.Module):
 
     def forward(self, inputs):
         return torch.tanh(self._model(inputs))
+
+
+class GPTDecoder(nn.Module):
+    def __init__(self, embeddings_dim, embeddings_num, n_positions):
+        super().__init__()
+
+        configuration = ImageGPTConfig(
+            **{
+                "activation_function": "quick_gelu",
+                "attn_pdrop": 0.1,
+                "embd_pdrop": 0.1,
+                "initializer_range": 0.02,
+                "layer_norm_epsilon": 1e-05,
+                "model_type": "imagegpt",
+                "n_embd": embeddings_dim,
+                "n_head": 4,
+                "n_layer": 12,
+                "n_positions": n_positions,
+                "reorder_and_upcast_attn": False,
+                "resid_pdrop": 0.1,
+                "scale_attn_by_inverse_layer_idx": False,
+                "scale_attn_weights": True,
+                "tie_word_embeddings": False,
+                "use_cache": False,
+                "vocab_size": embeddings_num,
+            }
+        )
+
+        self.image_gpt = ImageGPTModel(configuration)
+        self.linear = nn.Linear(embeddings_dim, 16 * 3)
+
+    def forward(self, inputs):
+        x = self.image_gpt(inputs_embeds=inputs)
+        x = self.linear(x.last_hidden_state)
+        x = x.reshape(-1, 3, 32, 32)
+
+        return x

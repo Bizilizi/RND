@@ -55,11 +55,9 @@ class CnnClassifier(pl.LightningModule):
         x, y, *_ = batch
 
         with torch.no_grad():
-            z = self.vq_vae.encoder(x)
-            z = self.vq_vae.pre_vq_conv(z)
-            _, quantized, *_ = self.vq_vae.vq_vae(z)
+            (_, _, quantized, *_, image_emb, _) = self.vq_vae.forward(x)
 
-        logits = self.forward(z)
+        logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)
         acc = (logits.argmax(dim=-1) == y).float().mean().item()
 
@@ -78,11 +76,9 @@ class CnnClassifier(pl.LightningModule):
         x, y, *_ = batch
 
         with torch.no_grad():
-            z = self.vq_vae.encoder(x)
-            z = self.vq_vae.pre_vq_conv(z)
-            _, quantized, *_ = self.vq_vae.vq_vae(z)
+            (_, _, quantized, *_, image_emb, _) = self.vq_vae.forward(x)
 
-        logits = self.forward(z)
+        logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)
         acc = (logits.argmax(dim=-1) == y).float().mean().item()
 
