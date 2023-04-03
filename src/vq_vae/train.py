@@ -118,7 +118,7 @@ def main(args):
         n_experiences=1,
         return_task_id=True,
         shuffle=True,
-        dataset_root=config.dataset_path,
+        dataset_root="/scratch/shared/beegfs/shared-datasets/ImageNet",
     )
 
     device = get_device(config)
