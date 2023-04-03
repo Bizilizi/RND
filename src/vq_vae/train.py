@@ -102,23 +102,35 @@ def main(args):
     target_dataset_dir = pathlib.Path("/tmp/dzverev_data/")
     target_dataset_dir.mkdir(exist_ok=True)
 
-    zip_path = datasets_dir / "ILSVRC2012_devkit_t12.tar.gz"
-    # dataset_path = datasets_dir / "cifar-10-batches-py"
+    zip_path = datasets_dir / "cifar-10-python.tar.gz"
+    dataset_path = datasets_dir / "cifar-10-batches-py"
 
-    target_zip_path = target_dataset_dir / "ILSVRC2012_devkit_t12.tar.gz"
-    # target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
+    target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
+    target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
 
     if zip_path.exists() and not target_zip_path.exists():
         shutil.copy(str(zip_path), str(target_zip_path))
 
-    # if dataset_path.exists() and not target_dataset_path.exists():
-    #     shutil.copytree(str(dataset_path), str(target_dataset_path))
+    if dataset_path.exists() and not target_dataset_path.exists():
+        shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     benchmark = SplitCIFAR10(
         n_experiences=1,
         return_task_id=True,
         shuffle=True,
-        dataset_root=config.dataset_path,
+        dataset_root="/tmp/dzverev_data",
+        train_transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+            ]
+        ),
+        eval_transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+            ]
+        ),
     )
 
     device = get_device(config)
