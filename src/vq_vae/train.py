@@ -115,7 +115,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     benchmark = SplitCIFAR10(
-        n_experiences=1,
+        n_experiences=5,
         return_task_id=True,
         shuffle=True,
         dataset_root="/tmp/dzverev_data",
