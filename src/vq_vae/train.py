@@ -6,7 +6,7 @@ import torch
 from torchvision import transforms
 
 import wandb
-from avalanche.benchmarks import SplitCIFAR10
+from avalanche.benchmarks import SplitCIFAR10, SplitImageNet
 from src.avalanche.strategies import NaivePytorchLightning
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
@@ -114,23 +114,11 @@ def main(args):
     if dataset_path.exists() and not target_dataset_path.exists():
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
-    benchmark = SplitCIFAR10(
+    benchmark = SplitImageNet(
         n_experiences=1,
         return_task_id=True,
         shuffle=True,
         dataset_root="/tmp/dzverev_data",
-        train_transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
-            ]
-        ),
-        eval_transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
-            ]
-        ),
     )
 
     device = get_device(config)
