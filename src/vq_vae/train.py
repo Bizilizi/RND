@@ -102,17 +102,17 @@ def main(args):
     target_dataset_dir = pathlib.Path("/tmp/dzverev_data/")
     target_dataset_dir.mkdir(exist_ok=True)
 
-    zip_path = datasets_dir / "cifar-10-python.tar.gz"
-    dataset_path = datasets_dir / "cifar-10-batches-py"
+    zip_path = datasets_dir / "ILSVRC2012_devkit_t12.tar.gz"
+    # dataset_path = datasets_dir / "cifar-10-batches-py"
 
-    target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
-    target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
+    target_zip_path = target_dataset_dir / "ILSVRC2012_devkit_t12.tar.gz"
+    # target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
 
     if zip_path.exists() and not target_zip_path.exists():
         shutil.copy(str(zip_path), str(target_zip_path))
 
-    if dataset_path.exists() and not target_dataset_path.exists():
-        shutil.copytree(str(dataset_path), str(target_dataset_path))
+    # if dataset_path.exists() and not target_dataset_path.exists():
+    #     shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     benchmark = SplitImageNet(
         n_experiences=1,
