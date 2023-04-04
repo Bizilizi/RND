@@ -44,16 +44,18 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
                 # We shift class w.r.t to experience step due to avalanche return format
                 y = y.to(model.device)
 
-                vq_loss, x_recon, quantized, _, perplexity, logits = model.forward(x)
+                forward_output = model.forward(x)
 
                 # Add images and predicted classes
                 reconstruction_images.extend(
                     [
                         wandb.Image(
-                            self._rescale_image(x_recon[i]).cpu().numpy(),
+                            self._rescale_image(forward_output.x_recon[i])
+                            .cpu()
+                            .numpy(),
                             caption=f"reconstruction_image_{i}",
                         )
-                        for i in range(x_recon.shape[0])
+                        for i in range(forward_output.x_recon.shape[0])
                     ]
                 )
 
@@ -69,12 +71,14 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
 
                 reconstruction_losses.extend(
                     [
-                        F.mse_loss(x_recon[i], x[i]).cpu().item()
+                        F.mse_loss(forward_output.x_recon[i], x[i]).cpu().item()
                         for i in range(x.shape[0])
                     ]
                 )
 
-                predicted_classes.extend(logits.argmax(dim=-1).cpu().tolist())
+                predicted_classes.extend(
+                    forward_output.logits.argmax(dim=-1).cpu().tolist()
+                )
                 target_classes.extend(y.cpu().tolist())
 
                 experience_id.extend([exp.current_experience] * x.shape[0])

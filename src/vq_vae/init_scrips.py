@@ -52,4 +52,4 @@ def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae, VitVQ
 
 
 def get_callbacks(config: TrainConfig) -> t.List[Callback]:
-    return [MixRandomNoise(num_rand_samples=0, num_rand_noise=config.num_random_noise)]
+    return []
