@@ -79,24 +79,23 @@ class VitVQVae(CLModel):
     def reset_clf_head(self):
         self.clf_head = None
 
-    def criterion(self, x, y):
-        vq_loss, x_recon, quantized, x_data, perplexity, image_emb, logits = x
-        reconstruction_loss = F.mse_loss(x_recon, x_data)
-        contrastive_loss = self.c_loss(image_emb, y)
+    def criterion(self, forward_output, y):
+        reconstruction_loss = F.mse_loss(forward_output.x_recon, forward_output.x_data)
+        contrastive_loss = self.c_loss(forward_output.image_emb, y)
 
-        if logits is not None:
-            clf_loss = F.cross_entropy(logits, y)
-            clf_acc = (logits.argmax(dim=-1) == y).float().mean()
+        if forward_output.logits is not None:
+            clf_loss = F.cross_entropy(forward_output.logits, y)
+            clf_acc = (forward_output.logits.argmax(dim=-1) == y).float().mean()
         else:
             clf_loss = clf_acc = None
 
         return CriterionOutput(
-            vq_loss=vq_loss,
+            vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
             contrastive_loss=contrastive_loss,
-            perplexity=perplexity,
+            perplexity=forward_output.perplexity,
         )
 
     def forward(self, x):
@@ -137,23 +136,23 @@ class VitVQVae(CLModel):
         # LOGGING
         self.log_with_postfix(
             f"train/loss",
-            loss,
+            loss.cpu().item(),
         )
         self.log_with_postfix(
             f"train/vq_loss",
-            criterion_output.vq_loss,
+            criterion_output.vq_loss.cpu().item(),
         )
         self.log_with_postfix(
             f"train/reconstruction_loss",
-            criterion_output.reconstruction_loss,
+            criterion_output.reconstruction_loss.cpu().item(),
         )
         self.log_with_postfix(
             f"train/perplexity",
-            criterion_output.perplexity,
+            criterion_output.perplexity.cpu().item(),
         )
         self.log_with_postfix(
             f"train/contrastive_loss",
-            criterion_output.contrastive_loss,
+            criterion_output.contrastive_loss.cpu().item(),
         )
 
         return {
@@ -176,23 +175,23 @@ class VitVQVae(CLModel):
         # LOGGING
         self.log_with_postfix(
             f"val/loss",
-            loss,
+            loss.cpu().item(),
         )
         self.log_with_postfix(
             f"val/vq_loss",
-            criterion_output.vq_loss,
+            criterion_output.vq_loss.cpu().item(),
         )
         self.log_with_postfix(
             f"val/reconstruction_loss",
-            criterion_output.reconstruction_loss,
+            criterion_output.reconstruction_loss.cpu().item(),
         )
         self.log_with_postfix(
             f"val/perplexity",
-            criterion_output.perplexity,
+            criterion_output.perplexity.cpu().item(),
         )
         self.log_with_postfix(
             f"val/contrastive_loss",
-            criterion_output.contrastive_loss,
+            criterion_output.contrastive_loss.cpu().item(),
         )
 
         return {

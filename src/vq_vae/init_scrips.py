@@ -10,7 +10,8 @@ from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.metrics.vq_vae_confusion_matrix import vq_vae_confusion_matrix_metrics
 from src.vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
 from src.vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
-from src.vq_vae.model.vq_vae import VQVae, VitVQVae
+from src.vq_vae.model.vit_vq_vae import VitVQVae
+from src.vq_vae.model.vq_vae import VQVae
 
 
 def get_evaluation_plugin(
