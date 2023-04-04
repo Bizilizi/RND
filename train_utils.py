@@ -11,9 +11,6 @@ from avalanche.logging import InteractiveLogger
 from src.avalanche.configuration.config import BaseTrainConfig
 from src.avalanche.loggers.interactive_wandb import InteractiveWandBLogger
 
-# configure logging at the root level of Lightning
-logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
-
 
 def add_arguments(parser):
     """

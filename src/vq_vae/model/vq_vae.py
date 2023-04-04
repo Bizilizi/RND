@@ -21,6 +21,23 @@ if t.TYPE_CHECKING:
     from src.vq_vae.model.classification_head import CnnClassifier
 
 
+class ForwardOutput(t.NamedTuple):
+    vq_loss: torch.Tensor
+    x_data: torch.Tensor
+    x_recon: torch.Tensor
+    quantized: torch.Tensor
+    perplexity: torch.Tensor
+    logits: torch.Tensor
+
+
+class CriterionOutput(t.NamedTuple):
+    vq_loss: torch.Tensor
+    reconstruction_loss: torch.Tensor
+    clf_loss: torch.Tensor
+    clf_acc: torch.Tensor
+    perplexity: torch.Tensor
+
+
 class LinearBottleneck(nn.Module):
     def __init__(self, width, height, hidden_dim):
         super().__init__()
@@ -125,7 +142,13 @@ class VQVae(CLModel):
         else:
             clf_loss = clf_acc = None
 
-        return loss, reconstruction_loss, clf_loss, clf_acc, perplexity
+        return CriterionOutput(
+            vq_loss=loss,
+            reconstruction_loss=reconstruction_loss,
+            clf_loss=clf_loss,
+            clf_acc=clf_acc,
+            perplexity=perplexity,
+        )
 
     def forward(self, x):
         z = self.encoder(x)
@@ -138,17 +161,22 @@ class VQVae(CLModel):
         else:
             logits = None
 
-        return loss, x_recon, quantized, x, perplexity, logits
+        return ForwardOutput(
+            vq_loss=loss,
+            x_recon=x_recon,
+            x_data=x,
+            quantized=quantized,
+            perplexity=perplexity,
+            logits=logits,
+        )
 
     def training_step(self, batch, batch_idx):
         x, y, *_ = batch
 
-        vq_loss, x_recon, quantized, x, perplexity, logits = self.forward(x)
-        _, reconstruction_loss, clf_loss, clf_acc, _ = self.criterion(
-            (vq_loss, x_recon, quantized, x, perplexity, logits), y
-        )
+        forward_output = self.forward(x)
+        criterion_output = self.criterion(forward_output, y)
 
-        loss = vq_loss + reconstruction_loss
+        loss = criterion_output.vq_loss + criterion_output.reconstruction_loss
 
         # LOGGING
         self.log_with_postfix(
@@ -157,30 +185,29 @@ class VQVae(CLModel):
         )
         self.log_with_postfix(
             f"train/vq_loss",
-            vq_loss,
+            criterion_output.vq_loss,
         )
         self.log_with_postfix(
             f"train/reconstruction_loss",
-            reconstruction_loss,
+            criterion_output.reconstruction_loss,
         )
         self.log_with_postfix(
             f"train/perplexity",
-            perplexity,
+            criterion_output.perplexity,
         )
 
         return {
             "loss": loss,
-            "forward_output": (vq_loss, x_recon, quantized, x, perplexity),
+            "forward_output": forward_output,
         }
 
     def validation_step(self, batch, batch_idx):
         x, y, *_ = batch
 
-        vq_loss, x_recon, quantized, _, perplexity, logits = self.forward(x)
-        _, reconstruction_loss, clf_loss, clf_acc, _ = self.criterion(
-            (vq_loss, x_recon, quantized, x, perplexity, logits), y
-        )
-        loss = vq_loss + reconstruction_loss
+        forward_output = self.forward(x)
+        criterion_output = self.criterion(forward_output, y)
+
+        loss = criterion_output.vq_loss + criterion_output.reconstruction_loss
 
         # LOGGING
         self.log_with_postfix(
@@ -189,20 +216,20 @@ class VQVae(CLModel):
         )
         self.log_with_postfix(
             f"val/vq_loss",
-            vq_loss,
+            criterion_output.vq_loss,
         )
         self.log_with_postfix(
             f"val/reconstruction_loss",
-            reconstruction_loss,
+            criterion_output.reconstruction_loss,
         )
         self.log_with_postfix(
             f"val/perplexity",
-            perplexity,
+            criterion_output.perplexity,
         )
 
         return {
             "loss": loss,
-            "forward_output": (vq_loss, x_recon, quantized, x, perplexity),
+            "forward_output": forward_output,
         }
 
     def configure_optimizers(self):

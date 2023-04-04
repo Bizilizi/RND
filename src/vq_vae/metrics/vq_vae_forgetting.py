@@ -33,20 +33,20 @@ class VqVaeStreamForgetting(GenericStreamForgetting):
         """
 
     def metric_update(self, strategy):
-        vq_loss, reconstruction_loss, clf_loss, clf_acc, *_ = strategy.loss
+        criterion_output = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
-            loss -= vq_loss
+            loss -= criterion_output.vq_loss
 
         if self.with_reconstruction_loss:
-            loss -= reconstruction_loss
+            loss -= criterion_output.reconstruction_loss
 
         if self.with_lin_loss:
-            loss -= clf_loss
+            loss -= criterion_output.clf_loss
 
         if self.with_lin_acc:
-            loss += clf_acc
+            loss += criterion_output.clf_acc
 
         self._current_metric.update(loss, 1)
 
@@ -94,20 +94,20 @@ class VqVaeExperienceForgetting(GenericExperienceForgetting):
         """
 
     def metric_update(self, strategy):
-        vq_loss, reconstruction_loss, clf_loss, clf_acc, *_ = strategy.loss
+        criterion_output = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
-            loss -= vq_loss
+            loss -= criterion_output.vq_loss
 
         if self.with_reconstruction_loss:
-            loss -= reconstruction_loss
+            loss -= criterion_output.reconstruction_loss
 
         if self.with_lin_loss:
-            loss -= clf_loss
+            loss -= criterion_output.clf_loss
 
         if self.with_lin_acc:
-            loss += clf_acc
+            loss += criterion_output.clf_acc
 
         self._current_metric.update(loss, 1)
 

@@ -33,20 +33,20 @@ class VqVaeExperienceLoss(ExperienceLoss):
         else:
             task_label = task_labels[0]
 
-        vq_loss, reconstruction_loss, clf_loss, clf_acc, *_ = strategy.loss
+        criterion_output = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
-            loss += vq_loss
+            loss += criterion_output.vq_loss
 
         if self.with_reconstruction_loss:
-            loss += reconstruction_loss
+            loss += criterion_output.reconstruction_loss
 
         if self.with_lin_loss:
-            loss -= clf_loss
+            loss -= criterion_output.clf_loss
 
         if self.with_lin_acc:
-            loss += clf_acc
+            loss += criterion_output.clf_acc
 
         self._loss.update(loss, patterns=len(strategy.mb_y), task_label=task_label)
 
@@ -93,20 +93,20 @@ class VqVaeStreamLoss(StreamLoss):
         else:
             task_label = task_labels[0]
 
-        vq_loss, reconstruction_loss, clf_loss, clf_acc, *_ = strategy.loss
+        criterion_output = strategy.loss
         loss = 0
 
         if self.with_vq_loss:
-            loss += vq_loss
+            loss += criterion_output.vq_loss
 
         if self.with_reconstruction_loss:
-            loss += reconstruction_loss
+            loss += criterion_output.reconstruction_loss
 
         if self.with_lin_loss:
-            loss -= clf_loss
+            loss -= criterion_output.clf_loss
 
         if self.with_lin_acc:
-            loss += clf_acc
+            loss += criterion_output.clf_acc
 
         self._loss.update(loss, patterns=len(strategy.mb_y), task_label=task_label)
 

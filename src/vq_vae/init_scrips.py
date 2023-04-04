@@ -17,7 +17,12 @@ def get_evaluation_plugin(
     benchmark, evaluation_loggers, is_using_wandb
 ) -> t.Optional[EvaluationPlugin]:
     eval_plugin = EvaluationPlugin(
-        timing_metrics(epoch_running=True),
+        timing_metrics(
+            minibatch=True,
+            epoch=True,
+            epoch_running=True,
+            experience=True,
+        ),
         vq_vae_forgetting_metrics(experience=True, stream=True),
         vq_vae_loss_metrics(experience=True, stream=True),
         vq_vae_confusion_matrix_metrics(
