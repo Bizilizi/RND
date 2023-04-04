@@ -1,10 +1,8 @@
 import os
 import typing as t
-from copy import deepcopy
-
+from pytorch_lightning.profilers import AdvancedProfiler
 import torch
 from pytorch_lightning import Callback, Trainer
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
@@ -101,7 +99,7 @@ class NaivePytorchLightning(Naive):
             min_epochs=self.min_epochs,
             callbacks=self.callbacks,
             accumulate_grad_batches=self.accumulate_grad_batches,
-            profiler="advanced",
+            profiler=AdvancedProfiler(filename="profiler.logs"),
         )
 
         # Derive from which checkpoint to resume training
