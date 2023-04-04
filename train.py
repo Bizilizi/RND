@@ -12,7 +12,7 @@ from src.vq_vae.train import main as vq_vae_main
 from train_utils import add_arguments
 
 # configure logging at the root level of Lightning
-logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+# logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
 
 if __name__ == "__main__":
 
