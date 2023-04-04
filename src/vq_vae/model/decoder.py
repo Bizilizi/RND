@@ -56,7 +56,7 @@ class Decoder(nn.Module):
 
 
 class GPTDecoder(nn.Module):
-    def __init__(self, embeddings_dim, embeddings_num, n_positions):
+    def __init__(self, embeddings_dim, embeddings_num, n_positions, patch_size):
         super().__init__()
 
         configuration = ImageGPTConfig(
@@ -70,23 +70,33 @@ class GPTDecoder(nn.Module):
                 "n_embd": embeddings_dim,
                 "n_head": 4,
                 "n_layer": 12,
-                "n_positions": n_positions,
+                "n_positions": n_positions + 1,
                 "reorder_and_upcast_attn": False,
                 "resid_pdrop": 0.1,
                 "scale_attn_by_inverse_layer_idx": False,
                 "scale_attn_weights": True,
                 "tie_word_embeddings": False,
                 "use_cache": False,
-                "vocab_size": embeddings_num,
+                "vocab_size": embeddings_num + 1,
             }
         )
 
         self.image_gpt = ImageGPTModel(configuration)
-        self.linear = nn.Linear(embeddings_dim, 16 * 3)
+        self.ema_sos = nn.Embedding(1, embeddings_dim)
+
+        self.lm_head = nn.Linear(embeddings_dim, embeddings_num, bias=False)
+        self.pixel_head = nn.Linear(embeddings_dim, patch_size**2 * 3)
 
     def forward(self, inputs):
-        x = self.image_gpt(inputs_embeds=inputs)
-        x = self.linear(x.last_hidden_state)
-        x = x.reshape(-1, 3, 32, 32)
+        # Add sos token to inputs
+        sos_tokens = self.ema_sos.weight[0][None, None].repeat(inputs.shape[0], 1, 1)
+        x = torch.cat([sos_tokens, inputs], dim=1)
 
-        return x
+        x = self.image_gpt(inputs_embeds=x)
+
+        pixels_output = self.pixel_head(x.last_hidden_state[:, 1:])
+        pixels_output = torch.tanh(pixels_output.reshape(-1, 3, 32, 32))
+
+        lm_output = self.lm_head(x.last_hidden_state)
+
+        return pixels_output, lm_output

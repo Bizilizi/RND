@@ -238,6 +238,7 @@ class VitVQVae(CLModel):
         data_variance=1,
         learning_rate: float = 1e-3,
         embeddings_distance: str = "cosine",
+        patch_size=4,
     ):
         super().__init__()
 
@@ -245,15 +246,15 @@ class VitVQVae(CLModel):
         self._learning_rate = learning_rate
         self._embedding_dim = embedding_dim
 
-        self.encoder = VitEncoder(
-            image_embedding_dim=64, vit_embeddings_dim=embedding_dim, vit_patch_size=4
-        )
+        self.encoder = VitEncoder(embeddings_dim=embedding_dim, patch_size=patch_size)
 
         self.vq_vae = VitVectorQuantizerEMA(
             num_embeddings, embedding_dim, commitment_cost, decay
         )
 
-        self.decoder = GPTDecoder(embedding_dim, num_embeddings, n_positions=8 * 8 + 1)
+        self.decoder = GPTDecoder(
+            embedding_dim, num_embeddings, n_positions=8 * 8, patch_size=patch_size
+        )
 
         if embeddings_distance == "cosine":
             self.c_loss = ContrastiveLoss(
@@ -291,14 +292,15 @@ class VitVQVae(CLModel):
         )
 
     def forward(self, x):
-        image_emb, z = self.encoder(x)
+        z = self.encoder(x)
+        image_emb = z[:, 0]
         patches_emb = z[:, 1:]
 
         vq_loss, quantized, perplexity, _ = self.vq_vae(patches_emb)
-        x_recon = self.decoder(quantized)
+        x_recon, _ = self.decoder(quantized)
 
         if self.clf_head is not None:
-            logits = self.clf_head(quantized)
+            logits = self.clf_head(image_emb)
         else:
             logits = None
 

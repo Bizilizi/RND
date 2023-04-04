@@ -101,6 +101,7 @@ class NaivePytorchLightning(Naive):
             min_epochs=self.min_epochs,
             callbacks=self.callbacks,
             accumulate_grad_batches=self.accumulate_grad_batches,
+            profiler="simple",
         )
 
         # Derive from which checkpoint to resume training

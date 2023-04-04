@@ -98,27 +98,27 @@ def main(args):
         wandb_params = None
 
     # Create benchmark, model and loggers
-    datasets_dir = pathlib.Path(config.dataset_path)
-    target_dataset_dir = pathlib.Path("/tmp/dzverev_data/")
-    target_dataset_dir.mkdir(exist_ok=True)
-
-    zip_path = datasets_dir / "cifar-10-python.tar.gz"
-    dataset_path = datasets_dir / "cifar-10-batches-py"
-
-    target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
-    target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
-
-    if zip_path.exists() and not target_zip_path.exists():
-        shutil.copy(str(zip_path), str(target_zip_path))
-
-    if dataset_path.exists() and not target_dataset_path.exists():
-        shutil.copytree(str(dataset_path), str(target_dataset_path))
+    # datasets_dir = pathlib.Path(config.dataset_path)
+    # target_dataset_dir = pathlib.Path("/tmp/dzverev_data/")
+    # target_dataset_dir.mkdir(exist_ok=True)
+    #
+    # zip_path = datasets_dir / "cifar-10-python.tar.gz"
+    # dataset_path = datasets_dir / "cifar-10-batches-py"
+    #
+    # target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
+    # target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
+    #
+    # if zip_path.exists() and not target_zip_path.exists():
+    #     shutil.copy(str(zip_path), str(target_zip_path))
+    #
+    # if dataset_path.exists() and not target_dataset_path.exists():
+    #     shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     benchmark = SplitCIFAR10(
         n_experiences=5,
         return_task_id=True,
         shuffle=True,
-        dataset_root="/tmp/dzverev_data",
+        dataset_root=config.dataset_path,
         train_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
