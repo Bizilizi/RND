@@ -33,7 +33,7 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
         for exp in eval_stream:
             dataloader = DataLoader(
                 Subset(exp.dataset, list(range(100))),
-                num_workers=1,
+                num_workers=0,
                 batch_size=32,
                 shuffle=False,
             )
@@ -77,7 +77,7 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
                 )
 
                 predicted_classes.extend(
-                    forward_output.logits.argmax(dim=-1).cpu().tolist()
+                    forward_output.clf_logits.argmax(dim=-1).cpu().tolist()
                 )
                 target_classes.extend(y.cpu().tolist())
 

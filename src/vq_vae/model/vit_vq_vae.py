@@ -19,17 +19,23 @@ if t.TYPE_CHECKING:
 
 class ForwardOutput(t.NamedTuple):
     vq_loss: torch.Tensor
+
     x_data: torch.Tensor
     x_recon: torch.Tensor
+
     quantized: torch.Tensor
     perplexity: torch.Tensor
+
     image_emb: torch.Tensor
-    logits: torch.Tensor
+    clf_logits: torch.Tensor
+    lm_logits: torch.Tensor
+    encoding_indices: torch.Tensor
 
 
 class CriterionOutput(t.NamedTuple):
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
+    lm_loss: torch.Tensor
     clf_loss: torch.Tensor
     clf_acc: torch.Tensor
     contrastive_loss: torch.Tensor
@@ -53,6 +59,7 @@ class VitVQVae(CLModel):
         self._data_variance = data_variance
         self._learning_rate = learning_rate
         self._embedding_dim = embedding_dim
+        self._latent_sos_token = num_embeddings + 1
 
         self.encoder = VitEncoder(embeddings_dim=embedding_dim, patch_size=patch_size)
 
@@ -79,37 +86,49 @@ class VitVQVae(CLModel):
     def reset_clf_head(self):
         self.clf_head = None
 
-    def criterion(self, forward_output, y):
+    def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
         reconstruction_loss = F.mse_loss(forward_output.x_recon, forward_output.x_data)
         contrastive_loss = self.c_loss(forward_output.image_emb, y)
 
-        if forward_output.logits is not None:
-            clf_loss = F.cross_entropy(forward_output.logits, y)
-            clf_acc = (forward_output.logits.argmax(dim=-1) == y).float().mean()
+        # Compute accuracy if classification head presents
+        if forward_output.clf_logits is not None:
+            clf_loss = F.cross_entropy(forward_output.clf_logits, y)
+            clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
         else:
             clf_loss = clf_acc = None
+
+        # Compute lm loss
+        if forward_output.lm_logits is not None:
+            lm_logits = forward_output.lm_logits
+            lm_loss = F.cross_entropy(
+                lm_logits[:, :-1].reshape(-1, lm_logits.shape[-1]),
+                forward_output.encoding_indices.reshape(-1),
+            )
+        else:
+            lm_loss = None
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
+            lm_loss=lm_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
             contrastive_loss=contrastive_loss,
             perplexity=forward_output.perplexity,
         )
 
-    def forward(self, x):
+    def forward(self, x) -> ForwardOutput:
         z = self.encoder(x)
         image_emb = z[:, 0]
         patches_emb = z[:, 1:]
 
-        vq_loss, quantized, perplexity, _ = self.vq_vae(patches_emb)
-        x_recon, _ = self.decoder(quantized)
+        vq_loss, quantized, perplexity, encoding_indices = self.vq_vae(patches_emb)
+        x_recon, lm_logits = self.decoder(quantized)
 
         if self.clf_head is not None:
-            logits = self.clf_head(image_emb)
+            clf_logits = self.clf_head(image_emb)
         else:
-            logits = None
+            clf_logits = None
 
         return ForwardOutput(
             vq_loss=vq_loss,
@@ -118,7 +137,9 @@ class VitVQVae(CLModel):
             quantized=quantized,
             perplexity=perplexity,
             image_emb=image_emb,
-            logits=logits,
+            clf_logits=clf_logits,
+            lm_logits=lm_logits,
+            encoding_indices=encoding_indices,
         )
 
     def training_step(self, batch, batch_idx):
@@ -153,6 +174,10 @@ class VitVQVae(CLModel):
         self.log_with_postfix(
             f"train/contrastive_loss",
             criterion_output.contrastive_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/pixels_lm_loss",
+            criterion_output.lm_loss.cpu().item(),
         )
 
         return {
@@ -192,6 +217,10 @@ class VitVQVae(CLModel):
         self.log_with_postfix(
             f"val/contrastive_loss",
             criterion_output.contrastive_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/pixels_lm_loss",
+            criterion_output.lm_loss.cpu().item(),
         )
 
         return {

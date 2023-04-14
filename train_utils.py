@@ -139,7 +139,7 @@ def get_wandb_params(args, config):
     """
 
     wandb_params = dict(
-        project=args.model.upper(),
+        project="transformer-vq-vae",
         id=args.run_id,
         entity="vgg-continual-learning",
         group=args.group,

@@ -1,3 +1,5 @@
+from functools import partial
+
 import torch
 from torch import nn
 
@@ -6,6 +8,8 @@ from transformers import (
     ImageGPTConfig,
     ImageGPTModel,
 )
+
+from src.vq_vae.model.vit import VisionTransformer
 
 
 class Decoder(nn.Module):
@@ -100,3 +104,28 @@ class GPTDecoder(nn.Module):
         lm_output = self.lm_head(x.last_hidden_state)
 
         return pixels_output, lm_output
+
+
+class VITDecoder(nn.Module):
+    def __init__(self, embeddings_dim, embeddings_num, n_positions, patch_size):
+        super().__init__()
+
+        self.base_vit = VisionTransformer(
+            img_size=[8],
+            patch_size=1,
+            num_layers=12,
+            embed_dim=embeddings_dim,
+            depth=12,
+            num_heads=8,
+            mlp_ratio=4,
+            qkv_bias=True,
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        )
+        self.linear = nn.Linear(embeddings_dim, 16 * 3)
+
+    def forward(self, inputs):
+        x = self.base_vit(inputs_embeds=inputs, return_all_patches=True)
+        x = self.linear(x[:, 1:])
+        x = x.reshape(-1, 3, 32, 32)
+
+        return x, None

@@ -59,6 +59,7 @@ class VitEncoder(nn.Module):
         super().__init__()
 
         self.base_vit = VisionTransformer(
+            img_size=[32],
             patch_size=patch_size,
             num_layers=12,
             embed_dim=embeddings_dim,

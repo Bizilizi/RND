@@ -24,7 +24,7 @@ from src.avalanche.strategies import NaivePytorchLightning
 class VQVaeWandBStreamConfusionMatrix(WandBStreamConfusionMatrix):
     def after_eval_iteration(self, strategy: "NaivePytorchLightning"):
         forward_output = strategy.mb_output
-        self.update(forward_output.logits, strategy.mb_y)
+        self.update(forward_output.clf_logits, strategy.mb_y)
 
     def __str__(self):
         return "test/confusion_matrix_stream"
@@ -54,7 +54,7 @@ class VQVaeWandBStreamConfusionMatrix(WandBStreamConfusionMatrix):
 class VQVaeStreamConfusionMatrix(StreamConfusionMatrix):
     def after_eval_iteration(self, strategy: "SupervisedTemplate") -> None:
         forward_output = strategy.mb_output
-        self.update(forward_output.logits, strategy.mb_y)
+        self.update(forward_output.clf_logits, strategy.mb_y)
 
 
 def vq_vae_confusion_matrix_metrics(
