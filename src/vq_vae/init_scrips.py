@@ -47,6 +47,13 @@ def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae, VitVQ
         decay=config.decay,
         learning_rate=config.learning_rate,
         data_variance=0.06328692405746414,
+        embeddings_distance=config.embeddings_distance,
+        patch_corruption_rate=config.corruption_rate,
+        vq_loss_weight=config.vq_loss_weight,
+        reconstruction_loss_weight=config.reconstruction_loss_weight,
+        contrastive_loss_loss_weight=config.contrastive_loss_loss_weight,
+        encoder_mlm_loss_loss_weight=config.encoder_mlm_loss_loss_weight,
+        decoder_regression_loss_loss_weight=config.decoder_regression_loss_loss_weight,
     )
 
     return vae

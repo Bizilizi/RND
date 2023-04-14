@@ -124,7 +124,7 @@ def main():
     exp_args["--model"] = "vq-vae"
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"
-    exp_args["--max_epochs"] = 300
+    exp_args["--max_epochs"] = 1000
     exp_args["--batch_size"] = 256
     exp_args["--min_epochs"] = 150
     exp_args["--num_workers"] = 4

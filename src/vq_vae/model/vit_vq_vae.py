@@ -60,9 +60,21 @@ class VitVQVae(CLModel):
         embeddings_distance: str = "cosine",
         patch_size=4,
         patch_corruption_rate: float = 0.2,
+        vq_loss_weight: float = 1,
+        reconstruction_loss_weight: float = 1,
+        contrastive_loss_loss_weight: float = 1,
+        encoder_mlm_loss_loss_weight: float = 1,
+        decoder_regression_loss_loss_weight: float = 1,
     ):
         super().__init__()
 
+        # loss weights
+        self.decoder_regression_loss_loss_weight = decoder_regression_loss_loss_weight
+        self.encoder_mlm_loss_loss_weight = encoder_mlm_loss_loss_weight
+        self.contrastive_loss_loss_weight = contrastive_loss_loss_weight
+        self.reconstruction_loss_weight = reconstruction_loss_weight
+
+        self.vq_loss_weight = vq_loss_weight
         self._data_variance = data_variance
         self._learning_rate = learning_rate
         self._embedding_dim = embedding_dim
@@ -173,11 +185,12 @@ class VitVQVae(CLModel):
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
-            criterion_output.vq_loss
-            + criterion_output.reconstruction_loss
-            + criterion_output.contrastive_loss
-            + criterion_output.encoder_mlm_loss
+            criterion_output.vq_loss * self.vq_loss_weight
+            + criterion_output.reconstruction_loss * self.reconstruction_loss_weight
+            + criterion_output.contrastive_loss * self.contrastive_loss_loss_weight
+            + criterion_output.encoder_mlm_loss * self.encoder_mlm_loss_loss_weight
             + criterion_output.decoder_regression_loss
+            * self.decoder_regression_loss_loss_weight
         )
 
         # LOGGING
@@ -222,11 +235,12 @@ class VitVQVae(CLModel):
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
-            criterion_output.vq_loss
-            + criterion_output.reconstruction_loss
-            + criterion_output.contrastive_loss
-            + criterion_output.encoder_mlm_loss
+            criterion_output.vq_loss * self.vq_loss_weight
+            + criterion_output.reconstruction_loss * self.reconstruction_loss_weight
+            + criterion_output.contrastive_loss * self.contrastive_loss_loss_weight
+            + criterion_output.encoder_mlm_loss * self.encoder_mlm_loss_loss_weight
             + criterion_output.decoder_regression_loss
+            * self.decoder_regression_loss_loss_weight
         )
 
         # LOGGING

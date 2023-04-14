@@ -18,6 +18,16 @@ class TrainConfig(BaseTrainConfig):
     regularization_dropout: float
 
     use_lpips: bool
+    corruption_rate = 0.2
+
+    embeddings_distance: str
+
+    # loss weights
+    vq_loss_weight = 1
+    reconstruction_loss_weight = 1
+    contrastive_loss_loss_weight = 1
+    encoder_mlm_loss_loss_weight = 1
+    decoder_regression_loss_loss_weight = 1
 
     # training
     max_epochs_lin_eval: int
