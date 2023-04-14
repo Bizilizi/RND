@@ -39,7 +39,7 @@ if __name__ == "__main__":
         wandb.agent(
             args.sweep_id,
             partial(entry_main, args),
-            project=args.model.upper(),
+            project="transformer-vq-vae",
         )
     else:
         # Otherwise just run entry main function
