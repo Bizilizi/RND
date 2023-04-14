@@ -2,6 +2,7 @@ import typing as t
 from itertools import chain
 
 import torch
+from torch import nn
 from pytorch_metric_learning.distances import CosineSimilarity
 from pytorch_metric_learning.losses import ContrastiveLoss
 from torch.nn import functional as F
@@ -20,6 +21,7 @@ if t.TYPE_CHECKING:
 class ForwardOutput(t.NamedTuple):
     vq_loss: torch.Tensor
 
+    z_pred: torch.Tensor
     x_data: torch.Tensor
     x_recon: torch.Tensor
 
@@ -30,12 +32,16 @@ class ForwardOutput(t.NamedTuple):
     clf_logits: torch.Tensor
     lm_logits: torch.Tensor
     encoding_indices: torch.Tensor
+    masked_indices: t.Optional[torch.Tensor]
 
 
 class CriterionOutput(t.NamedTuple):
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
-    lm_loss: torch.Tensor
+
+    decoder_regression_loss: torch.Tensor
+    encoder_mlm_loss: t.Optional[torch.Tensor]
+
     clf_loss: torch.Tensor
     clf_acc: torch.Tensor
     contrastive_loss: torch.Tensor
@@ -53,6 +59,7 @@ class VitVQVae(CLModel):
         learning_rate: float = 1e-3,
         embeddings_distance: str = "cosine",
         patch_size=4,
+        patch_corruption_rate: float = 0.2,
     ):
         super().__init__()
 
@@ -61,12 +68,15 @@ class VitVQVae(CLModel):
         self._embedding_dim = embedding_dim
         self._latent_sos_token = num_embeddings + 1
 
-        self.encoder = VitEncoder(embeddings_dim=embedding_dim, patch_size=patch_size)
-
+        self.encoder = VitEncoder(
+            embeddings_dim=embedding_dim,
+            patch_size=patch_size,
+            corruption_rate=patch_corruption_rate,
+        )
+        self.encoder_lm_head = nn.Linear(embedding_dim, num_embeddings)
         self.vq_vae = VitVectorQuantizerEMA(
             num_embeddings, embedding_dim, commitment_cost, decay
         )
-
         self.decoder = GPTDecoder(
             embedding_dim, num_embeddings, n_positions=8 * 8, patch_size=patch_size
         )
@@ -100,17 +110,26 @@ class VitVQVae(CLModel):
         # Compute lm loss
         if forward_output.lm_logits is not None:
             lm_logits = forward_output.lm_logits
-            lm_loss = F.cross_entropy(
+            pixels_lm_loss = F.cross_entropy(
                 lm_logits[:, :-1].reshape(-1, lm_logits.shape[-1]),
                 forward_output.encoding_indices.reshape(-1),
             )
         else:
-            lm_loss = None
+            pixels_lm_loss = None
+
+        # Compute encoder masked language loss
+        z_mlm_loss = None
+        if forward_output.masked_indices is not None:
+            z_mlm_loss = F.cross_entropy(
+                forward_output.z_pred.reshape(-1, forward_output.z_pred.shape[-1]),
+                forward_output.masked_indices.flatten(),
+            )
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
-            lm_loss=lm_loss,
+            decoder_regression_loss=pixels_lm_loss,
+            encoder_mlm_loss=z_mlm_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
             contrastive_loss=contrastive_loss,
@@ -118,11 +137,14 @@ class VitVQVae(CLModel):
         )
 
     def forward(self, x) -> ForwardOutput:
-        z = self.encoder(x)
+        z, masked_indices = self.encoder(x)
         image_emb = z[:, 0]
         patches_emb = z[:, 1:]
 
         vq_loss, quantized, perplexity, encoding_indices = self.vq_vae(patches_emb)
+        z_pred = self.encoder_lm_head(
+            z[torch.arange(masked_indices.shape[0]).unsqueeze(1), masked_indices]
+        )
         x_recon, lm_logits = self.decoder(quantized)
 
         if self.clf_head is not None:
@@ -134,12 +156,14 @@ class VitVQVae(CLModel):
             vq_loss=vq_loss,
             x_recon=x_recon,
             x_data=x,
+            z_pred=z_pred,
             quantized=quantized,
             perplexity=perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
             lm_logits=lm_logits,
             encoding_indices=encoding_indices,
+            masked_indices=masked_indices,
         )
 
     def training_step(self, batch, batch_idx):
@@ -152,6 +176,8 @@ class VitVQVae(CLModel):
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
             + criterion_output.contrastive_loss
+            + criterion_output.encoder_mlm_loss
+            + criterion_output.decoder_regression_loss
         )
 
         # LOGGING
@@ -177,7 +203,11 @@ class VitVQVae(CLModel):
         )
         self.log_with_postfix(
             f"train/pixels_lm_loss",
-            criterion_output.lm_loss.cpu().item(),
+            criterion_output.decoder_regression_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/latent_mlm_loss",
+            criterion_output.encoder_mlm_loss.cpu().item(),
         )
 
         return {
@@ -195,6 +225,8 @@ class VitVQVae(CLModel):
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
             + criterion_output.contrastive_loss
+            + criterion_output.encoder_mlm_loss
+            + criterion_output.decoder_regression_loss
         )
 
         # LOGGING
@@ -220,7 +252,11 @@ class VitVQVae(CLModel):
         )
         self.log_with_postfix(
             f"val/pixels_lm_loss",
-            criterion_output.lm_loss.cpu().item(),
+            criterion_output.decoder_regression_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/latent_mlm_loss",
+            criterion_output.encoder_mlm_loss.cpu().item(),
         )
 
         return {

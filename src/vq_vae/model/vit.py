@@ -197,6 +197,7 @@ class VisionTransformer(nn.Module):
         attn_drop_rate=0.0,
         drop_path_rate=0.0,
         norm_layer=nn.LayerNorm,
+        corruption_rate=0.5,
         **kwargs
     ):
         super().__init__()
@@ -213,6 +214,9 @@ class VisionTransformer(nn.Module):
         self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
         self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
         self.pos_drop = nn.Dropout(p=drop_rate)
+
+        self.corruption_token = nn.Parameter(torch.zeros(embed_dim))
+        self.corruption_rate = corruption_rate
 
         dpr = [
             x.item() for x in torch.linspace(0, drop_path_rate, depth)
@@ -288,21 +292,32 @@ class VisionTransformer(nn.Module):
         cls_tokens = self.cls_token.expand(B, -1, -1)
         x = torch.cat((cls_tokens, x), dim=1)
 
+        masked_indices = None
+        if self.corruption_rate:
+            num_corrupted_patches = int(x.shape[-1] * self.corruption_rate)
+            masked_indices = torch.randint(
+                1, x.shape[1], (x.shape[0], num_corrupted_patches), device=x.device
+            )
+
+            x[
+                torch.arange(masked_indices.shape[0]).unsqueeze(1), masked_indices
+            ] = self.corruption_token
+
         # add positional encoding to each token
         x = x + self.interpolate_pos_encoding(x, w, h)
 
-        return self.pos_drop(x)
+        return x, masked_indices
 
     def forward(self, x, return_all_patches=False):
-        x = self.prepare_tokens(x)
+        x, masked_indices = self.prepare_tokens(x)
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)
 
         if return_all_patches:
-            return x
+            return x, masked_indices
         else:
-            return x[:, 0]
+            return x[:, 0], masked_indices
 
     def get_last_selfattention(self, x):
         x = self.prepare_tokens(x)
