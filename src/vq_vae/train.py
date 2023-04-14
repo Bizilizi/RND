@@ -89,10 +89,9 @@ def main(args):
         wandb_params = get_wandb_params(args, config)
 
         wandb.run.name = args.experiment_name or (
-            f"RI-0."
-            f"RN-{config.num_random_noise}."
-            f"Dr-{config.regularization_dropout}."
-            f"Wd-{config.regularization_lambda}."
+            f"CL-{config.contrastive_loss_loss_weight}|"
+            f"PxLM-{config.decoder_regression_loss_loss_weight}."
+            f"ZLML-{config.encoder_mlm_loss_loss_weight}."
         )
         wandb_params["name"] = wandb.run.name
     else:

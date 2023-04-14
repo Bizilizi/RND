@@ -185,8 +185,8 @@ class VitVQVae(CLModel):
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
-            criterion_output.vq_loss * self.vq_loss_weight
-            + criterion_output.reconstruction_loss * self.reconstruction_loss_weight
+            criterion_output.vq_loss
+            + criterion_output.reconstruction_loss
             + criterion_output.contrastive_loss * self.contrastive_loss_loss_weight
             + criterion_output.encoder_mlm_loss * self.encoder_mlm_loss_loss_weight
             + criterion_output.decoder_regression_loss
@@ -235,8 +235,8 @@ class VitVQVae(CLModel):
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
-            criterion_output.vq_loss * self.vq_loss_weight
-            + criterion_output.reconstruction_loss * self.reconstruction_loss_weight
+            criterion_output.vq_loss
+            + criterion_output.reconstruction_loss
             + criterion_output.contrastive_loss * self.contrastive_loss_loss_weight
             + criterion_output.encoder_mlm_loss * self.encoder_mlm_loss_loss_weight
             + criterion_output.decoder_regression_loss
