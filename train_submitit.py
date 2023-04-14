@@ -54,6 +54,11 @@ def parse_args():
         default=4,
         type=int,
     )
+    parser.add_argument(
+        "--constraint",
+        default="p40",
+        type=str,
+    )
 
     train.add_arguments(parser)
 
@@ -105,7 +110,7 @@ def main():
         timeout_min=timeout_min,  # max is 60 * 72
         # Below are cluster dependent parameters
         slurm_partition=partition,
-        slurm_constraint="p40",
+        slurm_constraint=args.constraint,
         slurm_additional_parameters={
             "mail-type": "BEGIN,END,FAIL",
             "mail-user": "dzverev@robots.ox.ac.uk",
