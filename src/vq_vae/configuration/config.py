@@ -25,9 +25,6 @@ class TrainConfig(BaseTrainConfig):
     # loss weights
     vq_loss_weight = 1
     reconstruction_loss_weight = 1
-    contrastive_loss_loss_weight = 1
-    encoder_mlm_loss_loss_weight = 1
-    decoder_regression_loss_loss_weight = 1
     downstream_loss_weight = 1
 
     # training
