@@ -209,11 +209,11 @@ class VQVae(CLModel):
         )
         self.log_with_postfix(
             f"train/clf_loss",
-            criterion_output.perplexity,
+            criterion_output.clf_loss,
         )
         self.log_with_postfix(
             f"train/clf_accuracy",
-            criterion_output.perplexity,
+            criterion_output.clf_acc,
         )
 
         return {
@@ -252,11 +252,11 @@ class VQVae(CLModel):
         )
         self.log_with_postfix(
             f"val/clf_loss",
-            criterion_output.perplexity,
+            criterion_output.clf_loss,
         )
         self.log_with_postfix(
             f"val/clf_accuracy",
-            criterion_output.perplexity,
+            criterion_output.clf_acc,
         )
 
         return {

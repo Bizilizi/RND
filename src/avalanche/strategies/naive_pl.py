@@ -1,5 +1,7 @@
 import os
 import typing as t
+
+from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.profilers import AdvancedProfiler
 import torch
 from pytorch_lightning import Callback, Trainer
@@ -97,7 +99,14 @@ class NaivePytorchLightning(Naive):
             logger=self.train_logger,
             max_epochs=self.max_epochs,
             min_epochs=self.min_epochs,
-            callbacks=self.callbacks,
+            callbacks=self.callbacks
+            + [
+                EarlyStopping(
+                    monitor=f"val/perplexity/experience_step_{self.experience_step}",
+                    mode="max",
+                    patience=20,
+                )
+            ],
             accumulate_grad_batches=self.accumulate_grad_batches,
             # profiler=AdvancedProfiler(filename="profiler.logs"),
         )
