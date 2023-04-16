@@ -78,7 +78,8 @@ class CnnClassifier(pl.LightningModule):
         x, y, *_ = batch
 
         with torch.no_grad():
-            (*_, image_emb, _) = self.vq_vae.forward(x)
+            z, masked_indices = self.vq_vae.encoder(x)
+            image_emb = z[:, 0]
 
         logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)

@@ -1,5 +1,6 @@
 import typing as t
 
+import pytorch_lightning as pl
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 
@@ -17,7 +18,7 @@ class PLTestLoopToAvalancheEvalLoopCallback(Callback):
         pl_module: "pl.LightningModule",
         batch: t.Any,
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         self.strategy._before_eval_iteration(**self.kwargs)
 
@@ -28,6 +29,6 @@ class PLTestLoopToAvalancheEvalLoopCallback(Callback):
         outputs: t.Optional[STEP_OUTPUT],
         batch: t.Any,
         batch_idx: int,
-        dataloader_idx: int,
+        dataloader_idx: int = 0,
     ) -> None:
         self.strategy._after_eval_iteration(**self.kwargs)

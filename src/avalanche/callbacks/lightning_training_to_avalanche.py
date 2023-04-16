@@ -62,7 +62,6 @@ class PLTrainLoopToAvalancheTrainLoopCallback(Callback):
         trainer: "pl.Trainer",
         pl_module: "pl.LightningModule",
         optimizer: Optimizer,
-        opt_idx: int,
     ) -> None:
         self.strategy._before_update(**self.kwargs)
 
