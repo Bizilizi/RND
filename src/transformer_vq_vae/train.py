@@ -95,7 +95,8 @@ def main(args):
         wandb.run.name = args.experiment_name or (
             f"CL-{config.contrastive_loss_loss_weight:0.3f} | "
             f"PxLM-{config.decoder_regression_loss_loss_weight:0.3f} | "
-            f"ZLML-{config.encoder_mlm_loss_loss_weight:0.3f}"
+            f"ZLML-{config.encoder_mlm_loss_loss_weight:0.3f} | "
+            f"CR-{config.corruption_rate:0.1f}"
         )
         wandb_params["name"] = wandb.run.name
     else:
