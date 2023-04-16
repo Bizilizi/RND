@@ -13,8 +13,6 @@ from src.vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
 from src.vq_vae.model.vit_vq_vae import VitVQVae
 from src.vq_vae.model.vq_vae import VQVae
 
-# torch._dynamo.config.verbose = True
-
 
 def get_evaluation_plugin(
     benchmark, evaluation_loggers, is_using_wandb
@@ -57,7 +55,7 @@ def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae, VitVQ
         encoder_mlm_loss_loss_weight=config.encoder_mlm_loss_loss_weight,
         decoder_regression_loss_loss_weight=config.decoder_regression_loss_loss_weight,
     )
-    vae = torch.compile(vae, mode="reduce-overhead")
+    # vae = torch.compile(vae, mode="reduce-overhead")
 
     return vae
 
