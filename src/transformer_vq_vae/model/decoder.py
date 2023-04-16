@@ -79,5 +79,6 @@ class VITDecoder(nn.Module):
         x = self.base_vit(inputs_embeds=inputs, return_all_patches=True)
         x = self.linear(x[:, 1:])
         x = x.reshape(-1, 3, 32, 32)
+        x = torch.tanh(x)
 
         return x, None

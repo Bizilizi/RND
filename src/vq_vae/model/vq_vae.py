@@ -19,7 +19,7 @@ class ForwardOutput(t.NamedTuple):
     x_recon: torch.Tensor
     quantized: torch.Tensor
     perplexity: torch.Tensor
-    logits: torch.Tensor
+    clf_logits: torch.Tensor
 
 
 class CriterionOutput(t.NamedTuple):
@@ -146,7 +146,7 @@ class VQVae(CLModel):
     def criterion(self, x: ForwardOutput, y) -> CriterionOutput:
         x_recon = x.x_recon
         x_data = x.x_data
-        logits = x.logits
+        logits = x.clf_logits
 
         reconstruction_loss = self.reconstruction_loss_fn(x_recon, x_data)
 
@@ -175,7 +175,7 @@ class VQVae(CLModel):
             x_data=x,
             quantized=quantized,
             perplexity=perplexity,
-            logits=logits,
+            clf_logits=logits,
         )
 
     def training_step(self, batch, batch_idx):

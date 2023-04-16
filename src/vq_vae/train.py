@@ -104,14 +104,16 @@ def main(args):
         dataset_root=config.dataset_path,
         train_transform=transforms.Compose(
             [
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
         ),
         eval_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
         ),
     )

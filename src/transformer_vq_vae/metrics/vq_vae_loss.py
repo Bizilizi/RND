@@ -20,18 +20,6 @@ class VqVaeExperienceLoss(ExperienceLoss):
         self.with_lin_loss = with_lin_loss
 
     def update(self, strategy):
-        # task labels defined for each experience
-        if hasattr(strategy.experience, "task_labels"):
-            task_labels = strategy.experience.task_labels
-        else:
-            task_labels = [0]  # add fixed task label if not available.
-
-        if len(task_labels) > 1:
-            # task labels defined for each pattern
-            # fall back to single task case
-            task_label = 0
-        else:
-            task_label = task_labels[0]
 
         criterion_output = strategy.loss
         loss = 0
@@ -48,7 +36,14 @@ class VqVaeExperienceLoss(ExperienceLoss):
         if self.with_lin_acc:
             loss += criterion_output.clf_acc
 
-        self._loss.update(loss, patterns=len(strategy.mb_y), task_label=task_label)
+        if self.split_by_task:
+            self._loss.update(
+                loss=loss,
+                patterns=len(strategy.mb_y),
+                task_label=strategy.mb_task_id,
+            )
+        else:
+            self._loss.update(loss, patterns=len(strategy.mb_y))
 
     def __str__(self):
         if self.with_vq_loss and self.with_reconstruction_loss:
@@ -80,18 +75,6 @@ class VqVaeStreamLoss(StreamLoss):
         self.with_lin_loss = with_lin_loss
 
     def update(self, strategy):
-        # task labels defined for each experience
-        if hasattr(strategy.experience, "task_labels"):
-            task_labels = strategy.experience.task_labels
-        else:
-            task_labels = [0]  # add fixed task label if not available.
-
-        if len(task_labels) > 1:
-            # task labels defined for each pattern
-            # fall back to single task case
-            task_label = 0
-        else:
-            task_label = task_labels[0]
 
         criterion_output = strategy.loss
         loss = 0
@@ -108,7 +91,14 @@ class VqVaeStreamLoss(StreamLoss):
         if self.with_lin_acc:
             loss += criterion_output.clf_acc
 
-        self._loss.update(loss, patterns=len(strategy.mb_y), task_label=task_label)
+        if self.split_by_task:
+            self._loss.update(
+                loss=loss,
+                patterns=len(strategy.mb_y),
+                task_label=strategy.mb_task_id,
+            )
+        else:
+            self._loss.update(loss, patterns=len(strategy.mb_y))
 
     def __str__(self):
         if self.with_vq_loss and self.with_reconstruction_loss:
