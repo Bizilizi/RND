@@ -2,7 +2,7 @@ import argparse
 import logging
 from functools import partial
 
-from pytorch_lightning.utilities.seed import seed_everything
+from lightning_fabric import seed_everything
 
 import wandb
 from src.rnd.train import main as rnd_main

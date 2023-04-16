@@ -101,6 +101,7 @@ class VitVQVae(CLModel):
             self.c_loss = ContrastiveLoss()
 
         self.clf_head = None
+        self.experience_step = 0
 
     def set_clf_head(self, model: "CnnClassifier"):
         self.__dict__["clf_head"] = model
