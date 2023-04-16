@@ -102,9 +102,9 @@ class NaivePytorchLightning(Naive):
             callbacks=self.callbacks
             + [
                 EarlyStopping(
-                    monitor=f"val/perplexity/experience_step_{self.experience_step}",
+                    monitor=f"val/loss/experience_step_{self.experience_step}",
                     mode="max",
-                    patience=20,
+                    patience=50,
                 )
             ],
             accumulate_grad_batches=self.accumulate_grad_batches,
