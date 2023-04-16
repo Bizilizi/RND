@@ -9,13 +9,8 @@ from torch.nn import functional as F
 from src.avalanche.model.cl_model import CLModel
 from src.vq_vae.model.decoder import Decoder
 from src.vq_vae.model.encoder import Encoder
-from src.vq_vae.model.quiantizer import (
-    VectorQuantizer,
-    VectorQuantizerEMA,
-)
-
-if t.TYPE_CHECKING:
-    from src.vq_vae.model.classification_head import CnnClassifier
+from src.vq_vae.model.quiantizer import VectorQuantizerEMA, VectorQuantizer
+from src.vq_vae.model.resnet import ResidualStack
 
 
 class ForwardOutput(t.NamedTuple):
@@ -61,6 +56,7 @@ class VQVae(CLModel):
         num_residual_layers,
         num_residual_hiddens,
         num_embeddings,
+        num_classes,
         embedding_dim,
         commitment_cost,
         decay=0,
@@ -69,8 +65,16 @@ class VQVae(CLModel):
         regularization_dropout: float = 0.0,
         regularization_lambda: float = 0.0,
         use_lpips: bool = True,
+        vq_loss_weight: float = 1,
+        reconstruction_loss_weight: float = 1,
+        downstream_loss_weight: float = 1,
+        cnn_clf: bool = True,
     ):
         super().__init__()
+
+        self._downstream_loss_weight = downstream_loss_weight
+        self._reconstruction_loss_weight = reconstruction_loss_weight
+        self._vq_loss_weight = vq_loss_weight
 
         self._data_variance = data_variance
         self._learning_rate = learning_rate
@@ -113,7 +117,23 @@ class VQVae(CLModel):
             ),
         )
 
-        self.clf_head = None
+        if cnn_clf:
+            self.clf_head = nn.Sequential(
+                ResidualStack(
+                    in_channels=embedding_dim,
+                    num_hiddens=embedding_dim,
+                    num_residual_layers=1,
+                    num_residual_hiddens=32,
+                    regularization_dropout=0,
+                ),
+                nn.Flatten(),
+                nn.Linear(4096, num_classes),
+            )
+        else:
+            self.clf_head = nn.Sequential(
+                nn.Flatten(),
+                nn.Linear(4096, num_classes),
+            )
 
         if use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
@@ -123,40 +143,31 @@ class VQVae(CLModel):
                 lambda x, y: F.mse_loss(x, y, reduction="mean") / self._data_variance
             )
 
-    def set_clf_head(self, model: "CnnClassifier"):
-        self.__dict__["clf_head"] = model
+    def criterion(self, x: ForwardOutput, y) -> CriterionOutput:
+        x_recon = x.x_recon
+        x_data = x.x_data
+        logits = x.logits
 
-    def reset_clf_head(self):
-        self.clf_head = None
-
-    def criterion(self, x, y):
-        loss, x_recon, quantized, x_data, perplexity, logits = x
         reconstruction_loss = self.reconstruction_loss_fn(x_recon, x_data)
 
-        if logits is not None:
-            clf_loss = F.cross_entropy(logits, y)
-            clf_acc = (logits.argmax(dim=-1) == y).float().mean()
-        else:
-            clf_loss = clf_acc = None
+        clf_loss = F.cross_entropy(logits, y)
+        clf_acc = (logits.argmax(dim=-1) == y).float().mean()
 
         return CriterionOutput(
-            vq_loss=loss,
+            vq_loss=x.vq_loss,
             reconstruction_loss=reconstruction_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
-            perplexity=perplexity,
+            perplexity=x.perplexity,
         )
 
-    def forward(self, x):
+    def forward(self, x) -> ForwardOutput:
         z = self.encoder(x)
         z = self.pre_vq_conv(z)
         loss, quantized, perplexity, _ = self.vq_vae(z)
-        x_recon = self.decoder(quantized)
 
-        if self.clf_head is not None:
-            logits = self.clf_head(quantized)
-        else:
-            logits = None
+        x_recon = self.decoder(quantized)
+        logits = self.clf_head(quantized)
 
         return ForwardOutput(
             vq_loss=loss,
@@ -170,10 +181,14 @@ class VQVae(CLModel):
     def training_step(self, batch, batch_idx):
         x, y, *_ = batch
 
-        forward_output = self.forward(x)
-        criterion_output = self.criterion(forward_output, y)
+        forward_output: ForwardOutput = self.forward(x)
+        criterion_output: CriterionOutput = self.criterion(forward_output, y)
 
-        loss = criterion_output.vq_loss + criterion_output.reconstruction_loss
+        loss = (
+            self._vq_loss_weight * criterion_output.vq_loss
+            + self._reconstruction_loss_weight * criterion_output.reconstruction_loss
+            + self._downstream_loss_weight * criterion_output.clf_loss
+        )
 
         # LOGGING
         self.log_with_postfix(
@@ -192,6 +207,14 @@ class VQVae(CLModel):
             f"train/perplexity",
             criterion_output.perplexity,
         )
+        self.log_with_postfix(
+            f"train/clf_loss",
+            criterion_output.perplexity,
+        )
+        self.log_with_postfix(
+            f"train/clf_accuracy",
+            criterion_output.perplexity,
+        )
 
         return {
             "loss": loss,
@@ -204,7 +227,11 @@ class VQVae(CLModel):
         forward_output = self.forward(x)
         criterion_output = self.criterion(forward_output, y)
 
-        loss = criterion_output.vq_loss + criterion_output.reconstruction_loss
+        loss = (
+            self._vq_loss_weight * criterion_output.vq_loss
+            + self._reconstruction_loss_weight * criterion_output.reconstruction_loss
+            + self._downstream_loss_weight * criterion_output.clf_loss
+        )
 
         # LOGGING
         self.log_with_postfix(
@@ -223,6 +250,14 @@ class VQVae(CLModel):
             f"val/perplexity",
             criterion_output.perplexity,
         )
+        self.log_with_postfix(
+            f"val/clf_loss",
+            criterion_output.perplexity,
+        )
+        self.log_with_postfix(
+            f"val/clf_accuracy",
+            criterion_output.perplexity,
+        )
 
         return {
             "loss": loss,
@@ -236,6 +271,7 @@ class VQVae(CLModel):
                 self.pre_vq_conv.parameters(),
                 self.vq_vae.parameters(),
                 self.decoder.parameters(),
+                self.clf_head.parameters(),
             ),
             lr=self._learning_rate,
             weight_decay=self._weight_decay,

@@ -28,7 +28,6 @@ class TrainConfig(BaseTrainConfig):
     contrastive_loss_loss_weight = 1
     encoder_mlm_loss_loss_weight = 1
     decoder_regression_loss_loss_weight = 1
-    downstream_loss_weight = 1
 
     # training
     max_epochs_lin_eval: int

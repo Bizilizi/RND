@@ -6,7 +6,6 @@ from torch import nn
 from torch.nn import functional as F
 
 from src.vq_vae.model.resnet import ResidualStack
-from src.vq_vae.model.vit_vq_vae import ForwardOutput
 
 if t.TYPE_CHECKING:
     from src.vq_vae.model.vq_vae import VQVae

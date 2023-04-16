@@ -3,63 +3,11 @@ import torch.nn.functional as F
 from torch import nn
 
 
-class VectorQuantizer(nn.Module):
-    def __init__(self, num_embeddings, embedding_dim, commitment_cost):
-        super().__init__()
-
-        self._embedding_dim = embedding_dim
-        self._num_embeddings = num_embeddings
-
-        self._embedding = nn.Embedding(self._num_embeddings, self._embedding_dim)
-        self._embedding.weight.data.uniform_(
-            -1 / self._num_embeddings, 1 / self._num_embeddings
-        )
-        self._commitment_cost = commitment_cost
-
-    def forward(self, inputs):
-        # convert inputs from BCHW -> BHWC
-        inputs = inputs.permute(0, 2, 3, 1)
-        input_shape = inputs.shape
-
-        # Flatten input
-        flat_input = inputs.reshape(-1, self._embedding_dim)
-
-        # Calculate distances
-        distances = (
-            torch.sum(flat_input**2, dim=1, keepdim=True)
-            + torch.sum(self._embedding.weight**2, dim=1)
-            - 2 * torch.matmul(flat_input, self._embedding.weight.t())
-        )
-
-        # Encoding
-        encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
-        quantized = self._embedding(encoding_indices).reshape(input_shape)
-
-        # Loss
-        e_latent_loss = F.mse_loss(quantized.detach(), inputs)
-        q_latent_loss = F.mse_loss(quantized, inputs.detach())
-        loss = q_latent_loss + self._commitment_cost * e_latent_loss
-
-        # Copy gradients from quantized to inputs (encoder output)
-        quantized = inputs + (quantized - inputs).detach()
-
-        unique_encoding_indices, counts = torch.unique(
-            encoding_indices, return_counts=True
-        )
-        avg_probs = torch.zeros(self._num_embeddings)
-        avg_probs[unique_encoding_indices] = counts / counts.sum()
-
-        perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
-
-        # convert quantized from BHWC -> BCHW
-        return loss, quantized.permute(0, 3, 1, 2), perplexity, encoding_indices
-
-
-class VectorQuantizerEMA(nn.Module):
+class VitVectorQuantizerEMA(nn.Module):
     def __init__(
         self, num_embeddings, embedding_dim, commitment_cost, decay, epsilon=1e-5
     ):
-        super(VectorQuantizerEMA, self).__init__()
+        super().__init__()
 
         self._embedding_dim = embedding_dim
         self._num_embeddings = num_embeddings
@@ -76,12 +24,11 @@ class VectorQuantizerEMA(nn.Module):
         self._epsilon = epsilon
 
     def forward(self, inputs):
-        # convert inputs from BCHW -> BHWC
-        inputs = inputs.permute(0, 2, 3, 1).contiguous()
+        # convert inputs from BHW -> BHWC
         input_shape = inputs.shape
 
         # Flatten input
-        flat_input = inputs.view(-1, self._embedding_dim)
+        flat_input = inputs.reshape(-1, self._embedding_dim)
 
         # Calculate distances
         distances = (
@@ -132,10 +79,4 @@ class VectorQuantizerEMA(nn.Module):
         avg_probs = torch.mean(encodings, dim=0)
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 
-        # convert quantized from BHWC -> BCHW
-        return (
-            loss,
-            quantized.permute(0, 3, 1, 2).contiguous(),
-            perplexity,
-            encoding_indices,
-        )
+        return loss, quantized, perplexity, encoding_indices

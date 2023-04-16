@@ -66,6 +66,13 @@ def add_arguments(parser):
         default=".wandb",
     )
     parser.add_argument(
+        "--project",
+        nargs="?",
+        type=str,
+        help="wandb project name",
+        default=None,
+    )
+    parser.add_argument(
         "--group",
         nargs="?",
         type=str,
@@ -139,7 +146,7 @@ def get_wandb_params(args, config):
     """
 
     wandb_params = dict(
-        project="transformer-vq-vae",
+        project=args.project if args.project is not None else args.model.upper(),
         id=args.run_id,
         entity="vgg-continual-learning",
         group=args.group,

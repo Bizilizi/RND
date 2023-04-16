@@ -9,6 +9,7 @@ from src.rnd.train import main as rnd_main
 from src.utils.train_script import parse_arguments
 from src.vae_ft.train import main as vae_ft_main
 from src.vq_vae.train import main as vq_vae_main
+from src.transformer_vq_vae.train import main as transformer_vq_vae_main
 from train_utils import add_arguments
 
 # configure logging at the root level of Lightning
@@ -28,6 +29,8 @@ if __name__ == "__main__":
         entry_main = vae_ft_main
     elif args.model == "vq-vae":
         entry_main = vq_vae_main
+    elif args.model == "transformer-vq-vae":
+        entry_main = transformer_vq_vae_main
     else:
         assert False, "Unknown value '--model' parameter"
 

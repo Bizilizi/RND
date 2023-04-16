@@ -11,12 +11,16 @@ from avalanche.benchmarks import SplitCIFAR10, SplitImageNet
 from src.avalanche.strategies import NaivePytorchLightning
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
-from src.vq_vae.callbacks.reconstruction_visualization_plugin import (
+from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
 )
-from src.vq_vae.configuration.config import TrainConfig
-from src.vq_vae.init_scrips import get_callbacks, get_evaluation_plugin, get_model
-from src.vq_vae.train_classifier import (
+from src.transformer_vq_vae.configuration.config import TrainConfig
+from src.transformer_vq_vae.init_scrips import (
+    get_callbacks,
+    get_evaluation_plugin,
+    get_model,
+)
+from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
 )
@@ -38,11 +42,28 @@ def train_loop(
         benchmark.train_stream, benchmark.test_stream
     ):
         # Train VQ-VAE
-        with torch.autograd.set_detect_anomaly(True):
-            cl_strategy.train(train_experience, [test_experience])
+        cl_strategy.train(train_experience, [test_experience])
+
+        # Train linear classifier, but before we freeze model params
+        # We train two classifiers. One to predict all classes,
+        # another to predict only observed so far classes.
+        cl_strategy.model.freeze()
+
+        train_classifier_on_all_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+        observed_only_clf_head = train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+
+        cl_strategy.model.set_clf_head(observed_only_clf_head)
 
         # Evaluate VQ-VAE and linear classifier
         cl_strategy.eval(benchmark.test_stream)
+
+        # Reset linear classifier and unfreeze params
+        cl_strategy.model.reset_clf_head()
+        cl_strategy.model.unfreeze()
 
         cl_strategy.experience_step += 1
 
@@ -72,9 +93,9 @@ def main(args):
         wandb_params = get_wandb_params(args, config)
 
         wandb.run.name = args.experiment_name or (
-            f"VQL-{config.vq_loss_weight:0.3f} | "
-            f"ReL-{config.reconstruction_loss_weight:0.3f} | "
-            f"DL-{config.downstream_loss_weight:0.3f}"
+            f"CL-{config.contrastive_loss_loss_weight:0.3f} | "
+            f"PxLM-{config.decoder_regression_loss_loss_weight:0.3f} | "
+            f"ZLML-{config.encoder_mlm_loss_loss_weight:0.3f}"
         )
         wandb_params["name"] = wandb.run.name
     else:

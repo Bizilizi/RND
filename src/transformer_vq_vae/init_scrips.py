@@ -5,12 +5,14 @@ from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
-from src.vq_vae.callbacks.mix_random_samples import MixRandomNoise
-from src.vq_vae.configuration.config import TrainConfig
-from src.vq_vae.metrics.vq_vae_confusion_matrix import vq_vae_confusion_matrix_metrics
-from src.vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
-from src.vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
-from src.vq_vae.model.vq_vae import VQVae
+from src.transformer_vq_vae.callbacks.mix_random_samples import MixRandomNoise
+from src.transformer_vq_vae.configuration.config import TrainConfig
+from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
+    vq_vae_confusion_matrix_metrics,
+)
+from src.transformer_vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
+from src.transformer_vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
+from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 
 
 def get_evaluation_plugin(
@@ -38,25 +40,23 @@ def get_evaluation_plugin(
     return eval_plugin
 
 
-def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae]:
-    vae = VQVae(
-        num_hiddens=config.num_hiddens,
-        num_residual_layers=config.num_residual_layers,
-        num_residual_hiddens=config.num_residual_hiddens,
+def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
+    vae = VitVQVae(
         num_embeddings=config.num_embeddings,
-        num_classes=10,
         embedding_dim=config.embedding_dim,
         commitment_cost=config.commitment_cost,
         decay=config.decay,
         learning_rate=config.learning_rate,
         data_variance=0.06328692405746414,
-        regularization_dropout=config.regularization_dropout,
-        regularization_lambda=config.regularization_lambda,
+        embeddings_distance=config.embeddings_distance,
+        patch_corruption_rate=config.corruption_rate,
         vq_loss_weight=config.vq_loss_weight,
         reconstruction_loss_weight=config.reconstruction_loss_weight,
-        downstream_loss_weight=config.downstream_loss_weight,
-        use_lpips=False,
+        contrastive_loss_loss_weight=config.contrastive_loss_loss_weight,
+        encoder_mlm_loss_loss_weight=config.encoder_mlm_loss_loss_weight,
+        decoder_regression_loss_loss_weight=config.decoder_regression_loss_loss_weight,
     )
+    # vae = torch.compile(vae, mode="reduce-overhead")
 
     return vae
 

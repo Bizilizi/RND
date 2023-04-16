@@ -8,7 +8,7 @@ class Residual(nn.Module):
     ):
         super(Residual, self).__init__()
         self._block = nn.Sequential(
-            nn.ReLU(True),
+            nn.ReLU(),
             nn.Conv2d(
                 in_channels=in_channels,
                 out_channels=num_residual_hiddens,
@@ -18,7 +18,7 @@ class Residual(nn.Module):
                 bias=False,
             ),
             nn.Dropout2d(p=regularization_dropout),
-            nn.ReLU(True),
+            nn.ReLU(),
             nn.Conv2d(
                 in_channels=num_residual_hiddens,
                 out_channels=num_hiddens,

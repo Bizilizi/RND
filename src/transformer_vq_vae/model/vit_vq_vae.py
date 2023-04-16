@@ -8,14 +8,14 @@ from pytorch_metric_learning.losses import ContrastiveLoss
 from torch.nn import functional as F
 
 from src.avalanche.model.cl_model import CLModel
-from src.vq_vae.model.decoder import GPTDecoder
-from src.vq_vae.model.encoder import VitEncoder
-from src.vq_vae.model.quiantizer import (
+from src.transformer_vq_vae.model.decoder import GPTDecoder
+from src.transformer_vq_vae.model.encoder import VitEncoder
+from src.transformer_vq_vae.model.quiantizer import (
     VitVectorQuantizerEMA,
 )
 
 if t.TYPE_CHECKING:
-    from src.vq_vae.model.classification_head import CnnClassifier
+    from src.transformer_vq_vae.model.classification_head import CnnClassifier
 
 
 class ForwardOutput(t.NamedTuple):
