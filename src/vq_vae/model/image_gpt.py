@@ -17,6 +17,7 @@
 import math
 import os
 import warnings
+import torch.nn.functional as F
 from typing import Any, Optional, Tuple, Union
 
 import torch
@@ -240,6 +241,7 @@ class ImageGPTAttention(nn.Module):
         self.c_proj = Conv1D(self.embed_dim, self.embed_dim)
 
         self.attn_dropout = nn.Dropout(config.attn_pdrop)
+        self.attn_dropout_rate = config.attn_pdrop
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
 
         self.pruned_heads = set()
@@ -264,118 +266,6 @@ class ImageGPTAttention(nn.Module):
         )
         self.num_heads = self.num_heads - len(heads)
         self.pruned_heads = self.pruned_heads.union(heads)
-
-    def _attn(self, query, key, value, attention_mask=None, head_mask=None):
-        attn_weights = torch.matmul(query, key.transpose(-1, -2))
-
-        if self.scale_attn_weights:
-            attn_weights = attn_weights / (float(value.size(-1)) ** 0.5)
-
-        # Layer-wise attention scaling
-        if self.scale_attn_by_inverse_layer_idx:
-            attn_weights = attn_weights / float(self.layer_idx + 1)
-
-        if not self.is_cross_attention:
-            # if only "normal" attention layer implements causal mask
-            query_length, key_length = query.size(-2), key.size(-2)
-            causal_mask = self.bias[
-                :, :, key_length - query_length : key_length, :key_length
-            ]
-            mask_value = torch.finfo(attn_weights.dtype).min
-            # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
-            # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
-            mask_value = torch.tensor(mask_value, dtype=attn_weights.dtype).to(
-                attn_weights.device
-            )
-            attn_weights = torch.where(causal_mask, attn_weights, mask_value)
-
-        if attention_mask is not None:
-            # Apply the attention mask
-            attn_weights = attn_weights + attention_mask
-
-        attn_weights = nn.Softmax(dim=-1)(attn_weights)
-
-        # Downcast (if necessary) back to V's dtype (if in mixed-precision) -- No-Op otherwise
-        attn_weights = attn_weights.type(value.dtype)
-        attn_weights = self.attn_dropout(attn_weights)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            attn_weights = attn_weights * head_mask
-
-        attn_output = torch.matmul(attn_weights, value)
-
-        return attn_output, attn_weights
-
-    def _upcast_and_reordered_attn(
-        self, query, key, value, attention_mask=None, head_mask=None
-    ):
-        # Use `torch.baddbmm` (a bit more efficient w/ alpha param for scaling -- from Megatron-LM)
-        bsz, num_heads, q_seq_len, dk = query.size()
-        _, _, k_seq_len, _ = key.size()
-
-        # Preallocate attn_weights for `baddbmm`
-        attn_weights = torch.empty(
-            bsz * num_heads,
-            q_seq_len,
-            k_seq_len,
-            dtype=torch.float32,
-            device=query.device,
-        )
-
-        # Compute Scale Factor
-        scale_factor = 1.0
-        if self.scale_attn_weights:
-            scale_factor /= float(value.size(-1)) ** 0.5
-
-        if self.scale_attn_by_inverse_layer_idx:
-            scale_factor /= float(self.layer_idx + 1)
-
-        # Upcast (turn off autocast) and reorder (Scale K by 1 / root(dk))
-        with autocast(enabled=False):
-            q, k = query.reshape(-1, q_seq_len, dk), key.transpose(-1, -2).reshape(
-                -1, dk, k_seq_len
-            )
-            attn_weights = torch.baddbmm(
-                attn_weights, q.float(), k.float(), beta=0, alpha=scale_factor
-            )
-            attn_weights = attn_weights.reshape(bsz, num_heads, q_seq_len, k_seq_len)
-
-        if not self.is_cross_attention:
-            # if only "normal" attention layer implements causal mask
-            query_length, key_length = query.size(-2), key.size(-2)
-            causal_mask = self.bias[
-                :, :, key_length - query_length : key_length, :key_length
-            ]
-            mask_value = torch.finfo(attn_weights.dtype).min
-            # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
-            # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
-            mask_value = torch.tensor(mask_value, dtype=attn_weights.dtype).to(
-                attn_weights.device
-            )
-            attn_weights = torch.where(causal_mask, attn_weights, mask_value)
-
-        if attention_mask is not None:
-            # Apply the attention mask
-            attn_weights = attn_weights + attention_mask
-
-        attn_weights = nn.Softmax(dim=-1)(attn_weights)
-
-        # Downcast (if necessary) back to V's dtype (if in mixed-precision) -- No-Op if otherwise
-        if attn_weights.dtype != torch.float32:
-            raise RuntimeError(
-                "Error with upcasting, attn_weights does not have dtype torch.float32"
-            )
-        attn_weights = attn_weights.type(value.dtype)
-        attn_weights = self.attn_dropout(attn_weights)
-
-        # Mask heads if we want to
-        if head_mask is not None:
-            attn_weights = attn_weights * head_mask
-
-        attn_output = torch.matmul(attn_weights, value)
-
-        return attn_output, attn_weights
 
     def _split_heads(self, tensor, num_heads, attn_head_size):
         """
@@ -433,22 +323,22 @@ class ImageGPTAttention(nn.Module):
         else:
             present = None
 
-        if self.reorder_and_upcast_attn:
-            attn_output, attn_weights = self._upcast_and_reordered_attn(
-                query, key, value, attention_mask, head_mask
-            )
-        else:
-            attn_output, attn_weights = self._attn(
-                query, key, value, attention_mask, head_mask
-            )
+        if self.scale_attn_weights:
+            query = query / (float(value.size(-1)) ** 0.5)
+
+        # Layer-wise attention scaling
+        if self.scale_attn_by_inverse_layer_idx:
+            query = query / float(self.layer_idx + 1)
+
+        attn_output = F.scaled_dot_product_attention(
+            query, key, value, attention_mask, self.attn_dropout_rate, is_causal=True
+        )
 
         attn_output = self._merge_heads(attn_output, self.num_heads, self.head_dim)
         attn_output = self.c_proj(attn_output)
         attn_output = self.resid_dropout(attn_output)
 
         outputs = (attn_output, present)
-        if output_attentions:
-            outputs += (attn_weights,)
 
         return outputs  # a, present, (attentions)
 
