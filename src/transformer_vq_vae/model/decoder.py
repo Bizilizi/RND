@@ -5,9 +5,9 @@ from torch import nn
 
 from transformers import (
     ImageGPTConfig,
-    ImageGPTModel,
 )
 
+from src.transformer_vq_vae.model.image_gpt import ImageGPTModel
 from src.transformer_vq_vae.model.vit import VisionTransformer
 
 
