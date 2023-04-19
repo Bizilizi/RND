@@ -110,7 +110,10 @@ class VitVQVae(CLModel):
         self.clf_head = None
 
     def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
-        reconstruction_loss = F.mse_loss(forward_output.x_recon, forward_output.x_data)
+        reconstruction_loss = (
+            F.mse_loss(forward_output.x_recon, forward_output.x_data, reduction="mean")
+            / self._data_variance
+        )
         contrastive_loss = self.c_loss(forward_output.image_emb, y)
 
         # Compute accuracy if classification head presents

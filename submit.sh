@@ -13,3 +13,5 @@
 # -------------------------------
 nvidia-smi
 eval "$@"
+
+sbatch submit.sh python train.py --config src/transformer_vq_vae/configuration/train.ini --model transformer-vq-vae --wandb_dir /scratch/shared/beegfs/dzverev/wand --max_epochs 1000 --encoder_mlm_loss_loss_weight 0 --decoder_regression_loss_loss_weight 0 --embeddings_distance l2
