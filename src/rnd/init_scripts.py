@@ -72,7 +72,7 @@ def get_model(config: TrainConfig, device: torch.device) -> RND:
     return model
 
 
-def get_callbacks() -> t.List[Callback]:
-    return [
+def get_callbacks() -> t.Callable[[int], t.List[Callback]]:
+    return lambda x: [
         LogSampledImagesCallback(num_images=10),
     ]

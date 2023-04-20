@@ -42,7 +42,7 @@ class NaivePytorchLightning(Naive):
         devices: str = "0,",
         validate_every_n: int = 1,
         accumulate_grad_batches: t.Optional[int] = None,
-        callbacks: t.Optional[t.Union[t.List[Callback], Callback]] = None,
+        callbacks: t.Optional[t.Callable[[int], t.List[Callback]]] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -58,17 +58,17 @@ class NaivePytorchLightning(Naive):
         self.best_model_path_prefix = best_model_path_prefix
 
         # Modify callback to
-        self.callbacks = callbacks
-        self.callbacks.append(
+        self.callbacks_factory = callbacks
+        self.strategy_callbacks = [
             PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)
-        )
+        ]
 
         self.restore_best_model_callback = None
         if self.best_model_path_prefix:
             self.restore_best_model_callback = RestoreBestPerformingModel(
                 path_prefix=self.best_model_path_prefix, monitor="val/loss", mode="min"
             )
-            self.callbacks.append(self.restore_best_model_callback)
+            self.strategy_callbacks.append(self.restore_best_model_callback)
 
         super().__init__(*args, **kwargs)
 
@@ -99,16 +99,11 @@ class NaivePytorchLightning(Naive):
             logger=self.train_logger,
             max_epochs=self.max_epochs,
             min_epochs=self.min_epochs,
-            callbacks=self.callbacks
-            + [
-                EarlyStopping(
-                    monitor=f"val/loss/experience_step_{self.experience_step}",
-                    mode="max",
-                    patience=50,
-                )
-            ],
+            callbacks=(
+                self.callbacks_factory(self.experience_step) + self.strategy_callbacks
+            ),
             accumulate_grad_batches=self.accumulate_grad_batches,
-            # profiler=AdvancedProfiler(filename="profiler.logs"),
+            profiler=AdvancedProfiler(filename="profiler.logs"),
         )
 
         # Derive from which checkpoint to resume training

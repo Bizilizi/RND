@@ -5,6 +5,8 @@ from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
+from pytorch_lightning.callbacks import EarlyStopping
+
 from src.transformer_vq_vae.callbacks.mix_random_samples import MixRandomNoise
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
@@ -61,5 +63,11 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
     return vae
 
 
-def get_callbacks(config: TrainConfig) -> t.List[Callback]:
-    return []
+def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
+    return lambda experience_step: [
+        EarlyStopping(
+            monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
+            mode="max",
+            patience=50,
+        )
+    ]

@@ -39,8 +39,8 @@ def get_model(config: TrainConfig, device: torch.device) -> MLPVae:
     return vae
 
 
-def get_callbacks(config: TrainConfig) -> t.List[Callback]:
-    return [
+def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
+    return lambda x: [
         LogLatentSpace(num_images=200),
         MixRandomImages(
             num_rand_samples=config.num_random_images,

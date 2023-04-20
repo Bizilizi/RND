@@ -61,5 +61,5 @@ def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae]:
     return vae
 
 
-def get_callbacks(config: TrainConfig) -> t.List[Callback]:
-    return []
+def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
+    return lambda x: []
