@@ -103,7 +103,9 @@ class NaivePytorchLightning(Naive):
                 self.callbacks_factory(self.experience_step) + self.strategy_callbacks
             ),
             accumulate_grad_batches=self.accumulate_grad_batches,
-            # profiler=AdvancedProfiler(filename="profiler.logs"),
+            # profiler=AdvancedProfiler(
+            #     dirpath="/Users/ewriji/Desktop/work/RND/", filename="profiler.logs"
+            # ),
         )
 
         # Derive from which checkpoint to resume training

@@ -331,7 +331,12 @@ class ImageGPTAttention(nn.Module):
             query = query / float(self.layer_idx + 1)
 
         attn_output = F.scaled_dot_product_attention(
-            query, key, value, attention_mask, self.attn_dropout_rate, is_causal=True
+            query,
+            key,
+            value,
+            attention_mask,
+            self.attn_dropout_rate,
+            is_causal=True if attention_mask is None else False,
         )
 
         attn_output = self._merge_heads(attn_output, self.num_heads, self.head_dim)

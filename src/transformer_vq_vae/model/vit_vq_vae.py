@@ -21,7 +21,7 @@ if t.TYPE_CHECKING:
 class ForwardOutput(t.NamedTuple):
     vq_loss: torch.Tensor
 
-    z_pred: torch.Tensor
+    masked_z_pred: torch.Tensor
     x_data: torch.Tensor
     x_recon: torch.Tensor
 
@@ -137,7 +137,9 @@ class VitVQVae(CLModel):
         z_mlm_loss = None
         if forward_output.masked_indices is not None:
             z_mlm_loss = F.cross_entropy(
-                forward_output.z_pred.reshape(-1, forward_output.z_pred.shape[-1]),
+                forward_output.masked_z_pred.reshape(
+                    -1, forward_output.masked_z_pred.shape[-1]
+                ),
                 forward_output.masked_indices.flatten(),
             )
 
@@ -158,7 +160,7 @@ class VitVQVae(CLModel):
         patches_emb = z[:, 1:]
 
         vq_loss, quantized, perplexity, encoding_indices = self.vq_vae(patches_emb)
-        z_pred = self.encoder_lm_head(
+        masked_z_pred = self.encoder_lm_head(
             z[torch.arange(masked_indices.shape[0]).unsqueeze(1), masked_indices]
         )
         x_recon, lm_logits = self.decoder(quantized)
@@ -172,14 +174,14 @@ class VitVQVae(CLModel):
             vq_loss=vq_loss,
             x_recon=x_recon,
             x_data=x,
-            z_pred=z_pred,
+            masked_z_pred=masked_z_pred,
+            masked_indices=masked_indices,
             quantized=quantized,
             perplexity=perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
             lm_logits=lm_logits,
             encoding_indices=encoding_indices,
-            masked_indices=masked_indices,
         )
 
     def training_step(self, batch, batch_idx):
