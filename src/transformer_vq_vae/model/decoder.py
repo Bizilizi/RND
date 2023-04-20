@@ -3,11 +3,7 @@ from functools import partial
 import torch
 from torch import nn
 
-from transformers import (
-    ImageGPTConfig,
-)
-
-from src.transformer_vq_vae.model.image_gpt import ImageGPTModel
+from src.transformer_vq_vae.model.image_gpt import ImageGPTModel, ImageGPTConfig
 from src.transformer_vq_vae.model.vit import VisionTransformer
 
 
