@@ -67,7 +67,7 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
     return lambda experience_step: [
         EarlyStopping(
             monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
-            mode="max",
+            mode="min",
             patience=50,
         )
     ]
