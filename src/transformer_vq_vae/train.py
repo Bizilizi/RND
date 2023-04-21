@@ -93,7 +93,7 @@ def main(args):
         wandb_params = get_wandb_params(args, config)
 
         wandb.run.name = args.experiment_name or (
-            f"BS-{config.batch_size} | "
+            f"BS-{config.batch_size * config.accumulate_grad_batches} | "
             f"#Emb-{config.num_embeddings} | "
             f"DEmb-{config.embedding_dim} | "
             f"Dist-{config.embeddings_distance}"
