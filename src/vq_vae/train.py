@@ -3,6 +3,12 @@ import shutil
 from configparser import ConfigParser
 
 import torch
+from avalanche.benchmarks.utils import AvalancheDataset
+from avalanche.benchmarks.utils.classification_dataset import (
+    ClassificationDataset,
+    make_classification_dataset,
+)
+from torch.utils.data import ConcatDataset
 from torchvision import transforms
 
 import wandb
@@ -20,6 +26,10 @@ from src.vq_vae.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
 )
+from src.vq_vae.train_image_gpt import (
+    train_img_gpt_on_observed_only_classes,
+    bootstrap_dataset,
+)
 from train_utils import get_device, get_loggers, get_wandb_params
 
 
@@ -34,16 +44,45 @@ def train_loop(
     :return:
     """
 
+    image_gpt = None
+
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
+        train_dataset = train_experience.dataset
+        val_dataset = test_experience.dataset
+
+        # bootstrap old data
+        if (
+            cl_strategy.experience_step != 0
+            and config.num_random_images != 0
+            and image_gpt is not None
+        ):
+            bootstrapped_dataset = bootstrap_dataset(
+                image_gpt=image_gpt,
+                vq_vae_model=cl_strategy.model,
+                num_images=config.num_random_images * cl_strategy.experience_step,
+            )
+            train_experience.dataset = train_dataset + bootstrapped_dataset
+
         # Train VQ-VAE
         with torch.autograd.set_detect_anomaly(True):
-            cl_strategy.train(train_experience, [test_experience])
+            cl_strategy.train(
+                train_experience,
+                [test_experience],
+            )
+
+        # Train new image gpt model
+        image_gpt = train_img_gpt_on_observed_only_classes(
+            strategy=cl_strategy,
+            config=config,
+            train_dataset=train_dataset,
+            test_dataset=val_dataset,
+            device=device,
+        )
 
         # Evaluate VQ-VAE and linear classifier
-        cl_strategy.eval(benchmark.test_stream)
-
+        # cl_strategy.eval(benchmark.test_stream)
         cl_strategy.experience_step += 1
 
     if is_using_wandb:
@@ -98,7 +137,7 @@ def main(args):
     #     shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     benchmark = SplitCIFAR10(
-        n_experiences=1,
+        n_experiences=5,
         return_task_id=True,
         shuffle=True,
         dataset_root=config.dataset_path,

@@ -13,6 +13,7 @@ class TrainConfig(BaseTrainConfig):
     commitment_cost: float
     decay: float
 
+    num_random_images: int
     num_random_noise: int
     regularization_lambda: float
     regularization_dropout: float
@@ -30,6 +31,9 @@ class TrainConfig(BaseTrainConfig):
     # training
     max_epochs_lin_eval: int
     min_epochs_lin_eval: int
+
+    max_epochs_igpt: int
+    min_epochs_igpt: int
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":

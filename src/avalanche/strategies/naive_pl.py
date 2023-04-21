@@ -80,8 +80,8 @@ class NaivePytorchLightning(Naive):
         eval_streams: t.Optional[t.Sequence[t.Union[CLExperience, ExpSequence]]] = None,
         **kwargs,
     ) -> None:
-        self.model.experience_step = self.experience_step
-        self.model.experience = self.experience
+        self.update_model_experience()
+        self.resume_from_checkpoint()
 
         # Create DataModule
         datamodule = PLDataModule(
@@ -109,13 +109,19 @@ class NaivePytorchLightning(Naive):
             # ),
         )
 
-        # Derive from which checkpoint to resume training
+        self.trainer.fit(self.model, datamodule=datamodule)
+        self.restore_best_model()
+
+    def update_model_experience(self) -> None:
+        self.model.experience_step = self.experience_step
+        self.model.experience = self.experience
+
+    def resume_from_checkpoint(self) -> None:
         if self.experience_step == 0 and self.initial_resume_from:
             state_dict = torch.load(self.initial_resume_from)["state_dict"]
             self.model.load_state_dict(state_dict)
 
-        self.trainer.fit(self.model, datamodule=datamodule)
-
+    def restore_best_model(self) -> None:
         if self.experience_step > 0 and self.restore_best_model_callback:
             state_dict = torch.load(self.restore_best_model_callback.best_model_path)[
                 "state_dict"
