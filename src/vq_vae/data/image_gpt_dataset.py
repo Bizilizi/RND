@@ -1,5 +1,4 @@
 from torch.utils.data import Dataset, DataLoader
-from tqdm.notebook import tqdm
 import torch
 
 from src.vq_vae.model.vq_vae import VQVae
@@ -32,7 +31,7 @@ class ImageGPTDataset(Dataset):
 
     def _project_dataset(self, vq_vae: VQVae, dataset: Dataset):
         dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=0)
-        for batch in tqdm(dataloader):
+        for batch in dataloader:
             x, y, *_ = batch
             x = x.to(vq_vae.device)
 

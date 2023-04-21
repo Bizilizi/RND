@@ -1,5 +1,4 @@
 import torch
-from avalanche.benchmarks import SplitCIFAR10
 from avalanche.benchmarks.utils import make_classification_dataset
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
