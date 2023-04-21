@@ -123,8 +123,11 @@ def main():
     exp_args = {}
 
     exp_args["--config"] = "src/vq_vae/configuration/train.ini"
-    exp_args["--dataset_path"] = "/work/dzverev/datasets"
+    exp_args["--dataset_path"] = "/scratch/shared/beegfs/dzverev/datasets"
     exp_args["--best_model_prefix"] = "/scratch/shared/beegfs/dzverev/artifacts"
+    exp_args["--contrastive_loss_loss_weight"] = 0
+    exp_args["--encoder_mlm_loss_loss_weight"] = 0
+    exp_args["--decoder_regression_loss_loss_weight"] = 0
     exp_args["--model"] = "vq-vae"
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"
