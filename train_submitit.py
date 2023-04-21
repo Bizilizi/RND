@@ -131,11 +131,10 @@ def main():
     exp_args["--model"] = "transformer-vq-vae"
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"
-    exp_args["--max_epochs"] = 200
-    exp_args["--batch_size"] = 256
-    exp_args["--min_epochs"] = 150
+    exp_args["--max_epochs"] = 1000
+    exp_args["--min_epochs"] = 250
     exp_args["--num_workers"] = 4
-    exp_args["--learning_rate"] = 0.001
+    exp_args["--learning_rate"] = 0.0001
     exp_args["--sweep_id"] = args.sweep_id
     exp_args["--wandb_dir"] = "/scratch/shared/beegfs/dzverev/wandb"
 

@@ -103,6 +103,7 @@ class NaivePytorchLightning(Naive):
                 self.callbacks_factory(self.experience_step) + self.strategy_callbacks
             ),
             accumulate_grad_batches=self.accumulate_grad_batches,
+            log_every_n_steps=2
             # profiler=AdvancedProfiler(
             #     dirpath="/Users/ewriji/Desktop/work/RND/", filename="profiler.logs"
             # ),
