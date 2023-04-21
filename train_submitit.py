@@ -135,6 +135,7 @@ def main():
     exp_args["--min_epochs"] = 250
     exp_args["--num_workers"] = 4
     exp_args["--learning_rate"] = 0.0001
+    exp_args["--batch_size"] = 128
     exp_args["--sweep_id"] = args.sweep_id
     exp_args["--wandb_dir"] = "/scratch/shared/beegfs/dzverev/wandb"
 
