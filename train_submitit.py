@@ -131,7 +131,7 @@ def main():
     exp_args["--model"] = "transformer-vq-vae"
     exp_args["--train_logger"] = "wandb"
     exp_args["--evaluation_logger"] = "wandb"
-    exp_args["--max_epochs"] = 1000
+    exp_args["--max_epochs"] = 400
     exp_args["--min_epochs"] = 250
     exp_args["--num_workers"] = 4
     exp_args["--learning_rate"] = 0.0001
