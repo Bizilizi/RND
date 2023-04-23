@@ -43,7 +43,7 @@ def bootstrap_dataset(
         images.append(recon)
 
     images = torch.cat(images)
-    targets = torch.tensor([-2] * images.shape[0])
+    targets = torch.tensor([-1] * images.shape[0])
     dataset = make_classification_dataset(TensorDataset(images, targets))
 
     return dataset

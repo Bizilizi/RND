@@ -150,8 +150,22 @@ class VQVae(CLModel):
 
         reconstruction_loss = self.reconstruction_loss_fn(x_recon, x_data)
 
-        clf_loss = F.cross_entropy(logits, y)
+        past_labels = y == -1
+        current_labels = torch.isin(
+            y, torch.tensor([-1, -2], device=self.device), invert=True
+        )
+
+        cel_current_labels = F.cross_entropy(logits[current_labels], y[current_labels])
+        neg_entropy_past_labels = 0
+
+        if past_labels.any():
+            neg_entropy_past_labels = F.softmax(
+                logits[past_labels], dim=1
+            ) * F.log_softmax(logits[past_labels], dim=1)
+            neg_entropy_past_labels = -1.0 * neg_entropy_past_labels.mean()
+
         clf_acc = (logits.argmax(dim=-1) == y).float().mean()
+        clf_loss = neg_entropy_past_labels + cel_current_labels
 
         return CriterionOutput(
             vq_loss=x.vq_loss,
