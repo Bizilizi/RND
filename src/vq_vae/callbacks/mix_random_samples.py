@@ -46,12 +46,10 @@ class MixRandomNoise(Callback):
 
     def __init__(
         self,
-        num_rand_samples: int = 5_000,
         num_rand_noise: int = 5_000,
         log_dataset: bool = True,
         num_tasks: int = 5,
     ):
-        self.num_rand_samples = num_rand_samples
         self.num_rand_noise = num_rand_noise
 
         self.original_dataset = None
@@ -85,8 +83,8 @@ class MixRandomNoise(Callback):
 
             trainer.datamodule.train_dataset = augmented_dataset
 
-            if self.log_dataset:
-                self.log_dataset_table(trainer, experience_step)
+        if self.log_dataset:
+            self.log_dataset_table(trainer, experience_step)
 
     def sample_random_images(self, model: MLPVae, experience_step: int) -> torch.Tensor:
         """

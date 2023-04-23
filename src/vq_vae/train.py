@@ -82,7 +82,7 @@ def train_loop(
         )
 
         # Evaluate VQ-VAE and linear classifier
-        # cl_strategy.eval(benchmark.test_stream)
+        cl_strategy.eval(benchmark.test_stream)
         cl_strategy.experience_step += 1
 
     if is_using_wandb:
