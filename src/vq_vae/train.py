@@ -58,6 +58,9 @@ def train_loop(
             and config.num_random_images != 0
             and image_gpt is not None
         ):
+            image_gpt.to(device)
+            cl_strategy.model.to(device)
+
             bootstrapped_dataset = bootstrap_dataset(
                 image_gpt=image_gpt,
                 vq_vae_model=cl_strategy.model,

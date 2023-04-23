@@ -24,7 +24,7 @@ def bootstrap_dataset(
 
     for _ in range(num_images // num_images_per_batch):
         context = torch.full((num_images_per_batch, 1), 1)  # initialize with SOS token
-        context = torch.tensor(context).to(vq_vae_model.device)
+        context = torch.tensor(context).to(image_gpt.device)
         output = image_gpt.image_gpt.generate(
             input_ids=context,
             max_length=8 * 8 + 1,
