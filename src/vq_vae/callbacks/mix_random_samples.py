@@ -126,10 +126,7 @@ class MixRandomNoise(Callback):
                     for i in range(random_idx.shape[0])
                 ]
                 classes = [
-                    dataset[random_idx[i]][1].item()
-                    if isinstance(dataset[random_idx[i]][1], torch.Tensor)
-                    else dataset[random_idx[i]][1]
-                    for i in range(random_idx.shape[0])
+                    dataset[random_idx[i]][1] for i in range(random_idx.shape[0])
                 ]
 
                 for row in self._make_rows(images, num_cols=10):
