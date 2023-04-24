@@ -134,6 +134,7 @@ class MixRandomNoise(Callback):
 
                 for row in self._make_rows(images, num_cols=10):
                     image_data_table.add_data(*row)
+
                 for row in self._make_rows(classes, num_cols=10):
                     class_data_table.add_data(*row)
 

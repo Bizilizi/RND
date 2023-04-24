@@ -1,8 +1,9 @@
 import torch
+import typing as t
 from avalanche.benchmarks.utils import make_classification_dataset
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
-from torch.utils.data import Dataset, TensorDataset
+from torch.utils.data import Dataset
 from transformers import ImageGPTConfig
 
 from src.avalanche.data import PLDataModule
@@ -11,6 +12,20 @@ from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 from src.vq_vae.model.vq_vae import VQVae
+
+
+class TensorDataset(Dataset):
+    def __init__(self, x: torch.Tensor, y: t.List[int]):
+        super().__init__()
+
+        self.x = x
+        self.y = y
+
+    def __getitem__(self, item):
+        return self.x[item], self.y[item]
+
+    def __len__(self):
+        return len(self.x)
 
 
 @torch.no_grad()
@@ -44,7 +59,9 @@ def bootstrap_dataset(
 
     images = torch.cat(images)
     targets = [-1] * images.shape[0]
-    dataset = make_classification_dataset(TensorDataset(images), targets=targets)
+    dataset = make_classification_dataset(
+        TensorDataset(images, targets), targets=targets
+    )
 
     return dataset
 
