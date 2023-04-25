@@ -55,7 +55,7 @@ def bootstrap_dataset(
         quantized = quantized.reshape(-1, quantized.shape[1], 8, 8)
 
         recon = vq_vae_model.decoder(quantized)
-        images.append(recon)
+        images.append(recon.cpu())
 
     images = torch.cat(images)
     targets = [-1] * images.shape[0]
