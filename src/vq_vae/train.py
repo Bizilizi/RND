@@ -66,7 +66,17 @@ def train_loop(
                 vq_vae_model=cl_strategy.model,
                 num_images=config.num_random_images * cl_strategy.experience_step,
             )
-            train_experience.dataset = train_dataset + bootstrapped_dataset
+            train_dataset = train_dataset + bootstrapped_dataset
+            train_experience.dataset = train_dataset.replace_current_transform_group(
+                transforms.Compose(
+                    [
+                        transforms.RandomCrop(32, padding=4),
+                        transforms.RandomHorizontalFlip(),
+                        transforms.ToTensor(),
+                        transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                    ]
+                )
+            )
 
         # Train VQ-VAE
         with torch.autograd.set_detect_anomaly(True):
@@ -146,8 +156,6 @@ def main(args):
         dataset_root=config.dataset_path,
         train_transform=transforms.Compose(
             [
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
