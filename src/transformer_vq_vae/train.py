@@ -6,7 +6,7 @@ import torch
 from torchvision import transforms
 
 import wandb
-from avalanche.benchmarks import SplitCIFAR10, SplitImageNet
+from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 
 from src.avalanche.strategies import NaivePytorchLightning
 from src.utils.summary_table import log_summary_table_to_wandb
@@ -119,7 +119,7 @@ def main(args):
     # if dataset_path.exists() and not target_dataset_path.exists():
     #     shutil.copytree(str(dataset_path), str(target_dataset_path))
 
-    benchmark = SplitCIFAR10(
+    benchmark = SplitCIFAR100(
         n_experiences=1,
         return_task_id=True,
         shuffle=True,
