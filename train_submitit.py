@@ -118,8 +118,6 @@ def main():
         **kwargs,
     )
 
-    executor.update_parameters(name="att_train")
-
     exp_args = {}
 
     exp_args["--config"] = "src/transformer_vq_vae/configuration/train.ini"
@@ -138,6 +136,8 @@ def main():
     exp_args["--batch_size"] = 128
     exp_args["--sweep_id"] = args.sweep_id
     exp_args["--wandb_dir"] = "/scratch/shared/beegfs/dzverev/wandb"
+
+    executor.update_parameters(name=f"sweep-{exp_args['--sweep_id']}")
 
     all_trainers = [
         Trainer(args.agents_per_task, exp_args) for _ in range(args.num_tasks)

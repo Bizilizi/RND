@@ -1,5 +1,5 @@
 #!/bin/bash
-#SBATCH --job-name=continual_learning       # Job name
+#SBATCH --job-name=sbatch_job               # Job name
 #SBATCH --mail-type=BEGIN,END,FAIL          # Mail events (NONE, BEGIN, END, FAIL, ALL)
 #SBATCH --mail-user=dzverev@robots.ox.ac.uk # Where to send mail
 #SBATCH --time=72:00:00                     # Time limit hrs:min:sec
