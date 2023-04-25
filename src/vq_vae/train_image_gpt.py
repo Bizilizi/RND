@@ -126,7 +126,7 @@ def train_img_gpt_on_observed_only_classes(
             EarlyStopping(
                 monitor=f"val/image_gpt_loss/experience_step_{strategy.experience_step}",
                 mode="min",
-                patience=5,
+                patience=30,
             )
         ],
         max_epochs=config.max_epochs_igpt,
