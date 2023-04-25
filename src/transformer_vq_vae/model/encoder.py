@@ -24,8 +24,10 @@ class VitEncoder(nn.Module):
             corruption_rate=corruption_rate,
         )
 
-    def forward(self, x):
-        features, masked_indices = self.base_vit.forward(x, return_all_patches=True)
+    def forward(self, x, corrupt_data: bool = True):
+        features, masked_indices = self.base_vit.forward(
+            x, corrupt_data=corrupt_data, return_all_patches=True
+        )
 
         return features, masked_indices
 

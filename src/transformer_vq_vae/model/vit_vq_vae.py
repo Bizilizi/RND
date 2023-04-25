@@ -115,6 +115,7 @@ class VitVQVae(CLModel):
             / self._data_variance
         )
         # contrastive_loss = self.c_loss(forward_output.image_emb, y)
+        contrastive_loss = torch.tensor(0, device=self.device)
 
         # Compute accuracy if classification head presents
         clf_loss = clf_acc = torch.tensor(0, device=self.device)
@@ -148,8 +149,7 @@ class VitVQVae(CLModel):
             encoder_mlm_loss=z_mlm_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
-            # contrastive_loss=contrastive_loss,
-            contrastive_loss=torch.tensor(0, device=self.device),
+            contrastive_loss=contrastive_loss,
             perplexity=forward_output.perplexity,
         )
 
