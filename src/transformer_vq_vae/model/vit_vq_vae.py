@@ -114,27 +114,25 @@ class VitVQVae(CLModel):
             F.mse_loss(forward_output.x_recon, forward_output.x_data, reduction="mean")
             / self._data_variance
         )
-        contrastive_loss = self.c_loss(forward_output.image_emb, y)
+        # contrastive_loss = self.c_loss(forward_output.image_emb, y)
 
         # Compute accuracy if classification head presents
+        clf_loss = clf_acc = torch.tensor(0, device=self.device)
         if forward_output.clf_logits is not None:
             clf_loss = F.cross_entropy(forward_output.clf_logits, y)
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
-        else:
-            clf_loss = clf_acc = None
 
         # Compute lm loss
+        pixels_lm_loss = torch.tensor(0, device=self.device)
         if forward_output.lm_logits is not None:
             lm_logits = forward_output.lm_logits
             pixels_lm_loss = F.cross_entropy(
                 lm_logits[:, :-1].reshape(-1, lm_logits.shape[-1]),
                 forward_output.encoding_indices.reshape(-1),
             )
-        else:
-            pixels_lm_loss = None
 
         # Compute encoder masked language loss
-        z_mlm_loss = None
+        z_mlm_loss = torch.tensor(0, device=self.device)
         if forward_output.masked_indices is not None:
             z_mlm_loss = F.cross_entropy(
                 forward_output.masked_z_pred.reshape(
@@ -150,20 +148,28 @@ class VitVQVae(CLModel):
             encoder_mlm_loss=z_mlm_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
-            contrastive_loss=contrastive_loss,
+            # contrastive_loss=contrastive_loss,
+            contrastive_loss=torch.tensor(0, device=self.device),
             perplexity=forward_output.perplexity,
         )
 
     def forward(self, x) -> ForwardOutput:
-        z, masked_indices = self.encoder(x)
+        # Apply encoder twice (clean and corrupted inputs)
+        z, _ = self.encoder(x, corrupt_data=False)
+        # z_corrupted, masked_indices = self.encoder(x, corrupt_data=True)
+
+        # Extract image embedding from uncorrupted input
         image_emb = z[:, 0]
         patches_emb = z[:, 1:]
 
+        # Quantize input
         vq_loss, quantized, perplexity, encoding_indices = self.vq_vae(patches_emb)
-        masked_z_pred = self.encoder_lm_head(
-            z[torch.arange(masked_indices.shape[0]).unsqueeze(1), masked_indices]
-        )
-        x_recon, lm_logits = self.decoder(quantized)
+
+        # Predict original patches for corrupted data
+        # masked_z_pred = self.encoder_lm_head(
+        #     z[torch.arange(masked_indices.shape[0]).unsqueeze(1), masked_indices]
+        # )
+        x_recon, _ = self.decoder(quantized)
 
         if self.clf_head is not None:
             clf_logits = self.clf_head(image_emb)
@@ -174,13 +180,16 @@ class VitVQVae(CLModel):
             vq_loss=vq_loss,
             x_recon=x_recon,
             x_data=x,
-            masked_z_pred=masked_z_pred,
-            masked_indices=masked_indices,
+            # masked_z_pred=masked_z_pred,
+            # masked_indices=masked_indices,
+            masked_z_pred=None,
+            masked_indices=None,
             quantized=quantized,
             perplexity=perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
-            lm_logits=lm_logits,
+            # lm_logits=lm_logits,
+            lm_logits=None,
             encoding_indices=encoding_indices,
         )
 

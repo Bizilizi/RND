@@ -281,7 +281,7 @@ class VisionTransformer(nn.Module):
         patch_pos_embed = patch_pos_embed.permute(0, 2, 3, 1).view(1, -1, dim)
         return torch.cat((class_pos_embed.unsqueeze(0), patch_pos_embed), dim=1)
 
-    def prepare_tokens(self, x):
+    def prepare_tokens(self, x, corrupt_data):
         B, nc, w, h = x.shape
         x = self.patch_embed(x)  # patch linear embedding
 
@@ -290,7 +290,7 @@ class VisionTransformer(nn.Module):
         x = torch.cat((cls_tokens, x), dim=1)
 
         masked_indices = None
-        if self.corruption_rate:
+        if corrupt_data and self.corruption_rate:
             num_corrupted_patches = int(x.shape[-1] * self.corruption_rate)
             masked_indices = torch.randint(
                 1, x.shape[1], (x.shape[0], num_corrupted_patches), device=x.device
@@ -305,8 +305,8 @@ class VisionTransformer(nn.Module):
 
         return x, masked_indices
 
-    def forward(self, x, return_all_patches=False):
-        x, masked_indices = self.prepare_tokens(x)
+    def forward(self, x, corrupt_data=True, return_all_patches=False):
+        x, masked_indices = self.prepare_tokens(x, corrupt_data)
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)
