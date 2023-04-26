@@ -58,6 +58,7 @@ class VITDecoder(nn.Module):
     def __init__(self, embeddings_dim, embeddings_num, n_positions, patch_size):
         super().__init__()
 
+        self.embeddings_dim = embeddings_dim
         self.base_vit = VisionTransformer(
             img_size=[8],
             patch_size=1,
@@ -68,11 +69,13 @@ class VITDecoder(nn.Module):
             mlp_ratio=4,
             qkv_bias=True,
             norm_layer=partial(nn.LayerNorm, eps=1e-6),
+            in_chans=embeddings_dim,
         )
         self.linear = nn.Linear(embeddings_dim, 16 * 3)
 
-    def forward(self, inputs):
-        x = self.base_vit(inputs_embeds=inputs, return_all_patches=True)
+    def forward(self, inputs, corrupt_data=True):
+        x = inputs.reshape(-1, self.embeddings_dim, 8, 8)
+        x, _ = self.base_vit(x, corrupt_data=corrupt_data, return_all_patches=True)
         x = self.linear(x[:, 1:])
         x = x.reshape(-1, 3, 32, 32)
         x = torch.tanh(x)

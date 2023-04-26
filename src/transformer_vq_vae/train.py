@@ -119,7 +119,7 @@ def main(args):
     # if dataset_path.exists() and not target_dataset_path.exists():
     #     shutil.copytree(str(dataset_path), str(target_dataset_path))
 
-    benchmark = SplitCIFAR100(
+    benchmark = SplitCIFAR10(
         n_experiences=1,
         return_task_id=True,
         shuffle=True,

@@ -8,7 +8,7 @@ from pytorch_metric_learning.losses import ContrastiveLoss
 from torch.nn import functional as F
 
 from src.avalanche.model.cl_model import CLModel
-from src.transformer_vq_vae.model.decoder import GPTDecoder
+from src.transformer_vq_vae.model.decoder import GPTDecoder, VITDecoder
 from src.transformer_vq_vae.model.encoder import VitEncoder
 from src.transformer_vq_vae.model.quiantizer import (
     VitVectorQuantizerEMA,
@@ -89,7 +89,7 @@ class VitVQVae(CLModel):
         self.vq_vae = VitVectorQuantizerEMA(
             num_embeddings, embedding_dim, commitment_cost, decay
         )
-        self.decoder = GPTDecoder(
+        self.decoder = VITDecoder(
             embedding_dim, num_embeddings, n_positions=8 * 8, patch_size=patch_size
         )
 
