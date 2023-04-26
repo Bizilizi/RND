@@ -1,6 +1,7 @@
 import torch
 import typing as t
 from avalanche.benchmarks.utils import make_classification_dataset
+from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from torch.utils.data import Dataset
@@ -33,7 +34,7 @@ def bootstrap_dataset(
     image_gpt: ImageGPTCausal,
     vq_vae_model: VQVae,
     num_images: int,
-) -> Dataset:
+) -> ClassificationDataset:
     images = []
     num_images_per_batch = min(128, num_images)
 
