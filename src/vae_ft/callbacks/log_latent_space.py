@@ -1,7 +1,4 @@
 import typing as t
-from itertools import islice
-
-import numpy as np
 import torch
 import torch.nn.functional as F
 from pytorch_lightning.callbacks import Callback
@@ -10,9 +7,6 @@ from torch.utils.data import ConcatDataset, DataLoader
 
 import wandb
 from src.vae_ft.model.vae import MLPVae
-
-if t.TYPE_CHECKING:
-    from src.avalanche.strategies.naive_pl import NaivePytorchLightning
 
 
 class LogLatentSpace(Callback):
@@ -100,10 +94,16 @@ class LogLatentSpace(Callback):
                     columns=["x", "y", "class", "reconstruction loss", "KL loss"],
                 )
                 scatter_plot = wandb.plot_table(
-                    "wandb/scatter/v0",
+                    "vgg-continual-learning/scatter/heatmap",
                     table,
-                    {"x": "x", "y": "y"},
-                    {"title": f"Latent space projections", "groupKeys": "class"},
+                    fields={
+                        "x": "x",
+                        "y": "y",
+                    },
+                    string_fields={
+                        "title": f"Latent space projections",
+                        "groupKeys": "class",
+                    },
                 )
 
                 wandb.log(

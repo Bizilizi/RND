@@ -87,11 +87,24 @@ def train_loop(
             train_dataset = train_dataset + bootstrapped_dataset
 
         # Train VQ-VAE
-        with torch.autograd.set_detect_anomaly(True):
-            cl_strategy.train(
-                train_experience,
-                [test_experience],
-            )
+        cl_strategy.train(
+            train_experience,
+            [test_experience],
+        )
+
+        # Train linear classifier, but before we freeze model params
+        # We train two classifiers. One to predict all classes,
+        # another to predict only observed so far classes.
+        # cl_strategy.model.freeze()
+        #
+        # train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        # observed_only_clf_head = train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        #
+        # cl_strategy.model.set_clf_head(observed_only_clf_head)
 
         # Train new image gpt model
         image_gpt = train_img_gpt_on_observed_only_classes(
@@ -158,7 +171,7 @@ def main(args):
     #     shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     benchmark = SplitCIFAR10(
-        n_experiences=5,
+        n_experiences=1,
         return_task_id=True,
         shuffle=True,
         dataset_root=config.dataset_path,
