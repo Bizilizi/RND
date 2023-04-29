@@ -1,3 +1,4 @@
+import math
 import typing as t
 from itertools import chain
 
@@ -21,7 +22,6 @@ if t.TYPE_CHECKING:
 class ForwardOutput(t.NamedTuple):
     vq_loss: torch.Tensor
 
-    masked_z_pred: torch.Tensor
     x_data: torch.Tensor
     x_recon: torch.Tensor
 
@@ -30,21 +30,16 @@ class ForwardOutput(t.NamedTuple):
 
     image_emb: torch.Tensor
     clf_logits: torch.Tensor
-    lm_logits: torch.Tensor
     encoding_indices: torch.Tensor
-    masked_indices: t.Optional[torch.Tensor]
+    non_masked_indices: torch.Tensor
 
 
 class CriterionOutput(t.NamedTuple):
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
 
-    decoder_regression_loss: torch.Tensor
-    encoder_mlm_loss: t.Optional[torch.Tensor]
-
     clf_loss: torch.Tensor
     clf_acc: torch.Tensor
-    contrastive_loss: torch.Tensor
     perplexity: torch.Tensor
 
 
@@ -85,10 +80,10 @@ class VitVQVae(CLModel):
             patch_size=patch_size,
             corruption_rate=patch_corruption_rate,
         )
-        self.encoder_lm_head = nn.Linear(embedding_dim, num_embeddings)
         self.vq_vae = VitVectorQuantizerEMA(
             num_embeddings, embedding_dim, commitment_cost, decay
         )
+        self.masked_patch_token = nn.Embedding(1, embedding_dim=embedding_dim)
         self.decoder = VITDecoder(
             embedding_dim, num_embeddings, n_positions=8 * 8, patch_size=patch_size
         )
@@ -110,12 +105,13 @@ class VitVQVae(CLModel):
         self.clf_head = None
 
     def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
+        x_recon = forward_output.x_recon
+        x_data = forward_output.x_data
+
+        # Compute contrastive loss
         reconstruction_loss = (
-            F.mse_loss(forward_output.x_recon, forward_output.x_data, reduction="mean")
-            / self._data_variance
+            F.l1_loss(x_recon, x_data, reduction="mean") / self._data_variance
         )
-        # contrastive_loss = self.c_loss(forward_output.image_emb, y)
-        contrastive_loss = torch.tensor(0, device=self.device)
 
         # Compute accuracy if classification head presents
         clf_loss = clf_acc = torch.tensor(0, device=self.device)
@@ -123,52 +119,39 @@ class VitVQVae(CLModel):
             clf_loss = F.cross_entropy(forward_output.clf_logits, y)
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
 
-        # Compute lm loss
-        pixels_lm_loss = torch.tensor(0, device=self.device)
-        if forward_output.lm_logits is not None:
-            lm_logits = forward_output.lm_logits
-            pixels_lm_loss = F.cross_entropy(
-                lm_logits[:, :-1].reshape(-1, lm_logits.shape[-1]),
-                forward_output.encoding_indices.reshape(-1),
-            )
-
-        # Compute encoder masked language loss
-        z_mlm_loss = torch.tensor(0, device=self.device)
-        if forward_output.masked_indices is not None:
-            z_mlm_loss = F.cross_entropy(
-                forward_output.masked_z_pred.reshape(
-                    -1, forward_output.masked_z_pred.shape[-1]
-                ),
-                forward_output.masked_indices.flatten(),
-            )
-
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
-            decoder_regression_loss=pixels_lm_loss,
-            encoder_mlm_loss=z_mlm_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
-            contrastive_loss=contrastive_loss,
             perplexity=forward_output.perplexity,
         )
 
     def forward(self, x) -> ForwardOutput:
+        B, nc, w, h = x.shape
+        num_patches = self.encoder.base_vit.patch_embed.num_patches
+
         # Apply encoder twice (clean and corrupted inputs)
-        z, _ = self.encoder(x, corrupt_data=False)
-        # z_corrupted, masked_indices = self.encoder(x, corrupt_data=True)
+        features, non_masked_indices = self.encoder(x)
 
         # Extract image embedding from uncorrupted input
-        image_emb = z[:, 0]
-        patches_emb = z[:, 1:]
+        image_emb = features[:, 0]
+        patches_emb = features[:, 1:]
 
         # Quantize input
-        vq_loss, quantized, perplexity, encoding_indices = self.vq_vae(patches_emb)
+        vq_loss, quantized_patches, perplexity, encoding_indices = self.vq_vae(
+            patches_emb
+        )
 
-        # Predict original patches for corrupted data
-        # masked_z_pred = self.encoder_lm_head(
-        #     z[torch.arange(masked_indices.shape[0]).unsqueeze(1), masked_indices]
-        # )
+        quantized = self.masked_patch_token(
+            torch.zeros(
+                x.shape[0] * num_patches,
+                device=self.device,
+            ).long()
+        )
+        quantized[non_masked_indices] = quantized_patches.flatten(0, 1)
+        quantized = quantized.reshape(B, num_patches, -1)
+
         x_recon, _ = self.decoder(quantized)
 
         if self.clf_head is not None:
@@ -180,17 +163,12 @@ class VitVQVae(CLModel):
             vq_loss=vq_loss,
             x_recon=x_recon,
             x_data=x,
-            # masked_z_pred=masked_z_pred,
-            # masked_indices=masked_indices,
-            masked_z_pred=None,
-            masked_indices=None,
             quantized=quantized,
             perplexity=perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
-            # lm_logits=lm_logits,
-            lm_logits=None,
             encoding_indices=encoding_indices,
+            non_masked_indices=non_masked_indices,
         )
 
     def training_step(self, batch, batch_idx):
@@ -202,10 +180,6 @@ class VitVQVae(CLModel):
         loss = (
             criterion_output.vq_loss * self.vq_loss_weight
             + criterion_output.reconstruction_loss * self.reconstruction_loss_weight
-            + criterion_output.contrastive_loss * self.contrastive_loss_loss_weight
-            + criterion_output.encoder_mlm_loss * self.encoder_mlm_loss_loss_weight
-            + criterion_output.decoder_regression_loss
-            * self.decoder_regression_loss_loss_weight
         )
 
         # LOGGING
@@ -225,18 +199,6 @@ class VitVQVae(CLModel):
             f"train/perplexity",
             criterion_output.perplexity.cpu().item(),
         )
-        self.log_with_postfix(
-            f"train/contrastive_loss",
-            criterion_output.contrastive_loss.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"train/pixels_lm_loss",
-            criterion_output.decoder_regression_loss.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"train/latent_mlm_loss",
-            criterion_output.encoder_mlm_loss.cpu().item(),
-        )
 
         return {
             "loss": loss,
@@ -252,10 +214,6 @@ class VitVQVae(CLModel):
         loss = (
             criterion_output.vq_loss * self.vq_loss_weight
             + criterion_output.reconstruction_loss * self.reconstruction_loss_weight
-            + criterion_output.contrastive_loss * self.contrastive_loss_loss_weight
-            + criterion_output.encoder_mlm_loss * self.encoder_mlm_loss_loss_weight
-            + criterion_output.decoder_regression_loss
-            * self.decoder_regression_loss_loss_weight
         )
 
         # LOGGING
@@ -275,18 +233,6 @@ class VitVQVae(CLModel):
             f"val/perplexity",
             criterion_output.perplexity.cpu().item(),
         )
-        self.log_with_postfix(
-            f"val/contrastive_loss",
-            criterion_output.contrastive_loss.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"val/pixels_lm_loss",
-            criterion_output.decoder_regression_loss.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"train/latent_mlm_loss",
-            criterion_output.encoder_mlm_loss.cpu().item(),
-        )
 
         return {
             "loss": loss,
@@ -302,6 +248,15 @@ class VitVQVae(CLModel):
             ),
             lr=self._learning_rate,
         )
+
+        lr_func = lambda epoch: min(
+            (epoch + 1) / (200 + 1e-8),
+            0.5 * (math.cos(epoch / 2000 * math.pi) + 1),
+        )
+        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer, lr_lambda=lr_func, verbose=True
+        )
+
         return optimizer
 
     def log_with_postfix(self, name: str, value: t.Any, *args, **kwargs):

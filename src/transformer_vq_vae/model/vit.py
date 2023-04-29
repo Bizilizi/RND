@@ -254,14 +254,12 @@ class VisionTransformer(nn.Module):
             nn.init.constant_(m.bias, 0)
             nn.init.constant_(m.weight, 1.0)
 
-    def interpolate_pos_encoding(self, x, w, h):
-        npatch = x.shape[1] - 1
+    def interpolate_pos_encoding(self, npatch, dim, w, h):
         N = self.pos_embed.shape[1] - 1
         if npatch == N and w == h:
             return self.pos_embed
         class_pos_embed = self.pos_embed[:, 0]
         patch_pos_embed = self.pos_embed[:, 1:]
-        dim = x.shape[-1]
         w0 = w // self.patch_embed.patch_size
         h0 = h // self.patch_embed.patch_size
         # we add a small number to avoid floating point error in the interpolation
@@ -301,12 +299,21 @@ class VisionTransformer(nn.Module):
             ] = self.corruption_token
 
         # add positional encoding to each token
-        x = x + self.interpolate_pos_encoding(x, w, h)
+        x = x + self.interpolate_pos_encoding(
+            npatch=x.shape[1] - 1, dim=x.shape[-1], w=w, h=h
+        )
 
         return x, masked_indices
 
-    def forward(self, x, corrupt_data=True, return_all_patches=False):
-        x, masked_indices = self.prepare_tokens(x, corrupt_data)
+    def forward(
+        self, x=None, patches=None, corrupt_data=True, return_all_patches=False
+    ):
+        if patches is None:
+            x, masked_indices = self.prepare_tokens(x, corrupt_data)
+        else:
+            x = patches
+            masked_indices = None
+
         for blk in self.blocks:
             x = blk(x)
         x = self.norm(x)

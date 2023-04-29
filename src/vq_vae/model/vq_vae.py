@@ -137,7 +137,10 @@ class VQVae(CLModel):
 
         if use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
-            self.reconstruction_loss_fn = lambda x, y: self._lpips(x, y).mean()
+            self.reconstruction_loss_fn = (
+                lambda x, y: self._lpips(x, y).mean()
+                + F.l1_loss(x, y, reduction="mean") / self._data_variance
+            )
         else:
             self.reconstruction_loss_fn = (
                 lambda x, y: F.mse_loss(x, y, reduction="mean") / self._data_variance

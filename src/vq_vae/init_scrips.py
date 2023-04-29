@@ -55,7 +55,7 @@ def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae]:
         vq_loss_weight=config.vq_loss_weight,
         reconstruction_loss_weight=config.reconstruction_loss_weight,
         downstream_loss_weight=config.downstream_loss_weight,
-        use_lpips=False,
+        use_lpips=config.use_lpips,
     )
 
     return vae
