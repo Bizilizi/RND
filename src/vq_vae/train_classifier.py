@@ -9,6 +9,8 @@ from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.model.classification_head import CnnClassifier
+from src.vq_vae.data.clf_dataset import ClassificationDataset
+from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 
 
 def train_classifier_on_all_classes(
@@ -16,13 +18,16 @@ def train_classifier_on_all_classes(
     config: TrainConfig,
     benchmark: SplitCIFAR10,
     device: torch.device,
+    igpt: ImageGPTCausal,
 ):
     model = strategy.model.to(device)
+    igpt = igpt.to(device)
 
     clf_head = CnnClassifier(
         in_channels=config.embedding_dim,
         num_classes=benchmark.n_classes,
         vq_vae=model,
+        igpt=igpt,
         experience_step=strategy.experience_step,
         dataset_mode="all_cls",
         use_cnn=False,
@@ -38,6 +43,10 @@ def train_classifier_on_all_classes(
             ]
         ),
     )
+    train_dataset = ClassificationDataset(
+        vq_vae_model=model, igpt=igpt, dataset=train_dataset
+    )
+
     test_dataset = datasets.CIFAR10(
         root=config.dataset_path,
         train=False,
@@ -48,6 +57,10 @@ def train_classifier_on_all_classes(
             ]
         ),
     )
+    test_dataset = ClassificationDataset(
+        vq_vae_model=model, igpt=igpt, dataset=test_dataset
+    )
+
     datamodule = PLDataModule(
         batch_size=256,
         num_workers=config.num_workers,
@@ -82,15 +95,18 @@ def train_classifier_on_observed_only_classes(
     config: TrainConfig,
     benchmark: SplitCIFAR10,
     device: torch.device,
+    igpt: ImageGPTCausal,
 ):
     model = strategy.model.to(device)
+    igpt = igpt.to(device)
 
     clf_head = CnnClassifier(
         in_channels=config.embedding_dim,
         num_classes=benchmark.n_classes,
         vq_vae=model,
+        igpt=igpt,
         experience_step=strategy.experience_step,
-        dataset_mode="observed_only_cls",
+        dataset_mode="all_cls",
         use_cnn=False,
     ).to(device)
 
@@ -100,11 +116,18 @@ def train_classifier_on_observed_only_classes(
             for experience in benchmark.train_stream[: strategy.experience_step + 1]
         ]
     )
+    train_dataset = ClassificationDataset(
+        vq_vae_model=model, igpt=igpt, dataset=train_dataset
+    )
+
     test_dataset = ConcatDataset(
         [
             experience.dataset
             for experience in benchmark.test_stream[: strategy.experience_step + 1]
         ]
+    )
+    test_dataset = ClassificationDataset(
+        vq_vae_model=model, igpt=igpt, dataset=test_dataset
     )
 
     datamodule = PLDataModule(

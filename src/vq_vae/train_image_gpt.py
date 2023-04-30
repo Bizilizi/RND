@@ -67,7 +67,7 @@ def bootstrap_dataset(
     return dataset
 
 
-def train_img_gpt_on_observed_only_classes(
+def train_igpt(
     strategy: NaivePytorchLightning,
     config: TrainConfig,
     train_dataset: Dataset,

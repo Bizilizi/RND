@@ -8,7 +8,7 @@ from torch.utils.data import Dataset
 
 import wandb
 from src.vae_ft.model.vae import MLPVae
-from src.vq_vae.train_image_gpt import train_img_gpt_on_observed_only_classes
+from src.vq_vae.train_image_gpt import train_igpt
 
 
 class AugmentedDataset(Dataset):

@@ -5,10 +5,9 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-from src.vq_vae.model.resnet import ResidualStack
-
 if t.TYPE_CHECKING:
     from src.vq_vae.model.vq_vae import VQVae
+    from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 
 
 class CnnClassifier(pl.LightningModule):
@@ -17,6 +16,7 @@ class CnnClassifier(pl.LightningModule):
         in_channels: int,
         num_classes: int,
         vq_vae: "VQVae",
+        igpt: "ImageGPTCausal",
         experience_step: int,
         learning_rate: float = 1e-3,
         dataset_mode: str = "",
@@ -28,35 +28,17 @@ class CnnClassifier(pl.LightningModule):
         self._learning_rate = learning_rate
         self.experience_step = experience_step
 
-        if use_cnn:
-            self.model = nn.Sequential(
-                ResidualStack(
-                    in_channels=in_channels,
-                    num_hiddens=in_channels,
-                    num_residual_layers=1,
-                    num_residual_hiddens=32,
-                    regularization_dropout=0,
-                ),
-                nn.Flatten(),
-                nn.LazyLinear(num_classes),
-            )
-        else:
-            self.model = nn.Sequential(
-                nn.Flatten(),
-                nn.LazyLinear(num_classes),
-            )
+        self.model = nn.LazyLinear(num_classes)
 
         self.__dict__["vq_vae"] = vq_vae
+        self.__dict__["igpt"] = igpt
 
     def forward(self, z):
         return self.model(z)
 
     def training_step(self, batch, batch_idx):
-        x, y, *_ = batch
-
-        with torch.no_grad():
-            z, masked_indices = self.vq_vae.encoder(x)
-            image_emb = z[:, 0]
+        y = batch["labels"]
+        image_emb = batch["embeddings"]
 
         logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)
@@ -74,11 +56,8 @@ class CnnClassifier(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y, *_ = batch
-
-        with torch.no_grad():
-            z, masked_indices = self.vq_vae.encoder(x)
-            image_emb = z[:, 0]
+        y = batch["labels"]
+        image_emb = batch["embeddings"]
 
         logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)

@@ -27,7 +27,7 @@ from src.vq_vae.train_classifier import (
     train_classifier_on_observed_only_classes,
 )
 from src.vq_vae.train_image_gpt import (
-    train_img_gpt_on_observed_only_classes,
+    train_igpt,
     bootstrap_dataset,
 )
 from train_utils import get_device, get_loggers, get_wandb_params
@@ -46,11 +46,13 @@ def train_loop(
 
     image_gpt = None
 
-    for train_experience, test_experience in zip(
-        benchmark.train_stream, benchmark.test_stream
+    for experience_step, (train_experience, test_experience) in enumerate(
+        zip(benchmark.train_stream, benchmark.test_stream)
     ):
         train_dataset = train_experience.dataset
-        val_dataset = test_experience.dataset
+        val_dataset = ConcatDataset(
+            [exp.dataset for exp in benchmark.test_stream[: experience_step + 1]]
+        )
 
         # bootstrap old data
         if (
@@ -92,28 +94,30 @@ def train_loop(
             [test_experience],
         )
 
-        # Train linear classifier, but before we freeze model params
-        # We train two classifiers. One to predict all classes,
-        # another to predict only observed so far classes.
-        # cl_strategy.model.freeze()
-        #
-        # train_classifier_on_all_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # ).to(device)
-        # observed_only_clf_head = train_classifier_on_observed_only_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # ).to(device)
-        #
-        # cl_strategy.model.set_clf_head(observed_only_clf_head)
-
         # Train new image gpt model
-        image_gpt = train_img_gpt_on_observed_only_classes(
+        image_gpt = train_igpt(
             strategy=cl_strategy,
             config=config,
             train_dataset=train_dataset,
             test_dataset=val_dataset,
             device=device,
         )
+
+        # Train classifier
+        train_classifier_on_all_classes(
+            strategy=cl_strategy,
+            config=config,
+            benchmark=benchmark,
+            device=device,
+            igpt=image_gpt,
+        ).to(device)
+        train_classifier_on_observed_only_classes(
+            strategy=cl_strategy,
+            config=config,
+            benchmark=benchmark,
+            device=device,
+            igpt=image_gpt,
+        ).to(device)
 
         # Evaluate VQ-VAE and linear classifier
         cl_strategy.eval(benchmark.test_stream)

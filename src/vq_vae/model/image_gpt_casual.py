@@ -3,9 +3,7 @@ import typing as t
 import pytorch_lightning as pl
 import torch
 from torch.nn import functional as F
-from transformers import ImageGPTConfig
-
-from src.transformer_vq_vae.model.image_gpt import ImageGPTForCausalImageModeling
+from transformers import ImageGPTConfig, ImageGPTForCausalImageModeling
 
 if t.TYPE_CHECKING:
     from src.vq_vae.model.vq_vae import VQVae
