@@ -46,12 +46,16 @@ def train_loop(
 
     image_gpt = None
 
-    for experience_step, (train_experience, test_experience) in enumerate(
-        zip(benchmark.train_stream, benchmark.test_stream)
+    for train_experience, test_experience in zip(
+        benchmark.train_stream, benchmark.test_stream
     ):
+        print(f"Preparing datasets..")
         train_dataset = train_experience.dataset
         val_dataset = ConcatDataset(
-            [exp.dataset for exp in benchmark.test_stream[: experience_step + 1]]
+            [
+                exp.dataset
+                for exp in benchmark.test_stream[: cl_strategy.experience_step + 1]
+            ]
         )
 
         # bootstrap old data
@@ -60,6 +64,8 @@ def train_loop(
             and config.num_random_images != 0
             and image_gpt is not None
         ):
+            print(f"Bootstrap vae model..")
+
             image_gpt.to(device)
             cl_strategy.model.to(device)
 
@@ -95,6 +101,7 @@ def train_loop(
         )
 
         # Train new image gpt model
+        print(f"Train igpt..")
         image_gpt = train_igpt(
             strategy=cl_strategy,
             config=config,
@@ -104,6 +111,7 @@ def train_loop(
         )
 
         # Train classifier
+        print(f"Train classifier..")
         train_classifier_on_all_classes(
             strategy=cl_strategy,
             config=config,
