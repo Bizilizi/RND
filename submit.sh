@@ -6,7 +6,7 @@
 #SBATCH --nodes=1                           # Node count
 #SBATCH --ntasks=1                          # Total number of tasks across all nodes
 #SBATCH --cpus-per-task=4                   # Number of CPU cores per task
-#SBATCH --mem=12gb                          # Job memory request
+#SBATCH --mem=24gb                          # Job memory request
 #SBATCH --partition=gpu                     # Partition (compute (default) / gpu)
 #SBATCH --gres=gpu:1                        # Requesting 1 GPUs
 #SBATCH --constraint=p40
