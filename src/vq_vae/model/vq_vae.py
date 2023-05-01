@@ -64,7 +64,7 @@ class VQVae(CLModel):
         learning_rate: float = 1e-3,
         regularization_dropout: float = 0.0,
         regularization_lambda: float = 0.0,
-        use_lpips: bool = True,
+        use_lpips: bool = False,
         vq_loss_weight: float = 1,
         reconstruction_loss_weight: float = 1,
         downstream_loss_weight: float = 1,
@@ -143,7 +143,7 @@ class VQVae(CLModel):
             )
         else:
             self.reconstruction_loss_fn = (
-                lambda x, y: F.mse_loss(x, y, reduction="mean") / self._data_variance
+                lambda x, y: F.l1_loss(x, y, reduction="mean") / self._data_variance
             )
 
     def criterion(self, x: ForwardOutput, y) -> CriterionOutput:
