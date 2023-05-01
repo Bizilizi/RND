@@ -51,12 +51,7 @@ def train_loop(
     ):
         print(f"Preparing datasets..")
         train_dataset = train_experience.dataset
-        val_dataset = ConcatDataset(
-            [
-                exp.dataset
-                for exp in benchmark.test_stream[: cl_strategy.experience_step + 1]
-            ]
-        )
+        val_dataset = test_experience.dataset
 
         # bootstrap old data
         if (
