@@ -90,6 +90,7 @@ def train_loop(
             train_dataset = train_dataset + bootstrapped_dataset
 
         # Train VQ-VAE
+        print(f"Train vqvae..")
         cl_strategy.train(
             train_experience,
             [test_experience],
