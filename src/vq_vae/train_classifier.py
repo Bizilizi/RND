@@ -24,13 +24,10 @@ def train_classifier_on_all_classes(
     igpt = igpt.to(device)
 
     clf_head = CnnClassifier(
-        in_channels=config.embedding_dim,
         num_classes=benchmark.n_classes,
         vq_vae=model,
-        igpt=igpt,
         experience_step=strategy.experience_step,
         dataset_mode="all_cls",
-        use_cnn=False,
     ).to(device)
 
     train_dataset = datasets.CIFAR10(
@@ -44,7 +41,7 @@ def train_classifier_on_all_classes(
         ),
     )
     train_dataset = ClassificationDataset(
-        vq_vae_model=model, igpt=igpt, dataset=train_dataset
+        vq_vae_model=model, igpt=igpt.image_gpt, dataset=train_dataset
     )
 
     test_dataset = datasets.CIFAR10(
@@ -58,7 +55,7 @@ def train_classifier_on_all_classes(
         ),
     )
     test_dataset = ClassificationDataset(
-        vq_vae_model=model, igpt=igpt, dataset=test_dataset
+        vq_vae_model=model, igpt=igpt.image_gpt, dataset=test_dataset
     )
 
     datamodule = PLDataModule(

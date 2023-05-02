@@ -13,14 +13,11 @@ if t.TYPE_CHECKING:
 class CnnClassifier(pl.LightningModule):
     def __init__(
         self,
-        in_channels: int,
         num_classes: int,
         vq_vae: "VQVae",
-        igpt: "ImageGPTCausal",
         experience_step: int,
         learning_rate: float = 1e-3,
         dataset_mode: str = "",
-        use_cnn: bool = False,
     ):
         super().__init__()
 
@@ -31,7 +28,6 @@ class CnnClassifier(pl.LightningModule):
         self.model = nn.LazyLinear(num_classes)
 
         self.__dict__["vq_vae"] = vq_vae
-        self.__dict__["igpt"] = igpt
 
     def forward(self, z):
         return self.model(z)
