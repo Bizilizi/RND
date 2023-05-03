@@ -35,12 +35,7 @@ class VisualizeTrainingReconstructions(Callback):
 
         for logger in trainer.loggers:
             if isinstance(logger, WandbLogger):
-                images = [
-                    self._rescale_image(
-                        dataset[idx][0],
-                    )[None]
-                    for idx in self.image_indices
-                ]
+                images = [dataset[idx][0][None] for idx in self.image_indices]
                 images = torch.cat(images).to(model.device)
                 forward_data: ForwardOutput = model(images)
 
