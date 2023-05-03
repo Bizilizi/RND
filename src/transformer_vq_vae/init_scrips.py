@@ -8,6 +8,9 @@ from avalanche.training.plugins import EvaluationPlugin
 from pytorch_lightning.callbacks import EarlyStopping
 
 from src.transformer_vq_vae.callbacks.mix_random_samples import MixRandomNoise
+from src.transformer_vq_vae.callbacks.training_reconstions_vis import (
+    VisualizeTrainingReconstructions,
+)
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
     vq_vae_confusion_matrix_metrics,
@@ -69,5 +72,6 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
             mode="min",
             patience=50,
-        )
+        ),
+        VisualizeTrainingReconstructions(log_every=100),
     ]
