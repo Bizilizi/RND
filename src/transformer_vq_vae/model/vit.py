@@ -22,7 +22,6 @@ import torch
 import torch.nn as nn
 
 from torch.nn.init import trunc_normal_
-import torch.nn.functional as F
 
 
 def drop_path(x, drop_prob: float = 0.0, training: bool = False):
@@ -91,7 +90,7 @@ class Attention(nn.Module):
         self.scale = qk_scale or head_dim**-0.5
 
         self.qkv = nn.Linear(dim, dim * 3, bias=qkv_bias)
-        self.attn_dropout_rate = attn_drop
+        self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
@@ -103,14 +102,15 @@ class Attention(nn.Module):
             .permute(2, 0, 3, 1, 4)
         )
         q, k, v = qkv[0], qkv[1], qkv[2]
-        q = q * self.scale
 
-        x = F.scaled_dot_product_attention(q, k, v, dropout_p=self.attn_dropout_rate)
-        x = x.transpose(1, 2).reshape(B, N, C)
+        attn = (q @ k.transpose(-2, -1)) * self.scale
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(1, 2).reshape(B, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
-
-        return x
+        return x, attn
 
 
 class Block(nn.Module):
@@ -148,11 +148,14 @@ class Block(nn.Module):
         )
 
     def forward(self, x, return_attention=False):
-        y = self.attn(self.norm1(x))
+        y, attn = self.attn(self.norm1(x))
         x = x + self.drop_path(y)
         x = x + self.drop_path(self.mlp(self.norm2(x)))
 
-        return x
+        if return_attention:
+            return x, attn
+        else:
+            return x
 
 
 class PatchEmbed(nn.Module):
