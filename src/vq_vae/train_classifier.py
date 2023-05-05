@@ -98,13 +98,10 @@ def train_classifier_on_observed_only_classes(
     igpt = igpt.to(device)
 
     clf_head = CnnClassifier(
-        in_channels=config.embedding_dim,
         num_classes=benchmark.n_classes,
         vq_vae=model,
-        igpt=igpt,
         experience_step=strategy.experience_step,
-        dataset_mode="all_cls",
-        use_cnn=False,
+        dataset_mode="observed_only_cls",
     ).to(device)
 
     train_dataset = ConcatDataset(
