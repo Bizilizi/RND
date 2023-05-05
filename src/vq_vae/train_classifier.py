@@ -111,7 +111,7 @@ def train_classifier_on_observed_only_classes(
         ]
     )
     train_dataset = ClassificationDataset(
-        vq_vae_model=model, igpt=igpt, dataset=train_dataset
+        vq_vae_model=model, igpt=igpt.image_gpt, dataset=train_dataset
     )
 
     test_dataset = ConcatDataset(
@@ -121,7 +121,7 @@ def train_classifier_on_observed_only_classes(
         ]
     )
     test_dataset = ClassificationDataset(
-        vq_vae_model=model, igpt=igpt, dataset=test_dataset
+        vq_vae_model=model, igpt=igpt.image_gpt, dataset=test_dataset
     )
 
     datamodule = PLDataModule(

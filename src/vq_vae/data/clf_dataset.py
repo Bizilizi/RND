@@ -1,5 +1,6 @@
 from torch.utils.data import Dataset, DataLoader
 import torch
+from transformers import ImageGPTForCausalImageModeling
 
 from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 from src.vq_vae.model.vq_vae import VQVae
@@ -9,7 +10,7 @@ class ClassificationDataset(Dataset):
     def __init__(
         self,
         vq_vae_model: VQVae,
-        igpt: ImageGPTCausal,
+        igpt: ImageGPTForCausalImageModeling,
         dataset: Dataset,
         level: int = 6,
     ):
@@ -45,9 +46,7 @@ class ClassificationDataset(Dataset):
                 encoding_indices = encoding_indices.squeeze().reshape(
                     x.shape[0], z.shape[2] * z.shape[3]
                 )
-                output = igpt.image_gpt(
-                    input_ids=encoding_indices, output_hidden_states=True
-                )
+                output = igpt(input_ids=encoding_indices, output_hidden_states=True)
                 image_embeddings = output.hidden_states[level].mean(1)
 
                 self.targets.append(y.cpu())
