@@ -45,7 +45,9 @@ class ClassificationDataset(Dataset):
                 encoding_indices = encoding_indices.squeeze().reshape(
                     x.shape[0], z.shape[2] * z.shape[3]
                 )
-                output = igpt(input_ids=encoding_indices, output_hidden_states=True)
+                output = igpt.image_gpt(
+                    input_ids=encoding_indices, output_hidden_states=True
+                )
                 image_embeddings = output.hidden_states[level].mean(1)
 
                 self.targets.append(y.cpu())
