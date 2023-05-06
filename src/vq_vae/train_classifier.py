@@ -7,8 +7,8 @@ from torchvision import datasets, transforms
 
 from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.model.classification_head import CnnClassifier
+from src.vq_vae.configuration.config import TrainConfig
+from src.vq_vae.model.classification_head import CnnClassifier
 from src.vq_vae.data.clf_dataset import ClassificationDataset
 from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 

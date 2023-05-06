@@ -33,10 +33,8 @@ class CnnClassifier(pl.LightningModule):
         return self.model(z)
 
     def training_step(self, batch, batch_idx):
-        x, y, *_ = batch
-
-        non_shuffled_features, _ = self.vq_vae.encoder(x, shuffle=False)
-        image_emb = non_shuffled_features[0]
+        y = batch["labels"]
+        image_emb = batch["embeddings"]
 
         logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)
@@ -54,10 +52,8 @@ class CnnClassifier(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y, *_ = batch
-
-        non_shuffled_features, _ = self.vq_vae.encoder(x, shuffle=False)
-        image_emb = non_shuffled_features[0]
+        y = batch["labels"]
+        image_emb = batch["embeddings"]
 
         logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)
