@@ -51,15 +51,14 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         embedding_dim=config.embedding_dim,
         commitment_cost=config.commitment_cost,
         decay=config.decay,
-        learning_rate=config.learning_rate,
-        data_variance=0.06328692405746414,
-        embeddings_distance=config.embeddings_distance,
-        patch_corruption_rate=config.corruption_rate,
-        vq_loss_weight=config.vq_loss_weight,
-        reconstruction_loss_weight=config.reconstruction_loss_weight,
-        contrastive_loss_loss_weight=config.contrastive_loss_loss_weight,
-        encoder_mlm_loss_loss_weight=config.encoder_mlm_loss_loss_weight,
-        decoder_regression_loss_loss_weight=config.decoder_regression_loss_loss_weight,
+        learning_rate=(
+            config.learning_rate
+            * config.batch_size
+            * config.accumulate_grad_batches
+            / 256
+        ),
+        weight_decay=config.weight_decay,
+        mask_ratio=config.mask_ratio,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

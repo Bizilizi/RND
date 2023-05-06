@@ -1,53 +1,96 @@
-from functools import partial
-
 import torch
-from torch import nn
-from src.transformer_vq_vae.model.vit import (
-    VisionTransformer,
-)
+import timm
+import numpy as np
+
+from einops import repeat, rearrange
+from einops.layers.torch import Rearrange
+
+from timm.models.layers import trunc_normal_
+from timm.models.vision_transformer import Block
 
 
-class VitEncoder(nn.Module):
-    def __init__(self, embeddings_dim, patch_size, corruption_rate):
+def random_indexes(size: int):
+    forward_indexes = np.arange(size)
+    np.random.shuffle(forward_indexes)
+    backward_indexes = np.argsort(forward_indexes)
+    return forward_indexes, backward_indexes
+
+
+def take_indexes(sequences, indexes):
+    return torch.gather(
+        sequences, 0, repeat(indexes, "t b -> t b c", c=sequences.shape[-1])
+    )
+
+
+class PatchShuffle(torch.nn.Module):
+    def __init__(self, ratio) -> None:
+        super().__init__()
+        self.ratio = ratio
+
+    def forward(self, patches: torch.Tensor):
+        T, B, C = patches.shape
+        remain_T = int(T * (1 - self.ratio))
+
+        indexes = [random_indexes(T) for _ in range(B)]
+        forward_indexes = torch.as_tensor(
+            np.stack([i[0] for i in indexes], axis=-1), dtype=torch.long
+        ).to(patches.device)
+        backward_indexes = torch.as_tensor(
+            np.stack([i[1] for i in indexes], axis=-1), dtype=torch.long
+        ).to(patches.device)
+
+        patches = take_indexes(patches, forward_indexes)
+        patches = patches[:remain_T]
+
+        return patches, forward_indexes, backward_indexes
+
+
+class MAEEncoder(torch.nn.Module):
+    def __init__(
+        self,
+        image_size=32,
+        patch_size=2,
+        emb_dim=192,
+        num_layer=12,
+        num_head=3,
+        mask_ratio=0.75,
+    ) -> None:
         super().__init__()
 
-        self.corruption_rate = 1 - corruption_rate
-        self.base_vit = VisionTransformer(
-            img_size=[32],
-            patch_size=patch_size,
-            embed_dim=embeddings_dim,
-            depth=6,
-            num_heads=4,
-            mlp_ratio=4,
-            qkv_bias=True,
-            norm_layer=partial(nn.LayerNorm, eps=1e-6),
-            corruption_rate=0.0,
+        self.cls_token = torch.nn.Parameter(torch.zeros(1, 1, emb_dim))
+        self.pos_embedding = torch.nn.Parameter(
+            torch.zeros((image_size // patch_size) ** 2, 1, emb_dim)
+        )
+        self.shuffle = PatchShuffle(mask_ratio)
+
+        self.patchify = torch.nn.Conv2d(3, emb_dim, patch_size, patch_size)
+
+        self.transformer = torch.nn.Sequential(
+            *[Block(emb_dim, num_head) for _ in range(num_layer)]
         )
 
-    def forward(self, x):
-        B, nc, w, h = x.shape
+        self.layer_norm = torch.nn.LayerNorm(emb_dim)
 
-        patches = self.base_vit.patch_embed(x)  # patch linear embedding
-        _, N, D = patches.shape
-        pos_encoding = self.base_vit.interpolate_pos_encoding(N, D, w, h)
-        clf_pos_encoding = pos_encoding[:, :1]
-        patches_pos_encoding = pos_encoding[:, 1:]
+        self.init_weight()
 
-        # Flatten everything to select sub set of patches
-        patches += patches_pos_encoding
-        patches = patches.flatten(0, 1)
+    def init_weight(self):
+        trunc_normal_(self.cls_token, std=0.02)
+        trunc_normal_(self.pos_embedding, std=0.02)
 
-        # Select tokens to be processes, mask everything else
-        num_tokens = int(self.corruption_rate * patches.shape[0])
-        non_masked_indices = torch.randperm(patches.shape[0])[:num_tokens]
+    def forward(self, img, shuffle: bool = True):
+        patches = self.patchify(img)
+        patches = rearrange(patches, "b c h w -> (h w) b c")
+        patches = patches + self.pos_embedding
 
-        patches = patches[non_masked_indices]
-        patches = patches.reshape(B, -1, D)
+        backward_indexes = None
+        if shuffle:
+            patches, forward_indexes, backward_indexes = self.shuffle(patches)
 
-        # Add the [CLS] token to the embed patch tokens
-        cls_tokens = self.base_vit.cls_token.expand(B, -1, -1) + clf_pos_encoding
-        patches = torch.cat([cls_tokens, patches], dim=1)
+        patches = torch.cat(
+            [self.cls_token.expand(-1, patches.shape[1], -1), patches], dim=0
+        )
+        patches = rearrange(patches, "t b c -> b t c")
+        features = self.layer_norm(self.transformer(patches))
+        features = rearrange(features, "b t c -> t b c")
 
-        features, _ = self.base_vit.forward(patches=patches, return_all_patches=True)
-
-        return features, non_masked_indices
+        return features, backward_indexes

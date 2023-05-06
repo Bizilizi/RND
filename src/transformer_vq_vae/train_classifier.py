@@ -20,12 +20,10 @@ def train_classifier_on_all_classes(
     model = strategy.model.to(device)
 
     clf_head = CnnClassifier(
-        in_channels=config.embedding_dim,
         num_classes=benchmark.n_classes,
         vq_vae=model,
         experience_step=strategy.experience_step,
         dataset_mode="all_cls",
-        use_cnn=False,
     ).to(device)
 
     train_dataset = datasets.CIFAR10(
@@ -86,12 +84,10 @@ def train_classifier_on_observed_only_classes(
     model = strategy.model.to(device)
 
     clf_head = CnnClassifier(
-        in_channels=config.embedding_dim,
         num_classes=benchmark.n_classes,
         vq_vae=model,
         experience_step=strategy.experience_step,
         dataset_mode="observed_only_cls",
-        use_cnn=False,
     ).to(device)
 
     train_dataset = ConcatDataset(

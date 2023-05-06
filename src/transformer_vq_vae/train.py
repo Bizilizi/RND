@@ -158,7 +158,7 @@ def main(args):
         initial_resume_from=args.resume_from,
         model=model,
         device=device,
-        optimizer=model.configure_optimizers(),
+        optimizer=model.configure_optimizers()[0][0],
         criterion=model.criterion,
         train_mb_size=config.batch_size,
         train_mb_num_workers=config.num_workers,

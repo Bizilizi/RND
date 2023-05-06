@@ -1,6 +1,7 @@
 import typing as t
 
 import torch
+from einops import rearrange
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
 from torchvision.utils import make_grid
@@ -37,24 +38,20 @@ class VisualizeTrainingReconstructions(Callback):
             if isinstance(logger, WandbLogger):
                 images = [dataset[idx][0][None] for idx in self.image_indices]
                 images = torch.cat(images).to(model.device)
+
                 forward_data: ForwardOutput = model(images)
+                predicted_val_img = forward_data.x_recon
+                mask = forward_data.mask
+                predicted_val_img = predicted_val_img * mask + images * (1 - mask)
+                img = torch.cat([images * (1 - mask), predicted_val_img, images], dim=0)
+                img = rearrange(img, "(v h1 w1) c h w -> c (h1 h) (w1 v w)", w1=2, v=3)
+                img = self._rescale_image(img)
 
-                target_img = self._rescale_image(make_grid(images))
-                rec_img = self._rescale_image(make_grid(forward_data.x_recon))
-
-                wandb.log(
-                    {
-                        f"train/dataset/experience_step_{experience_step}/target_img": wandb.Image(
-                            target_img.cpu().numpy(),
-                            caption=f"target_img",
-                        )
-                    }
-                )
                 wandb.log(
                     {
                         f"train/dataset/experience_step_{experience_step}/rec_img": wandb.Image(
-                            rec_img.cpu().numpy(),
-                            caption=f"rec_img",
+                            img.cpu().numpy(),
+                            caption=f"target_img",
                         )
                     }
                 )

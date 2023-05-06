@@ -22,6 +22,8 @@ submitit = "^1.4.5"
 joblib = "^1.2.0"
 lpips = "^0.1.4"
 jupyter = "^1.0.0"
+einops = "^0.6.1"
+timm = "^0.6.13"
 
 [tool.poetry.group.dev.dependencies]
 lovely-tensors = "^0.1.10"

@@ -18,8 +18,8 @@ class TrainConfig(BaseTrainConfig):
     regularization_dropout: float
 
     use_lpips: bool
-    corruption_rate = 0.2
-
+    mask_ratio: float
+    weight_decay: float
     embeddings_distance: str
 
     # loss weights
