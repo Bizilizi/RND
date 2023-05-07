@@ -79,7 +79,7 @@ def get_callbacks(
             mode="min",
             patience=50,
         ),
-        VisualizeTrainingReconstructions(log_every=100),
+        VisualizeTrainingReconstructions(log_every=10),
         LogModelWightsCallback(
             log_every=10,
             checkpoint_path=f"{config.checkpoint_path}/{run_id}",
