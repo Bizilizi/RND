@@ -19,6 +19,6 @@ sbatch submit.sh python train.py \
     --accumulate_grad_batches 1 \
     --num_embeddings 128 \
     --max_epochs_lin_eval 200 \
-    --embedding_dim 60 \
+    --embedding_dim 192 \
     --batch_size 128 \
     --num_workers 12
