@@ -58,7 +58,7 @@ class ImageGPTCausal(pl.LightningModule):
         optimizer = torch.optim.Adam(
             [
                 {"params": list(self.image_gpt.parameters())[1:], "lr": 0.001},
-                {"params": self.image_gpt.transformer.wte.parameters(), "lr": 0.00001},
+                {"params": self.image_gpt.transformer.wte.parameters(), "lr": 0.0001},
             ]
         )
         return optimizer

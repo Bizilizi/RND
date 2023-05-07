@@ -9,6 +9,7 @@ from transformers import ImageGPTConfig
 
 from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
+from src.vq_vae.callbacks.igpt_samples import LogIgptSamples
 from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
@@ -86,7 +87,7 @@ def train_igpt(
         n_embd=config.embedding_dim,
         n_head=4,
         n_layer=12,
-        n_positions=8 * 8 + 2,
+        n_positions=8 * 8 + 1,
         reorder_and_upcast_attn=False,
         resid_pdrop=0.1,
         scale_attn_by_inverse_layer_idx=False,
@@ -128,7 +129,11 @@ def train_igpt(
                 monitor=f"val/image_gpt_loss/experience_step_{strategy.experience_step}",
                 mode="min",
                 patience=30,
-            )
+            ),
+            LogIgptSamples(
+                vq_vae_model=model,
+                experience_step=strategy.experience_step,
+            ),
         ],
         max_epochs=config.max_epochs_igpt,
         min_epochs=config.min_epochs_igpt,
