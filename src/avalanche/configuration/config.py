@@ -48,6 +48,7 @@ class BaseTrainConfig(BaseModel):
     evaluation_logger: str
     train_logger: str
     logging_path: str
+    checkpoint_path: str = ""
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser):

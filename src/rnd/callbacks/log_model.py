@@ -15,6 +15,7 @@ class LogModelWightsCallback(Callback):
         checkpoint_path: str = "checkpoints",
         model_prefix: str = "model",
         model_description: t.Optional[str] = None,
+        log_to_wandb: bool = True,
     ):
         super().__init__()
         self.state = {"epochs": 0}
@@ -22,6 +23,7 @@ class LogModelWightsCallback(Callback):
         self.checkpoint_path = checkpoint_path
         self.model_prefix = model_prefix
         self.model_description = model_description
+        self.log_to_wandb = log_to_wandb
 
     def save_model_weights(self, logger, trainer: "pl.Trainer"):
         model_ckpt = (
@@ -30,7 +32,7 @@ class LogModelWightsCallback(Callback):
         trainer.save_checkpoint(model_ckpt)
 
         # log model to W&B
-        if isinstance(logger, WandbLogger):
+        if isinstance(logger, WandbLogger) and self.log_to_wandb:
             artifact = wandb.Artifact(
                 f"model-{logger.experiment.id}",
                 type="model",

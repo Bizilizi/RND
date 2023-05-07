@@ -1,11 +1,23 @@
-sbatch submit.sh python train.py --config src/vq_vae/configuration/train.ini --model vq-vae --wandb_dir /scratch/shared/beegfs/dzverev/wandb --max_epochs 220 --max_epochs_igpt 200 --num_random_images 2000 --downstream_loss_weight 0 --evaluation_logger wandb --train_logger wandb
+sbatch submit.sh python train.py \
+    --config src/vq_vae/configuration/train.ini \
+    --model vq-vae \
+    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --max_epochs 220 \
+    --min_epochs_igpt 1000 \
+    --max_epochs_igpt 1000 \
+    --num_random_images 7000 \
+    --downstream_loss_weight 0 \
+    --evaluation_logger wandb \
+    --train_logger wandb
+
 sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wand \
-    --max_epochs 2 \
-    --min_epochs 2 \
-    --accumulate_grad_batches 2 \
+    --max_epochs 2000 \
+    --min_epochs 1500 \
+    --accumulate_grad_batches 1 \
     --num_embeddings 2048 \
-    --max_epochs_lin_eval 2 \
-    --embedding_dim 60
+    --max_epochs_lin_eval 200 \
+    --embedding_dim 60 \
+    --batch_size 128

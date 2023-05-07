@@ -99,6 +99,7 @@ def main(args):
             f"Dist-{config.embeddings_distance}"
         )
         wandb_params["name"] = wandb.run.name
+        wandb_params["id"] = wandb.run.id
     else:
         wandb_params = None
 
@@ -163,7 +164,7 @@ def main(args):
         train_epochs=config.max_epochs,
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
-        callbacks=get_callbacks(config),
+        callbacks=get_callbacks(config, wandb_params),
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
         best_model_path_prefix=config.best_model_prefix,
