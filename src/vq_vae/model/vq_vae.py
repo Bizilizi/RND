@@ -127,12 +127,12 @@ class VQVae(CLModel):
                     regularization_dropout=0,
                 ),
                 nn.Flatten(),
-                nn.Linear(4096, num_classes),
+                nn.Linear(8 * 8 * embedding_dim, num_classes),
             )
         else:
             self.clf_head = nn.Sequential(
                 nn.Flatten(),
-                nn.Linear(4096, num_classes),
+                nn.Linear(8 * 8 * embedding_dim, num_classes),
             )
 
         if use_lpips:
