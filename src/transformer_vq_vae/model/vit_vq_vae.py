@@ -2,6 +2,7 @@ import math
 import typing as t
 from itertools import chain
 
+import lpips
 import torch
 from torch import nn
 from pytorch_metric_learning.distances import CosineSimilarity
@@ -85,6 +86,9 @@ class VitVQVae(CLModel):
         self.clf_head = None
         self.experience_step = 0
 
+        self._lpips = lpips.LPIPS(net="vgg")
+        self._data_variance = 0.06328692405746414
+
     def set_clf_head(self, model: "CnnClassifier"):
         self.__dict__["clf_head"] = model
 
@@ -94,11 +98,11 @@ class VitVQVae(CLModel):
     def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
         x_recon = forward_output.x_recon
         x_data = forward_output.x_data
-        mask = forward_output.mask
 
         # Compute contrastive loss
         reconstruction_loss = (
-            torch.mean((x_recon - x_data) ** 2 * mask) / self._mask_ratio
+            self._lpips(x_recon, x_data).mean()
+            + F.l1_loss(x_recon, x_data, reduction="mean") / self._data_variance
         )
 
         # Compute accuracy if classification head presents
