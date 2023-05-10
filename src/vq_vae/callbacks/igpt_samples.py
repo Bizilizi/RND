@@ -1,6 +1,6 @@
 import torch
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 
 import wandb
 from torchvision.utils import make_grid
@@ -32,10 +32,14 @@ class LogIgptSamples(Callback):
         model: ImageGPTCausal = trainer.model
 
         for logger in trainer.loggers:
+            image = self.get_grid_image(model.image_gpt)
             if isinstance(logger, WandbLogger):
-                self.log_samples(model.image_gpt)
+                self.log_wandb(image)
+            if isinstance(logger, TensorBoardLogger):
+                writer = logger.experiment
+                self.log_tb(image, writer, trainer.global_step)
 
-    def log_samples(self, igpt_model):
+    def get_grid_image(self, igpt_model):
         context = torch.full((self.num_images, 1), 1)  # initialize with SOS token
         context = torch.tensor(context).to(igpt_model.device)
         output = igpt_model.generate(
@@ -59,6 +63,9 @@ class LogIgptSamples(Callback):
         )
         grid_image = self._rescale_image(grid_image)
 
+        return grid_image
+
+    def log_wandb(self, grid_image):
         wandb.log(
             {
                 f"train/dataset/experience_step_{self.experience_step}/igpt_samples": wandb.Image(
@@ -66,6 +73,13 @@ class LogIgptSamples(Callback):
                     caption=f"igpt_samples",
                 )
             }
+        )
+
+    def log_tb(self, grid_image, writer, step):
+        writer.add_image(
+            f"train/dataset/experience_step_{self.experience_step}/igpt_samples",
+            grid_image.permute(2, 0, 1).cpu().numpy(),
+            step,
         )
 
     @staticmethod
