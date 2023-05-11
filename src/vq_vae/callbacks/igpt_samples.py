@@ -78,6 +78,7 @@ class LogIgptSamples(Callback):
         )
 
     def log_tb(self, grid_image, writer, step):
+        grid_image = grid_image / 255
         writer.add_image(
             f"train/dataset/experience_step_{self.experience_step}/igpt_samples",
             grid_image.permute(2, 0, 1).cpu().numpy(),
