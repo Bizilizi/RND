@@ -30,6 +30,7 @@ class LogIgptSamples(Callback):
             return
 
         model: ImageGPTCausal = trainer.model
+        self.vq_vae_model.to(model.device)
 
         for logger in trainer.loggers:
             image = self.get_grid_image(model.image_gpt)
@@ -52,8 +53,8 @@ class LogIgptSamples(Callback):
 
         output = output[:, 1:]
         output[output == 512] = 0
-
         output = output.to(self.vq_vae_model.device)
+
         quantized = self.vq_vae_model.vq_vae._embedding(output).permute(0, 2, 1)
         quantized = quantized.reshape(-1, quantized.shape[1], 8, 8)
 
