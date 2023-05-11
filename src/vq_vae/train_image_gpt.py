@@ -1,3 +1,5 @@
+import datetime
+
 import torch
 import typing as t
 from avalanche.benchmarks.utils import make_classification_dataset
@@ -9,6 +11,7 @@ from transformers import ImageGPTConfig
 
 from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
+from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.vq_vae.callbacks.igpt_samples import LogIgptSamples
 from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.data.image_gpt_dataset import ImageGPTDataset
@@ -74,7 +77,11 @@ def train_igpt(
     train_dataset: Dataset,
     test_dataset: Dataset,
     device: torch.device,
+    wandb_params: t.Dict[str, t.Any],
 ):
+    today = datetime.datetime.now()
+    run_id = wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
+
     model = strategy.model.to(device)
 
     configuration = ImageGPTConfig(
@@ -125,14 +132,14 @@ def train_igpt(
         devices=strategy.devices,
         logger=strategy.train_logger,
         callbacks=[
-            EarlyStopping(
-                monitor=f"val/image_gpt_loss/experience_step_{strategy.experience_step}",
-                mode="min",
-                patience=30,
-            ),
             LogIgptSamples(
                 vq_vae_model=model,
                 experience_step=strategy.experience_step,
+            ),
+            LogModelWightsCallback(
+                log_every=10,
+                checkpoint_path=f"{config.checkpoint_path}/{run_id}",
+                model_prefix="igpt",
             ),
         ],
         max_epochs=config.max_epochs_igpt,

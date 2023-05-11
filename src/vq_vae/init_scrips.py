@@ -1,3 +1,4 @@
+import datetime
 import typing as t
 
 import torch
@@ -5,6 +6,8 @@ from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
+
+from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.vq_vae.callbacks.mix_random_samples import MixRandomNoise
 from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.metrics.vq_vae_confusion_matrix import vq_vae_confusion_matrix_metrics
@@ -61,9 +64,19 @@ def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae]:
     return vae
 
 
-def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
+def get_callbacks(
+    config: TrainConfig, wandb_params
+) -> t.Callable[[int], t.List[Callback]]:
+    today = datetime.datetime.now()
+    run_id = wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
+
     return lambda x: [
         MixRandomNoise(
             num_rand_noise=config.num_random_noise, log_dataset=True, num_tasks=5
-        )
+        ),
+        LogModelWightsCallback(
+            log_every=10,
+            checkpoint_path=f"{config.checkpoint_path}/{run_id}",
+            model_prefix="vqvae",
+        ),
     ]
