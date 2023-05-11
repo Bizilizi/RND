@@ -81,7 +81,7 @@ class LogIgptSamples(Callback):
         grid_image = grid_image / 255
         writer.add_image(
             f"train/dataset/experience_step_{self.experience_step}/igpt_samples",
-            grid_image.permute(2, 0, 1).cpu().numpy(),
+            grid_image.permute(2, 0, 1).cpu(),
             step,
         )
 
