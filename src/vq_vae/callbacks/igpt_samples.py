@@ -53,6 +53,7 @@ class LogIgptSamples(Callback):
         output = output[:, 1:]
         output[output == 512] = 0
 
+        output = output.to(self.vq_vae_model.device)
         quantized = self.vq_vae_model.vq_vae._embedding(output).permute(0, 2, 1)
         quantized = quantized.reshape(-1, quantized.shape[1], 8, 8)
 
