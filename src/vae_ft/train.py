@@ -70,7 +70,7 @@ def main(args):
 
     # Create benchmark, model and loggers
     benchmark = SplitMNIST(
-        n_experiences=5,
+        n_experiences=1,
         seed=args.seed,
         train_transform=ToTensor(),
         eval_transform=ToTensor(),
