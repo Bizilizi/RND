@@ -4,6 +4,7 @@ import torch
 import typing as t
 
 import wandb
+from PIL.Image import Image
 from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from pytorch_lightning import Trainer
@@ -42,7 +43,9 @@ class BootstrappedDataset(Dataset):
             image_path = (
                 f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
             )
-            save_image(self._rescale_image(image), image_path)
+            image = self._rescale_image(image).numpy()
+            im = Image.fromarray(image)
+            im.save(image_path)
 
             self.x.append(image_path)
             self.targets.append(-1)
@@ -51,8 +54,10 @@ class BootstrappedDataset(Dataset):
     def _rescale_image(image):
         image = (image + 0.5) * 255
         image = torch.clamp(image, 0, 255)
+        image = image.permute(1, 2, 0).to("cpu", torch.uint8)
+        image = image.numpy()
 
-        return image.int()
+        return image
 
     def __getitem__(self, item):
         return read_image(self.x[item]), self.targets[item]
