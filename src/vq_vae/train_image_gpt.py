@@ -307,8 +307,10 @@ def train_igpt(
             if isinstance(logger, WandbLogger):
                 logger.log_metrics(
                     {
-                        f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
-                        wandb.Image(sample.permute(1, 2, 0).numpy()),
+                        f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
+                            sample.permute(1, 2, 0).numpy()
+                        ),
+                        "epoch": i,
                     }
                 )
             if isinstance(logger, TensorBoardLogger):
@@ -320,6 +322,14 @@ def train_igpt(
 
             image_gpt.to(device)
             vq_vae_model.to(device)
+
+        if i % 10 == 0:
+            model_ckpt_path = f"{config.checkpoint_path}/igpt-{i}.ckpt"
+            state_dict = image_gpt.state_dict()
+            for k, v in state_dict.items():
+                state_dict[k] = v.cpu()
+
+            torch.save(state_dict, model_ckpt_path)
 
         exp_lr_scheduler.step()
 

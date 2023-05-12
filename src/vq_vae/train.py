@@ -70,6 +70,8 @@ def train_loop(
                 image_gpt=image_gpt,
                 vq_vae_model=cl_strategy.model,
                 num_images=config.num_random_images * cl_strategy.experience_step,
+                experience_step=cl_strategy.experience_step,
+                dataset_path=config.bootstrapped_dataset_path,
             )
             train_experience.dataset = train_dataset.replace_current_transform_group(
                 transforms.Compose(
