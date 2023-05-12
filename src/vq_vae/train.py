@@ -117,14 +117,14 @@ def train_loop(
             benchmark=benchmark,
             device=device,
             igpt=image_gpt,
-        ).to(device)
+        )
         train_classifier_on_observed_only_classes(
             strategy=cl_strategy,
             config=config,
             benchmark=benchmark,
             device=device,
             igpt=image_gpt,
-        ).to(device)
+        )
 
         # Evaluate VQ-VAE and linear classifier
         cl_strategy.eval(benchmark.test_stream)
