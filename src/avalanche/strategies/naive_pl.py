@@ -66,7 +66,10 @@ class NaivePytorchLightning(Naive):
         self.restore_best_model_callback = None
         if self.best_model_path_prefix:
             self.restore_best_model_callback = RestoreBestPerformingModel(
-                path_prefix=self.best_model_path_prefix, monitor="val/loss", mode="min"
+                path_prefix=self.best_model_path_prefix,
+                monitor="val/loss",
+                mode="min",
+                every_n_epochs=self.validate_every_n,
             )
             self.strategy_callbacks.append(self.restore_best_model_callback)
 

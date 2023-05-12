@@ -13,7 +13,9 @@ class RestoreBestPerformingModel(ModelCheckpoint):
     It later used by NaivePytorchLightning to restore weight before next CL step.
     """
 
-    def __init__(self, path_prefix: str, monitor: str, mode: str, *args, **kwargs):
+    def __init__(
+        self, path_prefix: str, monitor: str, mode: str, every_n_epochs, *args, **kwargs
+    ):
         self._monitor = monitor
         self.mode = mode
         self.path_prefix = path_prefix
@@ -29,6 +31,7 @@ class RestoreBestPerformingModel(ModelCheckpoint):
             mode=mode,
             verbose=True,
             save_weights_only=True,
+            every_n_epochs=every_n_epochs,
             *args,
             **kwargs,
         )

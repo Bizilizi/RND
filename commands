@@ -6,8 +6,8 @@ python train.py \
     --max_epochs 1 \
     --max_epochs_igpt 1 \
     --max_epochs_lin_eval 1 \
-    --num_random_images 0 \
-    --num_random_noise 0 \
+    --num_random_images 1000 \
+    --num_random_noise 1000 \
     --downstream_loss_weight 0 \
     --evaluation_logger wandb \
     --train_logger wandb \
