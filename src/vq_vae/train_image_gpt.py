@@ -1,4 +1,5 @@
 import datetime
+import pathlib
 
 import torch
 import typing as t
@@ -40,9 +41,13 @@ class BootstrappedDataset(Dataset):
     def add_images(self, images):
         total_img = len(self.x)
         for i, image in enumerate(images):
-            image_path = (
-                f"{self.dataset_path}/exp_{self.experience_step}_{total_img + i}.png"
+            pathlib.Path(f"{self.dataset_path}/exp_{self.experience_step}").mkdir(
+                parents=True, exist_ok=True
             )
+            image_path = (
+                f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
+            )
+
             image = self._rescale_image(image)
             im = Image.fromarray(image)
             im.save(image_path)
