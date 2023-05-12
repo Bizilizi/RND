@@ -23,13 +23,14 @@ from src.vq_vae.callbacks.reconstruction_visualization_plugin import (
 )
 from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.init_scrips import get_callbacks, get_evaluation_plugin, get_model
+from src.vq_vae.model_future import model_future_samples
 from src.vq_vae.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
 )
 from src.vq_vae.train_image_gpt import (
     train_igpt,
-    bootstrap_dataset,
+    bootstrap_past_samples,
 )
 from train_utils import get_device, get_loggers, get_wandb_params
 
@@ -55,10 +56,10 @@ def train_loop(
         train_dataset = train_experience.dataset
         val_dataset = test_experience.dataset
 
-        # bootstrap old data
+        # bootstrap old data and modeled future samples
         if (
             cl_strategy.experience_step != 0
-            and config.num_random_images != 0
+            and config.num_random_past_samples != 0
             and image_gpt is not None
         ):
             print(f"Bootstrap vae model..")
@@ -66,28 +67,49 @@ def train_loop(
             image_gpt.to(device)
             cl_strategy.model.to(device)
 
-            bootstrapped_dataset = bootstrap_dataset(
+            bootstrapped_dataset = bootstrap_past_samples(
                 image_gpt=image_gpt,
                 vq_vae_model=cl_strategy.model,
-                num_images=config.num_random_images * cl_strategy.experience_step,
+                num_images=config.num_random_past_samples * cl_strategy.experience_step,
                 experience_step=cl_strategy.experience_step,
                 dataset_path=config.bootstrapped_dataset_path,
             )
-            train_experience.dataset = train_dataset.replace_current_transform_group(
-                transforms.Compose(
-                    [
-                        transforms.RandomCrop(32, padding=4),
-                        transforms.RandomHorizontalFlip(),
-                        transforms.ToTensor(),
-                        transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-                    ]
+            future_dataset = model_future_samples(
+                vq_vae_model=cl_strategy.model,
+                num_rand_samples=(
+                    config.num_random_future_samples * (4 - cl_strategy.experience_step)
+                ),
+                mode=config.future_samples_mode,
+            )
+
+            train_experience.dataset = (
+                train_dataset.replace_current_transform_group(
+                    transforms.Compose(
+                        [
+                            transforms.RandomCrop(32, padding=4),
+                            transforms.RandomHorizontalFlip(),
+                            transforms.ToTensor(),
+                            transforms.Normalize(
+                                (0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)
+                            ),
+                        ]
+                    )
                 )
-            ) + bootstrapped_dataset.replace_current_transform_group(
-                transforms.Compose(
-                    [
-                        transforms.RandomCrop(32, padding=4),
-                        transforms.RandomHorizontalFlip(),
-                    ]
+                + bootstrapped_dataset.replace_current_transform_group(
+                    transforms.Compose(
+                        [
+                            transforms.RandomCrop(32, padding=4),
+                            transforms.RandomHorizontalFlip(),
+                        ]
+                    )
+                )
+                + future_dataset.replace_current_transform_group(
+                    transforms.Compose(
+                        [
+                            transforms.RandomCrop(32, padding=4),
+                            transforms.RandomHorizontalFlip(),
+                        ]
+                    )
                 )
             )
 

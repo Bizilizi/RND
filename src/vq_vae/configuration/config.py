@@ -13,8 +13,9 @@ class TrainConfig(BaseTrainConfig):
     commitment_cost: float
     decay: float
 
-    num_random_images: int
-    num_random_noise: int
+    num_random_past_samples: int
+    num_random_future_samples: int
+    future_samples_mode: str
     regularization_lambda: float
     regularization_dropout: float
 

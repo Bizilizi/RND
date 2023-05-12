@@ -38,69 +38,17 @@ class AugmentedDataset(Dataset):
         return len(self.original_dataset) + self.rehearsed_data.shape[0]
 
 
-class MixRandomNoise(Callback):
+class LogDataset(Callback):
     """
     This callback generates num_images number of images and adds it to the
     dataset for current CL step
     """
 
-    def __init__(
-        self,
-        num_rand_noise: int = 5_000,
-        log_dataset: bool = True,
-        num_tasks: int = 5,
-    ):
-        self.num_rand_noise = num_rand_noise
-
-        self.original_dataset = None
-        self.log_dataset = log_dataset
-        self.num_tasks = num_tasks
-
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
         experience_step = trainer.model.experience_step
-        model: MLPVae = trainer.model
-        data_dim = trainer.datamodule.train_dataset[0][0].shape
-
-        rehearsed_data = []
-        rehearsed_classes = []
-
-        if self.num_rand_noise != 0 and experience_step < self.num_tasks - 1:
-            generated_noise = self.sample_random_noise(experience_step, data_dim)
-            rehearsed_data.append(generated_noise)
-            rehearsed_classes.extend([-2] * generated_noise.shape[0])
-
-        if rehearsed_data:
-            rehearsed_data = torch.cat(rehearsed_data)
-
-            augmented_dataset = AugmentedDataset(
-                original_dataset=trainer.datamodule.train_dataset,
-                rehearsed_data=rehearsed_data,
-                rehearsed_classes=rehearsed_classes,
-                task_id=experience_step,
-            )
-
-            trainer.datamodule.train_dataset = augmented_dataset
-
-        if self.log_dataset:
-            self.log_dataset_table(trainer, experience_step)
-
-    def sample_random_images(self, model: MLPVae, experience_step: int) -> torch.Tensor:
-        """
-        Samples random images from the model latent space
-        """
-        ...
-
-    def sample_random_noise(self, experience_step: int, data_dim):
-        """
-        Samples random noise
-        """
-        noise = torch.randn(
-            self.num_rand_noise * (self.num_tasks - experience_step - 1), *data_dim
-        )
-
-        return noise
+        self.log_dataset_table(trainer, experience_step)
 
     def log_dataset_table(self, trainer: Trainer, experience_step: int) -> None:
         columns = [f"col_{i}" for i in range(10)]

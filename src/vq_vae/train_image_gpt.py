@@ -62,7 +62,7 @@ class BootstrappedDataset(Dataset):
 
 
 @torch.no_grad()
-def bootstrap_dataset(
+def bootstrap_past_samples(
     image_gpt: ImageGPTCausal,
     vq_vae_model: VQVae,
     num_images: int,

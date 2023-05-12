@@ -8,7 +8,7 @@ from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
 
 from src.rnd.callbacks.log_model import LogModelWightsCallback
-from src.vq_vae.callbacks.mix_random_samples import MixRandomNoise
+from src.vq_vae.callbacks.mix_random_samples import LogDataset
 from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.metrics.vq_vae_confusion_matrix import vq_vae_confusion_matrix_metrics
 from src.vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
@@ -66,9 +66,7 @@ def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae]:
 
 def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
     return lambda x: [
-        MixRandomNoise(
-            num_rand_noise=config.num_random_noise, log_dataset=True, num_tasks=5
-        ),
+        LogDataset(),
         LogModelWightsCallback(
             log_every=10,
             checkpoint_path=config.checkpoint_path,
