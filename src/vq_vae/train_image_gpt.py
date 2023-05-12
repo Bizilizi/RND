@@ -2,6 +2,8 @@ import datetime
 
 import torch
 import typing as t
+
+import wandb
 from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from pytorch_lightning import Trainer
@@ -185,8 +187,6 @@ def train_igpt(
     config: TrainConfig,
     train_dataset: Dataset,
     test_dataset: Dataset,
-    device: torch.device,
-    wandb_params: t.Dict[str, t.Any],
 ):
     configuration = ImageGPTConfig(
         **{
@@ -306,7 +306,7 @@ def train_igpt(
                 logger.log_metrics(
                     {
                         f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
-                        sample.permute(1, 2, 0).numpy(),
+                        wandb.Image(sample.permute(1, 2, 0).numpy()),
                     }
                 )
             if isinstance(logger, TensorBoardLogger):
@@ -319,6 +319,15 @@ def train_igpt(
             vq_vae_model.to(device)
 
         exp_lr_scheduler.step()
+
+    igpt = ImageGPTCausal(
+        configuration=configuration,
+        vq_vae=vq_vae_model,
+        experience_step=strategy.experience_step,
+    )
+    igpt.image_gpt = image_gpt
+
+    return igpt
 
 
 def get_sample_image(image_gpt, vq_vae_model, num_images=8 * 4 * 10):
