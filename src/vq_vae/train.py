@@ -105,8 +105,6 @@ def train_loop(
             config=config,
             train_dataset=train_dataset,
             test_dataset=val_dataset,
-            device=device,
-            wandb_params=wandb_params,
         )
 
         # Train classifier
