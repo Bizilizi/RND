@@ -16,6 +16,7 @@ import wandb
 from avalanche.benchmarks import SplitCIFAR10, SplitImageNet
 
 from src.avalanche.strategies import NaivePytorchLightning
+from src.utils.io import create_folders_if_not_exists
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from src.vq_vae.callbacks.reconstruction_visualization_plugin import (
@@ -194,6 +195,11 @@ def main(args):
     config.checkpoint_path += f"/{run_id}/model"
     config.best_model_prefix += f"/{run_id}/best_model"
     config.bootstrapped_dataset_path += f"/{run_id}/bootstrapped_dataset"
+    create_folders_if_not_exists(
+        config.checkpoint_path,
+        config.best_model_prefix,
+        config.bootstrapped_dataset_path,
+    )
 
     benchmark = SplitCIFAR10(
         n_experiences=5,
