@@ -344,14 +344,9 @@ def train_igpt(
 
 
 def get_sample_image(image_gpt, vq_vae_model, num_images=8 * 4 * 10):
-    cpu_device = torch.device("cpu")
-    image_gpt = image_gpt.to(cpu_device)
-    image_gpt.eval()
-    vq_vae_model.to(cpu_device)
-
     with torch.no_grad():
         context = torch.full((num_images, 1), 1)  # initialize with SOS token
-        context = torch.tensor(context).to(cpu_device)
+        context = torch.tensor(context).to(image_gpt.device)
         output = image_gpt.generate(
             input_ids=context,
             max_length=8 * 8 + 1,
