@@ -41,7 +41,7 @@ class BootstrappedDataset(Dataset):
         total_img = len(self.x)
         for i, image in enumerate(images):
             image_path = (
-                f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
+                f"{self.dataset_path}/exp_{self.experience_step}_{total_img + i}.png"
             )
             image = self._rescale_image(image)
             im = Image.fromarray(image)
