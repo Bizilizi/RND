@@ -276,7 +276,8 @@ def train_igpt(
                     epoch_losses
                 ),
                 "epoch": i,
-            }
+            },
+            step=i,
         )
 
         if i % 2 == 0:
@@ -298,7 +299,8 @@ def train_igpt(
                         epoch_losses
                     ),
                     "epoch": i,
-                }
+                },
+                step=i,
             )
 
             sample = get_sample_image(image_gpt, vq_vae_model).cpu()
@@ -313,6 +315,7 @@ def train_igpt(
                 logger.experiment.add_image(
                     f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
                     sample / 255,
+                    i,
                 )
 
             image_gpt.to(device)
