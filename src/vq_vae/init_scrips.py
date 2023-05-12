@@ -64,19 +64,14 @@ def get_model(config: TrainConfig, device: torch.device) -> t.Union[VQVae]:
     return vae
 
 
-def get_callbacks(
-    config: TrainConfig, wandb_params
-) -> t.Callable[[int], t.List[Callback]]:
-    today = datetime.datetime.now()
-    run_id = wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
-
+def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
     return lambda x: [
         MixRandomNoise(
             num_rand_noise=config.num_random_noise, log_dataset=True, num_tasks=5
         ),
         LogModelWightsCallback(
             log_every=10,
-            checkpoint_path=f"{config.checkpoint_path}/{run_id}",
+            checkpoint_path=config.checkpoint_path,
             model_prefix="vqvae",
         ),
     ]

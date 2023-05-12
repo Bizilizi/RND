@@ -67,12 +67,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
     return vae
 
 
-def get_callbacks(
-    config: TrainConfig, wandb_params
-) -> t.Callable[[int], t.List[Callback]]:
-    today = datetime.datetime.now()
-    run_id = wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
-
+def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
     return lambda experience_step: [
         EarlyStopping(
             monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
@@ -82,6 +77,6 @@ def get_callbacks(
         VisualizeTrainingReconstructions(log_every=10),
         LogModelWightsCallback(
             log_every=10,
-            checkpoint_path=f"{config.checkpoint_path}/{run_id}",
+            checkpoint_path=config.checkpoint_path,
         ),
     ]

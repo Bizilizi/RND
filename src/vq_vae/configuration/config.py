@@ -35,6 +35,9 @@ class TrainConfig(BaseTrainConfig):
     max_epochs_igpt: int
     min_epochs_igpt: int
 
+    # training
+    bootstrapped_dataset_path: str
+
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
         """

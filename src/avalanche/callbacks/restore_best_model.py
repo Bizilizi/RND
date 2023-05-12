@@ -16,14 +16,13 @@ class RestoreBestPerformingModel(ModelCheckpoint):
     def __init__(self, path_prefix: str, monitor: str, mode: str, *args, **kwargs):
         self._monitor = monitor
         self.mode = mode
-        self.unique_id = str(uuid4())
         self.path_prefix = path_prefix
 
         self.args = (monitor, args)
         self.kwargs = kwargs
 
         super().__init__(
-            dirpath=f"{self.path_prefix}/cl_best_model_{self.unique_id}",
+            dirpath=self.path_prefix,
             filename="model",
             save_top_k=1,
             monitor=monitor,
@@ -42,7 +41,7 @@ class RestoreBestPerformingModel(ModelCheckpoint):
         monitor, args = self.args
 
         super().__init__(
-            dirpath=f"{self.path_prefix}/cl_best_model_{self.unique_id}",
+            dirpath=self.path_prefix,
             filename="model",
             save_top_k=1,
             monitor=f"{self._monitor}/experience_step_{experience_step}",

@@ -1,3 +1,4 @@
+import datetime
 import pathlib
 import shutil
 from configparser import ConfigParser
@@ -103,6 +104,13 @@ def main(args):
     else:
         wandb_params = None
 
+    # Fix path params
+    today = datetime.datetime.now()
+    run_id = wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
+
+    config.checkpoint_path += f"/{run_id}/model"
+    config.best_model_prefix += f"/{run_id}/best_model"
+
     # Create benchmark, model and loggers
     # datasets_dir = pathlib.Path(config.dataset_path)
     # target_dataset_dir = pathlib.Path("/tmp/dzverev_data/")
@@ -164,7 +172,7 @@ def main(args):
         train_epochs=config.max_epochs,
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
-        callbacks=get_callbacks(config, wandb_params),
+        callbacks=get_callbacks(config),
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
         best_model_path_prefix=config.best_model_prefix,

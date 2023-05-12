@@ -1,3 +1,4 @@
+import datetime
 import typing as t
 from configparser import ConfigParser
 
@@ -67,6 +68,15 @@ def main(args):
         wandb_params["name"] = wandb.run.name
     else:
         wandb_params = None
+
+    # Fix path params
+    today = datetime.datetime.now()
+    run_id = (
+        wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
+    )
+
+    config.checkpoint_path += f"/{run_id}/model"
+    config.best_model_prefix += f"/{run_id}/best_model"
 
     # Create benchmark, model and loggers
     benchmark = SplitMNIST(

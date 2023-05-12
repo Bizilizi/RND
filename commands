@@ -9,8 +9,10 @@ sbatch submit.sh python train.py \
     --num_random_noise 0 \
     --downstream_loss_weight 0 \
     --evaluation_logger wandb \
-    --train_logger wandb
-    --group igpt-bootstrap
+    --train_logger wandb \
+    --group igpt-bootstrap \
+    --num_workers 8
+
 
 sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
