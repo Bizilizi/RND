@@ -69,7 +69,7 @@ class NaivePytorchLightning(Naive):
                 path_prefix=self.best_model_path_prefix,
                 monitor="val/loss",
                 mode="min",
-                every_n_epochs=self.validate_every_n + 1,
+                every_n_epochs=self.validate_every_n,
             )
             self.strategy_callbacks.append(self.restore_best_model_callback)
 

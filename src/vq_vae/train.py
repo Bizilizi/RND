@@ -248,7 +248,7 @@ def main(args):
         callbacks=get_callbacks(config),
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
-        best_model_path_prefix=config.best_model_prefix,
+        best_model_path_prefix=None,
         plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
     )
 
