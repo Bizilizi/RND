@@ -324,7 +324,9 @@ def train_igpt(
             vq_vae_model.to(device)
 
         if i % 10 == 0:
-            model_ckpt_path = f"{config.checkpoint_path}/igpt-{i}.ckpt"
+            model_ckpt_path = (
+                f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
+            )
             state_dict = image_gpt.state_dict()
             for k, v in state_dict.items():
                 state_dict[k] = v.cpu()
