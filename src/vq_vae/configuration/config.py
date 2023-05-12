@@ -14,8 +14,12 @@ class TrainConfig(BaseTrainConfig):
     decay: float
 
     num_random_past_samples: int
+
     num_random_future_samples: int
     future_samples_mode: str
+    sampling_temperature: float
+    num_gpt_layers: int
+
     regularization_lambda: float
     regularization_dropout: float
 

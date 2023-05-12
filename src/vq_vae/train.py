@@ -74,6 +74,7 @@ def train_loop(
                 num_images=config.num_random_past_samples * cl_strategy.experience_step,
                 experience_step=cl_strategy.experience_step,
                 dataset_path=config.bootstrapped_dataset_path,
+                temperature=config.sampling_temperature,
             )
             future_dataset = model_future_samples(
                 vq_vae_model=cl_strategy.model,
@@ -131,6 +132,7 @@ def train_loop(
             train_dataset=train_dataset,
             test_dataset=val_dataset,
             overfit=cl_strategy.experience_step != 4,  # don't overfit on last example
+            n_layer=config.num_gpt_layers,
         )
 
         # Train classifier

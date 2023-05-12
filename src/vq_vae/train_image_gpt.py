@@ -68,8 +68,8 @@ def bootstrap_past_samples(
     num_images: int,
     experience_step: int,
     dataset_path: str,
+    temperature: float = 1.0,
 ) -> ClassificationDataset:
-    images = []
     num_images_per_batch = min(128, num_images)
     bootstrapped_dataset = BootstrappedDataset(
         dataset_path=dataset_path, experience_step=experience_step
@@ -81,7 +81,7 @@ def bootstrap_past_samples(
         output = image_gpt.image_gpt.generate(
             input_ids=context,
             max_length=8 * 8 + 1,
-            temperature=1.0,
+            temperature=temperature,
             do_sample=True,
             top_k=40,
         )
@@ -188,6 +188,7 @@ def train_igpt(
     train_dataset: Dataset,
     test_dataset: Dataset,
     overfit: bool = True,
+    n_layer: int = 12,
 ):
     configuration = ImageGPTConfig(
         **{
@@ -199,7 +200,7 @@ def train_igpt(
             "model_type": "imagegpt",
             "n_embd": config.embedding_dim,
             "n_head": 4,
-            "n_layer": 24,
+            "n_layer": n_layer,
             "n_positions": 8 * 8 + 1,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
