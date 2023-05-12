@@ -187,6 +187,7 @@ def train_igpt(
     config: TrainConfig,
     train_dataset: Dataset,
     test_dataset: Dataset,
+    overfit: bool = True,
 ):
     configuration = ImageGPTConfig(
         **{
@@ -253,6 +254,9 @@ def train_igpt(
     vq_vae_model.to(device)
     image_gpt.to(device)
 
+    patience = 0
+    best_val = float("+inf")
+
     for i in trange(0, config.max_epochs_igpt, leave=False):
 
         epoch_losses = []
@@ -280,7 +284,7 @@ def train_igpt(
             step=i,
         )
 
-        if i % 2 == 0:
+        if i % 10 == 0:
             epoch_losses = []
             with torch.no_grad():
                 for batch in tqdm(test_data_loader, leave=False):
@@ -293,11 +297,10 @@ def train_igpt(
                     )
                     epoch_losses.append(loss.cpu().item())
 
+            epoch_loss = np.mean(epoch_losses)
             logger.log_metrics(
                 {
-                    f"val/image_gpt_loss/experience_step_{strategy.experience_step}": np.mean(
-                        epoch_losses
-                    ),
+                    f"val/image_gpt_loss/experience_step_{strategy.experience_step}": epoch_loss,
                     "epoch": i,
                 },
                 step=i,
@@ -320,8 +323,15 @@ def train_igpt(
                     i,
                 )
 
-            image_gpt.to(device)
-            vq_vae_model.to(device)
+            if not overfit:
+                if epoch_loss < best_val:
+                    best_val = epoch_loss
+                    patience = 0
+                else:
+                    patience += 1
+
+                if patience > 20:
+                    break
 
         if i % 10 == 0:
             model_ckpt_path = (
