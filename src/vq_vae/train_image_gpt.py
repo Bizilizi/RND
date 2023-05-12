@@ -43,7 +43,7 @@ class BootstrappedDataset(Dataset):
             image_path = (
                 f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
             )
-            image = self._rescale_image(image).numpy()
+            image = self._rescale_image(image)
             im = Image.fromarray(image)
             im.save(image_path)
 
