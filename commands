@@ -11,7 +11,7 @@ sbatch submit.sh python train.py \
     --evaluation_logger wandb \
     --train_logger wandb \
     --group igpt-bootstrap \
-    --num_workers 8
+    --num_workers 4
 
 
 sbatch submit.sh python train.py \
