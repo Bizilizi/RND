@@ -4,7 +4,7 @@ import torch
 import typing as t
 
 import wandb
-from PIL.Image import Image
+from PIL import Image
 from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from pytorch_lightning import Trainer
