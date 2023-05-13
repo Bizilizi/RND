@@ -42,7 +42,8 @@ def sample_from_uniform_prior(
     for _ in range(num_rand_samples // 256):
         batch = []
         for _ in range(256):
-            batch.append(torch.randperm(num_emb)[:64].to(vq_vae_model.device))
+            indices = torch.randperm(num_emb)[:64].to(vq_vae_model.device)
+            batch.append(indices[None])
 
         batch = torch.cat(batch)
         emb = vq_vae_model.vq_vae._embedding(batch)
