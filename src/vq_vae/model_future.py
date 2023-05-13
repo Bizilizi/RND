@@ -44,8 +44,8 @@ def sample_from_uniform_prior(
             batch.append(torch.randperm(num_emb)[:64].to(vq_vae_model.device))
 
         batch = torch.cat(batch)
-        emb = vq_vae_model.vq_vae._embedding(batch).reshape(-1, 8, 8)
-        rec = vq_vae_model.decoder(emb[None])
+        emb = vq_vae_model.vq_vae._embedding(batch).reshape(256, -1, 8, 8)
+        rec = vq_vae_model.decoder(emb)
 
         images.append(rec)
 
