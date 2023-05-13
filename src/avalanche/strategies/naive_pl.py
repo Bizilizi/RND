@@ -70,6 +70,7 @@ class NaivePytorchLightning(Naive):
                 monitor="val/loss",
                 mode="min",
                 every_n_epochs=self.validate_every_n,
+                verbose=False,
             )
             self.strategy_callbacks.append(self.restore_best_model_callback)
 
