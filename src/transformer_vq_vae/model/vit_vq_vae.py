@@ -74,7 +74,6 @@ class VitVQVae(CLModel):
             embedding_dim,
             encoder_layer,
             encoder_head,
-            mask_ratio,
         )
         self.vq_vae = VitVectorQuantizerEMA(
             num_embeddings, embedding_dim, commitment_cost, decay

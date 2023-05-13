@@ -4,7 +4,7 @@ import numpy as np
 
 from einops import repeat, rearrange
 from einops.layers.torch import Rearrange
-
+from numpy.random import choice
 from timm.models.layers import trunc_normal_
 from timm.models.vision_transformer import Block
 
@@ -53,7 +53,8 @@ class MAEEncoder(torch.nn.Module):
         emb_dim=192,
         num_layer=12,
         num_head=3,
-        mask_ratio=0.75,
+        mask_ratios=[0.75, 0.4, 0.1],
+        mask_ratios_probs=[0.6, 0.2, 0.2],
     ) -> None:
         super().__init__()
 
@@ -61,7 +62,9 @@ class MAEEncoder(torch.nn.Module):
         self.pos_embedding = torch.nn.Parameter(
             torch.zeros((image_size // patch_size) ** 2, 1, emb_dim)
         )
-        self.shuffle = PatchShuffle(mask_ratio)
+        self.mask_ratios = mask_ratios
+        self.mask_ratios_probs = mask_ratios_probs
+        self.shuffle = PatchShuffle(self.mask_ratios[0])
 
         self.patchify = torch.nn.Conv2d(3, emb_dim, patch_size, patch_size)
 
@@ -84,6 +87,8 @@ class MAEEncoder(torch.nn.Module):
 
         backward_indexes = None
         if shuffle:
+            ratio = choice(self.mask_ratios, p=self.mask_ratios_probs)
+            self.shuffle.ratio = ratio
             patches, forward_indexes, backward_indexes = self.shuffle(patches)
 
         patches = torch.cat(

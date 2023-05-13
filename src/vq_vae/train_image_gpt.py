@@ -261,7 +261,7 @@ def train_igpt(
     )
     exp_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         optimizer,
-        T_max=1000,
+        T_max=config.max_epochs_igpt,
         eta_min=0.001 * 1e-3,
     )
 
