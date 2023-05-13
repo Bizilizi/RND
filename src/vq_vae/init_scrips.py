@@ -6,6 +6,7 @@ from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
+from pytorch_lightning.callbacks import EarlyStopping
 
 from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.vq_vae.callbacks.mix_random_samples import LogDataset
@@ -71,5 +72,8 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             log_every=10,
             checkpoint_path=config.checkpoint_path,
             model_prefix="vqvae",
+        ),
+        EarlyStopping(
+            monitor=f"train/image_gpt_loss/experience_step_{x}", stopping_threshold=2.1
         ),
     ]
