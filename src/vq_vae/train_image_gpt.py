@@ -12,7 +12,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
 from torch.utils.data import Dataset, DataLoader
-from tqdm import trange, tqdm
+from tqdm.auto import trange, tqdm
 from transformers import ImageGPTConfig, ImageGPTForCausalImageModeling
 
 from src.avalanche.data import PLDataModule

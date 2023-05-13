@@ -25,7 +25,7 @@ if t.TYPE_CHECKING:
     from avalanche.evaluation.metric_results import MetricValue
     from avalanche.training.templates.supervised import SupervisedTemplate
 
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 from wandb import Image
 
