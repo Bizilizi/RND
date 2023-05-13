@@ -2,16 +2,17 @@ sbatch submit.sh python train.py \
     --config src/vq_vae/configuration/train.ini \
     --model vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --max_epochs 220 \
-    --max_epochs_igpt 120 \
-    --max_epochs_lin_eval 300 \
+    --max_epochs 1 \
+    --max_epochs_igpt 1 \
+    --max_epochs_lin_eval 1 \
     --num_random_future_samples 0 \
-    --num_random_past_samples 0 \
+    --num_random_past_samples 1000 \
     --downstream_loss_weight 0 \
     --evaluation_logger wandb \
     --train_logger wandb \
     --group igpt-bootstrap \
-    --num_workers 4
+    --num_workers 4 \
+    --devices 2,
 
 
 sbatch submit.sh python train.py \

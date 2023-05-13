@@ -4,38 +4,8 @@ import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
-from torch.utils.data import Dataset
 
 import wandb
-from src.vae_ft.model.vae import MLPVae
-from src.vq_vae.train_image_gpt import train_igpt
-
-
-class AugmentedDataset(Dataset):
-    def __init__(
-        self,
-        original_dataset: Dataset,
-        rehearsed_data: torch.Tensor,
-        rehearsed_classes: t.List[int],
-        task_id: int,
-    ) -> None:
-        self.original_dataset = original_dataset
-        self.rehearsed_data = rehearsed_data
-        self.rehearsed_classes = rehearsed_classes
-        self.task_id = task_id
-
-    def __getitem__(self, index):
-        if index < len(self.original_dataset):
-            return self.original_dataset[index]
-        else:
-            return (
-                self.rehearsed_data[index - len(self.original_dataset)],
-                self.rehearsed_classes[index - len(self.original_dataset)],
-                self.task_id,
-            )
-
-    def __len__(self):
-        return len(self.original_dataset) + self.rehearsed_data.shape[0]
 
 
 class LogDataset(Callback):
