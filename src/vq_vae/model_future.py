@@ -1,5 +1,6 @@
 import torch
 from avalanche.benchmarks.utils import make_classification_dataset
+from einops import rearrange
 from torch.utils.data import Dataset
 
 from src.vq_vae.model.vq_vae import VQVae
@@ -44,7 +45,8 @@ def sample_from_uniform_prior(
             batch.append(torch.randperm(num_emb)[:64].to(vq_vae_model.device))
 
         batch = torch.cat(batch)
-        emb = vq_vae_model.vq_vae._embedding(batch).reshape(256, -1, 8, 8)
+        emb = vq_vae_model.vq_vae._embedding(batch)
+        emb = rearrange(emb, "b (t1 t2) c -> b c t1 t2", t1=8)
         rec = vq_vae_model.decoder(emb)
 
         images.append(rec)
