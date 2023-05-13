@@ -3,7 +3,7 @@ sbatch submit.sh python train.py \
     --model vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --max_epochs 220 \
-    --max_epochs_igpt 100 \
+    --max_epochs_igpt 300 \
     --max_epochs_lin_eval 200 \
     --num_random_future_samples 5000 \
     --num_random_past_samples 7000 \

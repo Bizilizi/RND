@@ -200,6 +200,7 @@ def train_igpt(
     config: TrainConfig,
     train_dataset: Dataset,
     test_dataset: Dataset,
+    device: torch.device,
     overfit: bool = True,
     n_layer: int = 12,
 ):
@@ -231,7 +232,6 @@ def train_igpt(
 
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    device = strategy.model.device
 
     train_dataset = ImageGPTDataset(
         vq_vae_model=vq_vae_model,

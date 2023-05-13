@@ -134,6 +134,7 @@ def train_loop(
             test_dataset=val_dataset,
             overfit=cl_strategy.experience_step != 4,  # don't overfit on last example
             n_layer=config.num_gpt_layers,
+            device=device,
         )
 
         # Train classifier
