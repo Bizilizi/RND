@@ -322,6 +322,17 @@ def train_igpt(
                 step=i,
             )
 
+            if not overfit:
+                if epoch_loss < best_val:
+                    best_val = epoch_loss
+                    patience = 0
+                else:
+                    patience += 1
+
+                if patience > 20:
+                    break
+
+        if i % 50 == 0:
             sample = get_sample_image(image_gpt, vq_vae_model).cpu()
             if isinstance(logger, WandbLogger):
                 logger.log_metrics(
@@ -338,16 +349,6 @@ def train_igpt(
                     sample / 255,
                     i,
                 )
-
-            if not overfit:
-                if epoch_loss < best_val:
-                    best_val = epoch_loss
-                    patience = 0
-                else:
-                    patience += 1
-
-                if patience > 20:
-                    break
 
         if i % 10 == 0:
             model_ckpt_path = (
@@ -373,8 +374,9 @@ def train_igpt(
 
 def get_sample_image(image_gpt, vq_vae_model, num_images=8 * 4 * 10):
     with torch.no_grad():
-        context = torch.full((num_images, 1), 1)  # initialize with SOS token
-        context = torch.tensor(context).to(vq_vae_model.device)
+        context = torch.full(
+            (num_images, 1), 1, device=vq_vae_model.device
+        )  # initialize with SOS token
         output = image_gpt.generate(
             input_ids=context,
             max_length=8 * 8 + 1,
