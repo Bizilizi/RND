@@ -38,7 +38,7 @@ def sample_from_uniform_prior(
     num_rand_samples = max(num_rand_samples, 256)
 
     images = []
-    for _ in num_rand_samples // 256:
+    for _ in range(num_rand_samples // 256):
         batch = []
         for _ in range(256):
             batch.append(torch.randperm(num_emb)[:64].to(vq_vae_model.device))
