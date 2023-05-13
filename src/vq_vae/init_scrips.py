@@ -73,7 +73,4 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             checkpoint_path=config.checkpoint_path,
             model_prefix="vqvae",
         ),
-        EarlyStopping(
-            monitor=f"train/image_gpt_loss/experience_step_{x}", stopping_threshold=2.1
-        ),
     ]

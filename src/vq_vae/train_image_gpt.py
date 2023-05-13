@@ -288,15 +288,17 @@ def train_igpt(
 
             epoch_losses.append(loss.cpu().item())
 
+        epoch_loss = np.mean(epoch_losses)
         logger.log_metrics(
             {
-                f"train/image_gpt_loss/experience_step_{strategy.experience_step}": np.mean(
-                    epoch_losses
-                ),
+                f"train/image_gpt_loss/experience_step_{strategy.experience_step}": epoch_loss,
                 "epoch": i,
             },
             step=i,
         )
+
+        if epoch_loss < 2.1:
+            break
 
         if i % 10 == 0:
             epoch_losses = []
