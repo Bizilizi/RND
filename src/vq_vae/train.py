@@ -183,9 +183,9 @@ def main(args):
         wandb_params = get_wandb_params(args, config)
 
         wandb.run.name = args.experiment_name or (
-            f"VQL-{config.vq_loss_weight:0.3f} | "
-            f"ReL-{config.reconstruction_loss_weight:0.3f} | "
-            f"DL-{config.downstream_loss_weight:0.3f}"
+            f"#PS: {config.num_random_past_samples} | "
+            f"#FS: {config.num_random_future_samples} "
+            f"({config.future_samples_mode})"
         )
         wandb_params["name"] = wandb.run.name
         wandb_params["id"] = wandb.run.id
