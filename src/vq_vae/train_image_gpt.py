@@ -88,8 +88,9 @@ def bootstrap_past_samples(
     )
 
     for _ in range(num_images // num_images_per_batch):
-        context = torch.full((num_images_per_batch, 1), 1)  # initialize with SOS token
-        context = torch.tensor(context).to(image_gpt.device)
+        context = torch.full(
+            (num_images_per_batch, 1), 1, device=image_gpt.device
+        )  # initialize with SOS token
         output = image_gpt.image_gpt.generate(
             input_ids=context,
             max_length=8 * 8 + 1,

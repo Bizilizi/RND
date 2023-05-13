@@ -52,10 +52,11 @@ def sample_from_uniform_prior(
 
         images.append(rec)
 
-    images = torch.cat(images).cpu()
+    images = torch.cat(images).detach().cpu()
     return images
 
 
+@torch.no_grad()
 def model_future_samples(
     vq_vae_model: VQVae,
     num_rand_samples: int = 5_000,
