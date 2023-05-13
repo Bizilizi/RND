@@ -65,7 +65,9 @@ class BootstrappedDataset(Dataset):
         return image
 
     def __getitem__(self, item):
-        return read_image(self.x[item]), self.targets[item]
+        image = read_image(self.x[item])
+        image /= 255
+        return image, self.targets[item]
 
     def __len__(self):
         return len(self.x)

@@ -102,6 +102,7 @@ def train_loop(
                         [
                             transforms.RandomCrop(32, padding=4),
                             transforms.RandomHorizontalFlip(),
+                            transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
                         ]
                     )
                 )
