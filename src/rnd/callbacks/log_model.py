@@ -16,6 +16,7 @@ class LogModelWightsCallback(Callback):
         model_prefix: str = "model",
         model_description: t.Optional[str] = None,
         log_to_wandb: bool = True,
+        experience_step: int = None,
     ):
         super().__init__()
         self.state = {"epochs": 0}
@@ -24,11 +25,13 @@ class LogModelWightsCallback(Callback):
         self.model_prefix = model_prefix
         self.model_description = model_description
         self.log_to_wandb = log_to_wandb
+        self.experience_step = experience_step
 
     def save_model_weights(self, logger, trainer: "pl.Trainer"):
-        model_ckpt = (
-            f"{self.checkpoint_path}/{self.model_prefix}-{self.state['epochs']}.ckpt"
-        )
+        if self.experience_step is not None:
+            model_ckpt = f"{self.checkpoint_path}/{self.model_prefix}-exp-{self.experience_step}-ep-{self.state['epochs']}.ckpt"
+        else:
+            model_ckpt = f"{self.checkpoint_path}/{self.model_prefix}-ep-{self.state['epochs']}.ckpt"
         trainer.save_checkpoint(model_ckpt)
 
         # log model to W&B

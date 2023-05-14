@@ -78,5 +78,6 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
         LogModelWightsCallback(
             log_every=10,
             checkpoint_path=config.checkpoint_path,
+            experience_step=experience_step,
         ),
     ]
