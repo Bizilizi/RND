@@ -82,7 +82,9 @@ def bootstrap_past_samples(
     dataset_path: str,
     temperature: float = 1.0,
 ) -> ClassificationDataset:
+    num_images = num_images * experience_step
     num_images_per_batch = min(128, num_images)
+
     bootstrapped_dataset = BootstrappedDataset(
         dataset_path=dataset_path, experience_step=experience_step
     )
