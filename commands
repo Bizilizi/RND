@@ -26,4 +26,4 @@ sbatch submit.sh python train.py \
     --max_epochs_lin_eval 200 \
     --embedding_dim 192 \
     --batch_size 128 \
-    --num_workers 4
+    --num_workers 12
