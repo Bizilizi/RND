@@ -19,8 +19,8 @@ sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wand \
-    --max_epochs 2000 \
-    --min_epochs 1500 \
+    --max_epochs 500 \
+    --min_epochs 500 \
     --accumulate_grad_batches 1 \
     --num_embeddings 128 \
     --max_epochs_lin_eval 200 \

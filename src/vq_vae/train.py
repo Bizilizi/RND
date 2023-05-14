@@ -207,7 +207,7 @@ def main(args):
     )
 
     benchmark = SplitCIFAR10(
-        n_experiences=5,
+        n_experiences=1,
         return_task_id=True,
         shuffle=True,
         dataset_root=config.dataset_path,

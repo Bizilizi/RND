@@ -255,8 +255,8 @@ def train_igpt(
 
     optimizer = torch.optim.Adam(
         [
-            {"params": list(image_gpt.parameters())[1:], "lr": 0.001},
-            {"params": image_gpt.transformer.wte.parameters(), "lr": 0.0001},
+            {"params": list(image_gpt.parameters())[1:], "lr": 0.01},
+            {"params": image_gpt.transformer.wte.parameters(), "lr": 0.001},
         ]
     )
     exp_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
