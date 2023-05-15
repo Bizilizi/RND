@@ -13,14 +13,20 @@ class TrainConfig(BaseTrainConfig):
     commitment_cost: float
     decay: float
 
-    num_random_noise: int
+    num_random_future_samples: int
+    num_random_past_samples: int
+    future_samples_mode: str
+    sampling_temperature: float
     regularization_lambda: float
     regularization_dropout: float
+
+    bootstrapped_dataset_path: str
 
     use_lpips: bool
     mask_ratio: float
     weight_decay: float
     embeddings_distance: str
+    num_gpt_layers: int
 
     # loss weights
     vq_loss_weight = 1

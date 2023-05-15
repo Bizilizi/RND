@@ -10,6 +10,8 @@ import wandb
 from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 
 from src.avalanche.strategies import NaivePytorchLightning
+from src.transformer_vq_vae.model_future import model_future_samples
+from src.transformer_vq_vae.train_image_gpt import train_igpt, bootstrap_past_samples
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
@@ -38,10 +40,80 @@ def train_loop(
     """
     :return:
     """
-
+    image_gpt = None
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
+        train_dataset = train_experience.dataset
+        val_dataset = test_experience.dataset
+
+        train_experience.dataset = train_dataset.replace_current_transform_group(
+            transforms.Compose(
+                [
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                ]
+            )
+        )
+
+        # bootstrap old data and modeled future samples
+        if cl_strategy.experience_step != 0 and image_gpt is not None:
+            image_gpt.to(device)
+            cl_strategy.model.to(device)
+
+            if config.num_random_past_samples != 0:
+                print(f"Bootstrap vae model..")
+                bootstrapped_dataset = bootstrap_past_samples(
+                    image_gpt=image_gpt,
+                    vq_vae_model=cl_strategy.model,
+                    num_images=(
+                        config.num_random_past_samples * cl_strategy.experience_step
+                    ),
+                    experience_step=cl_strategy.experience_step,
+                    dataset_path=config.bootstrapped_dataset_path,
+                    temperature=config.sampling_temperature,
+                )
+
+                train_experience.dataset = (
+                    train_experience.dataset
+                    + bootstrapped_dataset.replace_current_transform_group(
+                        transforms.Compose(
+                            [
+                                transforms.RandomCrop(32, padding=4),
+                                transforms.RandomHorizontalFlip(),
+                                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+                            ]
+                        )
+                    )
+                )
+
+                train_dataset = train_dataset + bootstrapped_dataset
+
+            if config.num_random_future_samples != 0:
+                print(f"Model future samples..")
+                future_dataset = model_future_samples(
+                    vq_vae_model=cl_strategy.model,
+                    num_rand_samples=(
+                        config.num_random_future_samples
+                        * (4 - cl_strategy.experience_step)
+                    ),
+                    mode=config.future_samples_mode,
+                )
+
+                train_experience.dataset = (
+                    train_experience.dataset
+                    + future_dataset.replace_current_transform_group(
+                        transforms.Compose(
+                            [
+                                transforms.RandomCrop(32, padding=4),
+                                transforms.RandomHorizontalFlip(),
+                            ]
+                        )
+                    )
+                )
+
         # Train VQ-VAE
         cl_strategy.train(train_experience, [test_experience])
 
@@ -50,6 +122,18 @@ def train_loop(
         # another to predict only observed so far classes.
         cl_strategy.model.freeze()
 
+        # Train new image gpt model
+        print(f"Train igpt..")
+        image_gpt = train_igpt(
+            strategy=cl_strategy,
+            config=config,
+            train_dataset=train_dataset,
+            n_layer=config.num_gpt_layers,
+            device=device,
+        )
+
+        # Train classifier
+        print(f"Train classifier..")
         train_classifier_on_all_classes(
             strategy=cl_strategy, config=config, benchmark=benchmark, device=device
         ).to(device)
