@@ -33,7 +33,7 @@ def sample_random_noise(
 
 def sample_from_uniform_prior(
     num_rand_samples,
-    vq_vae_model: VQVae,
+    vq_vae_model: VitVQVae,
 ):
     num_emb, emb_dim = vq_vae_model.vq_vae._embedding.weight.shape
     num_rand_samples = max(num_rand_samples, 256)
