@@ -130,6 +130,9 @@ def train_igpt(
     mask_token: int,
     n_layer: int = 12,
 ):
+    vq_vae_model = strategy.model
+    logger = strategy.train_logger
+
     configuration = ImageGPTConfig(
         **{
             "activation_function": "quick_gelu",
@@ -153,11 +156,16 @@ def train_igpt(
     )
     image_gpt = ImageGPTForCausalImageModeling(configuration)
     image_gpt.transformer.wte.weight.data[
-        :-1
-    ] = strategy.model.vq_vae._embedding.weight.data.clone()
+        :-2
+    ] = vq_vae_model.vq_vae._embedding.weight.data.clone()
 
-    vq_vae_model = strategy.model
-    logger = strategy.train_logger
+    image_embeddings = torch.nn.Embedding(
+        config.num_embeddings + 1, config.embedding_dim
+    )
+    image_embeddings.weight.data[
+        :-1
+    ] = vq_vae_model.vq_vae._embedding.weight.data.clone()
+    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data.clone()
 
     train_dataset = ImageGPTDataset(
         vq_vae_model=vq_vae_model,
