@@ -172,12 +172,14 @@ def train_igpt(
         shuffle=True,
     )
 
-    if strategy.experience_step < 2:
-        epoch_num = 3
-    elif strategy.experience_step < 3:
-        epoch_num = 2
-    else:
-        epoch_num = 1
+    # if strategy.experience_step < 2:
+    #     epoch_num = 3
+    # elif strategy.experience_step < 3:
+    #     epoch_num = 2
+    # else:
+    #     epoch_num = 1
+
+    epoch_num = 0
 
     optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
     exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
