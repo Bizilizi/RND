@@ -2,10 +2,10 @@ import datetime
 import typing as t
 from configparser import ConfigParser
 
-from avalanche.benchmarks import SplitMNIST
 from torchvision.transforms import ToTensor
 
 import wandb
+from avalanche.benchmarks import SplitMNIST
 from src.avalanche.strategies import NaivePytorchLightning
 from src.rnd.configuration.config import TrainConfig
 from src.rnd.init_scripts import get_callbacks, get_evaluation_plugin, get_model

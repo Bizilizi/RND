@@ -1,5 +1,5 @@
-from torch.utils.data import Dataset, DataLoader
 import torch
+from torch.utils.data import DataLoader, Dataset
 
 from src.vq_vae.model.vq_vae import VQVae
 

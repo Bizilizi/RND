@@ -1,17 +1,15 @@
 from functools import partial
 
 import torch
+from einops import rearrange
 from einops.layers.chainer import Rearrange
+from timm.models.layers import trunc_normal_
+from timm.models.vision_transformer import Block
 from torch import nn
 
 from src.transformer_vq_vae.model.encoder import take_indexes
-from src.transformer_vq_vae.model.image_gpt import ImageGPTModel, ImageGPTConfig
+from src.transformer_vq_vae.model.image_gpt import ImageGPTConfig, ImageGPTModel
 from src.transformer_vq_vae.model.vit import VisionTransformer
-
-from einops import rearrange
-
-from timm.models.layers import trunc_normal_
-from timm.models.vision_transformer import Block
 
 
 class GPTDecoder(nn.Module):

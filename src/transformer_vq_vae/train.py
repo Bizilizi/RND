@@ -1,19 +1,12 @@
 import datetime
-import pathlib
-import shutil
 from configparser import ConfigParser
 
 import torch
 from torchvision import transforms
 
 import wandb
-from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
-
+from avalanche.benchmarks import SplitCIFAR10
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.model_future import model_future_samples
-from src.transformer_vq_vae.train_image_gpt import train_igpt, bootstrap_past_samples
-from src.utils.summary_table import log_summary_table_to_wandb
-from src.utils.train_script import overwrite_config_with_args
 from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
 )
@@ -23,10 +16,14 @@ from src.transformer_vq_vae.init_scrips import (
     get_evaluation_plugin,
     get_model,
 )
+from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
 )
+from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.utils.summary_table import log_summary_table_to_wandb
+from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_loggers, get_wandb_params
 
 
@@ -71,9 +68,9 @@ def train_loop(
                     num_images=(
                         config.num_random_past_samples * cl_strategy.experience_step
                     ),
-                    experience_step=cl_strategy.experience_step,
                     dataset_path=config.bootstrapped_dataset_path,
-                    temperature=config.sampling_temperature,
+                    config=config,
+                    sos_token=config.num_embeddings + 1,
                 )
 
                 train_experience.dataset = (
@@ -127,9 +124,11 @@ def train_loop(
         image_gpt = train_igpt(
             strategy=cl_strategy,
             config=config,
-            train_dataset=train_dataset,
-            n_layer=config.num_gpt_layers,
+            train_dataset=train_dataset + val_dataset,
             device=device,
+            sos_token=config.num_embeddings + 1,
+            mask_token=config.num_embeddings,
+            n_layer=config.num_gpt_layers,
         )
 
         # Train classifier
@@ -194,23 +193,7 @@ def main(args):
 
     config.checkpoint_path += f"/{run_id}/model"
     config.best_model_prefix += f"/{run_id}/best_model"
-
-    # Create benchmark, model and loggers
-    # datasets_dir = pathlib.Path(config.dataset_path)
-    # target_dataset_dir = pathlib.Path("/tmp/dzverev_data/")
-    # target_dataset_dir.mkdir(exist_ok=True)
-    #
-    # zip_path = datasets_dir / "cifar-10-python.tar.gz"
-    # dataset_path = datasets_dir / "cifar-10-batches-py"
-    #
-    # target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
-    # target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
-    #
-    # if zip_path.exists() and not target_zip_path.exists():
-    #     shutil.copy(str(zip_path), str(target_zip_path))
-    #
-    # if dataset_path.exists() and not target_dataset_path.exists():
-    #     shutil.copytree(str(dataset_path), str(target_dataset_path))
+    config.bootstrapped_dataset_path += f"/{run_id}/best_model"
 
     benchmark = SplitCIFAR10(
         n_experiences=5,

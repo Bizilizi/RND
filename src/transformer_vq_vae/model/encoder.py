@@ -1,8 +1,7 @@
-import torch
-import timm
 import numpy as np
-
-from einops import repeat, rearrange
+import timm
+import torch
+from einops import rearrange, repeat
 from einops.layers.torch import Rearrange
 from numpy.random import choice
 from timm.models.layers import trunc_normal_

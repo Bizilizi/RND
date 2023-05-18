@@ -5,16 +5,12 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 
-if t.TYPE_CHECKING:
-    from src.vq_vae.model.vq_vae import VQVae
-    from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
-
 
 class CnnClassifier(pl.LightningModule):
     def __init__(
         self,
+        emb_dim: int,
         num_classes: int,
-        vq_vae: "VQVae",
         experience_step: int,
         learning_rate: float = 1e-3,
         dataset_mode: str = "",
@@ -25,18 +21,14 @@ class CnnClassifier(pl.LightningModule):
         self._learning_rate = learning_rate
         self.experience_step = experience_step
 
-        self.model = nn.LazyLinear(num_classes)
-
-        self.__dict__["vq_vae"] = vq_vae
+        self.model = nn.Linear(emb_dim, num_classes)
 
     def forward(self, z):
         return self.model(z)
 
     def training_step(self, batch, batch_idx):
-        x, y, *_ = batch
-
-        non_shuffled_features, _ = self.vq_vae.encoder(x, shuffle=False)
-        image_emb = non_shuffled_features[0]
+        image_emb = batch["embeddings"]
+        y = batch["labels"]
 
         logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)
@@ -54,10 +46,8 @@ class CnnClassifier(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx):
-        x, y, *_ = batch
-
-        non_shuffled_features, _ = self.vq_vae.encoder(x, shuffle=False)
-        image_emb = non_shuffled_features[0]
+        image_emb = batch["embeddings"]
+        y = batch["labels"]
 
         logits = self.forward(image_emb)
         loss = F.cross_entropy(logits, y)

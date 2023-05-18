@@ -2,25 +2,22 @@ import math
 import pathlib
 
 import torch
-
-import wandb
-from PIL import Image
-from avalanche.benchmarks.utils import make_classification_dataset
-from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from einops import rearrange
-from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
-from torch.utils.data import Dataset, DataLoader
-from tqdm.auto import trange, tqdm
+from PIL import Image
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from torch.utils.data import DataLoader, Dataset
+from torchvision.io import read_image
+from torchvision.utils import make_grid
+from tqdm.auto import tqdm, trange
 from transformers import ImageGPTConfig, ImageGPTForCausalImageModeling
 
+import wandb
+from avalanche.benchmarks.utils import make_classification_dataset
+from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from src.avalanche.strategies import NaivePytorchLightning
-from torchvision.utils import make_grid
-from torchvision.io import read_image
-
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
-from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 
 
 class BootstrappedDataset(Dataset):
@@ -75,7 +72,7 @@ def bootstrap_past_samples(
     experience_step: int,
     dataset_path: str,
     config: TrainConfig,
-    temperature: float = 1.0,
+    sos_token: int,
 ) -> ClassificationDataset:
     num_images = num_images * experience_step
     num_images_per_batch = min(128, num_images)
@@ -84,40 +81,23 @@ def bootstrap_past_samples(
         dataset_path=dataset_path, experience_step=experience_step
     )
 
-    decoder = vq_vae_model.decoder
     image_embeddings = torch.nn.Embedding(
         config.num_embeddings + 1, config.embedding_dim
     )
-    image_embeddings.weight.data[:-1] = vq_vae_model.vq_vae._embedding.weight.data
-    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data
+    image_embeddings.weight.data[
+        :-1
+    ] = vq_vae_model.vq_vae._embedding.weight.data.clone()
+    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data.clone()
 
     for _ in range(num_images // num_images_per_batch):
-        context = torch.full(
-            (num_images_per_batch, 1), 1, device=image_gpt.device
-        )  # initialize with SOS token
-        output = image_gpt.generate(
-            input_ids=context,
-            max_length=16 * 16 + 2,
-            temperature=temperature,
-            do_sample=True,
-            top_k=45,
+        images = sample_images(
+            image_gpt=image_gpt,
+            vq_vae_model=vq_vae_model,
+            embedding=image_embeddings,
+            sos_token=sos_token,
         )
 
-        output = output[:, 1:]
-        # output[output == (config.num_embeddings + 1)] = 0
-
-        quantized = rearrange(image_embeddings(output), "b t c -> t b c")
-        features = quantized + decoder.pos_embedding
-
-        features = rearrange(features, "t b c -> b t c")
-        features = decoder.transformer(features)
-        features = rearrange(features, "b t c -> t b c")
-        features = features[1:]  # remove global feature
-
-        patches = decoder.head(features)
-        recon = decoder.patch2img(patches)
-
-        bootstrapped_dataset.add_images(recon.cpu())
+        bootstrapped_dataset.add_images(images.cpu())
 
     dataset = make_classification_dataset(
         bootstrapped_dataset, targets=bootstrapped_dataset.targets
@@ -146,6 +126,8 @@ def train_igpt(
     config: TrainConfig,
     train_dataset: Dataset,
     device: torch.device,
+    sos_token: int,
+    mask_token: int,
     n_layer: int = 12,
 ):
     configuration = ImageGPTConfig(
@@ -172,69 +154,72 @@ def train_igpt(
     image_gpt = ImageGPTForCausalImageModeling(configuration)
     image_gpt.transformer.wte.weight.data[
         :-1
-    ] = strategy.model.vq_vae._embedding.weight.data
+    ] = strategy.model.vq_vae._embedding.weight.data.clone()
 
     vq_vae_model = strategy.model
     logger = strategy.train_logger
 
-    old_mask_ratios = vq_vae_model.encoder.mask_ratios
-    old_mask_ratios_probs = vq_vae_model.encoder.mask_ratios_probs
-    vq_vae_model.encoder.mask_ratios = [0.5, 0.4, 0.35]
-    vq_vae_model.encoder.mask_ratios_probs = [0.4, 0.3, 0.3]
-
     train_dataset = ImageGPTDataset(
         vq_vae_model=vq_vae_model,
         dataset=train_dataset,
-        sos_token=config.num_embeddings,
-        num_embeddings=config.num_embeddings,
+        sos_token=sos_token,
+        mask_token=mask_token,
+        ratio=config.igpt_mask_ration,
     )
     data_loader = DataLoader(
         train_dataset,
-        batch_size=64,
+        batch_size=config.igpt_batch_size,
         shuffle=True,
     )
 
-    optimizer = torch.optim.Adam(
-        [
-            {"params": list(image_gpt.parameters())[1:], "lr": 0.001},
-            {"params": image_gpt.transformer.wte.parameters(), "lr": 0.001},
-        ]
-    )
+    if strategy.experience_step < 2:
+        epoch_num = 3
+    elif strategy.experience_step < 3:
+        epoch_num = 2
+    else:
+        epoch_num = 1
+
+    optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
     exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer, learning_rate_schedule(500, 3 * len(data_loader) // 2)
+        optimizer,
+        learning_rate_schedule(
+            500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
+        ),
     )
 
     weights = torch.ones(config.num_embeddings + 1)
-    weights[-1] = 0.7
+    weights[-1] = config.igpt_mask_token_weight
     loss_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device)
 
     image_embeddings = torch.nn.Embedding(
         config.num_embeddings + 1, config.embedding_dim
     )
-    image_embeddings.weight.data[:-1] = vq_vae_model.vq_vae._embedding.weight.data
-    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data
+    image_embeddings.weight.data[
+        :-1
+    ] = vq_vae_model.vq_vae._embedding.weight.data.clone()
+    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data.clone()
 
     vq_vae_model.to(device)
     image_gpt.to(device)
     image_embeddings.to(device)
 
     step = 0
-    for i in trange(0, 3):
+    for i in trange(0, epoch_num):
         counter = i
-        logger.log_metrics({"epoch": counter}, step=step)
+        logger.log_metrics({"igpt_epoch": counter}, step=step)
 
         for batch in tqdm(data_loader):
             step += 1
 
-            input_ids = batch["input_ids"].to(device)
-            output = image_gpt(input_ids=input_ids)
+            masked_input_ids = batch["masked_input_ids"].to(device)
+            output = image_gpt(input_ids=masked_input_ids)
             loss = loss_fn(
                 output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
-                input_ids[..., 1:].reshape(-1),
+                masked_input_ids[..., 1:].reshape(-1),
             )
             loss.backward()
 
-            if step % 2 == 0:
+            if step % config.igpt_accumulate_grad_batches == 0:
                 optimizer.step()
                 optimizer.zero_grad()
                 exp_lr_scheduler.step()
@@ -248,13 +233,13 @@ def train_igpt(
             )
 
             if step % 1000 == 0:
-                sample = get_sample_image(
-                    image_gpt,
-                    vq_vae_model.decoder,
-                    image_embeddings,
-                    device,
+                sample = sample_images(
+                    image_gpt=image_gpt,
+                    vq_vae_model=vq_vae_model,
+                    embedding=image_embeddings,
+                    sos_token=sos_token,
+                    return_grid=True,
                 ).cpu()
-                sample = sample / 255
 
                 if isinstance(logger, WandbLogger):
                     logger.log_metrics(
@@ -280,56 +265,55 @@ def train_igpt(
 
                 torch.save(state_dict, model_ckpt_path)
 
-    vq_vae_model.encoder.mask_ratios = old_mask_ratios
-    vq_vae_model.encoder.mask_ratios_probs = old_mask_ratios_probs
-
     return image_gpt
 
 
-def get_sample_image(
+@torch.no_grad()
+def sample_images(
     image_gpt,
-    decoder,
+    vq_vae_model,
     embedding,
-    device,
+    sos_token,
     num_images=8 * 4 * 10,
-    return_output=False,
+    return_grid=False,
 ):
     image_gpt.eval()
+    vq_vae_model.eval()
 
-    with torch.no_grad():
+    device = vq_vae_model.device
+    decoder = vq_vae_model.decoder
 
-        context = torch.full(
-            (num_images, 1), 1, device=device
-        )  # initialize with SOS token
-        output = image_gpt.generate(
-            input_ids=context,
-            max_length=16 * 16 + 2,
-            temperature=1,
-            do_sample=True,
-            top_k=45,
-        )
-
-        output = output[:, 1:]
-        # output[output == (config.num_embeddings + 1)] = 0
-
-        quantized = rearrange(embedding(output), "b t c -> t b c")
-        features = quantized + decoder.pos_embedding
-
-        features = rearrange(features, "t b c -> b t c")
-        features = decoder.transformer(features)
-        features = rearrange(features, "b t c -> t b c")
-        features = features[1:]  # remove global feature
-
-        patches = decoder.head(features)
-        x_recon = decoder.patch2img(patches)
-
-    grid_image = make_grid(
-        x_recon.cpu().data,
+    context = torch.full(
+        (num_images, 1), sos_token, device=device
+    )  # initialize with SOS token
+    igpt_output = image_gpt.generate(
+        input_ids=context,
+        max_length=16 * 16 + 2,
+        temperature=1,
+        do_sample=True,
+        top_k=45,
+        top_p=0.9,
     )
-    grid_image = (grid_image + 0.5) * 255
-    grid_image = grid_image.clip(0, 255)
+    igpt_output = igpt_output[:, 1:]
 
-    if return_output:
-        return grid_image, output
-    else:
+    quantized = rearrange(embedding(igpt_output), "b t c -> t b c")
+    features = quantized + decoder.pos_embedding
+
+    features = rearrange(features, "t b c -> b t c")
+    features = decoder.transformer(features)
+    features = rearrange(features, "b t c -> t b c")
+    features = features[1:]  # remove global feature
+
+    patches = decoder.head(features)
+    x_recon = decoder.patch2img(patches)
+
+    if return_grid:
+        grid_image = make_grid(
+            x_recon.cpu().data,
+        )
+        grid_image = (grid_image + 0.5) * 255
+        grid_image = grid_image.clip(0, 255)
+
         return grid_image
+    else:
+        return x_recon

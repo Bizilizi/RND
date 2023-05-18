@@ -1,20 +1,23 @@
 import datetime
 import pathlib
-
-import torch
 import typing as t
 
-import wandb
+import numpy as np
+import torch
 from PIL import Image
-from avalanche.benchmarks.utils import make_classification_dataset
-from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
-from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
-from torch.utils.data import Dataset, DataLoader
-from tqdm.auto import trange, tqdm
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from torch.nn import functional as F
+from torch.utils.data import DataLoader, Dataset
+from torchvision.io import read_image
+from torchvision.utils import make_grid, save_image
+from tqdm.auto import tqdm, trange
 from transformers import ImageGPTConfig, ImageGPTForCausalImageModeling
 
+import wandb
+from avalanche.benchmarks.utils import make_classification_dataset
+from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
 from src.rnd.callbacks.log_model import LogModelWightsCallback
@@ -23,10 +26,6 @@ from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 from src.vq_vae.model.vq_vae import VQVae
-import numpy as np
-from torch.nn import functional as F
-from torchvision.utils import save_image, make_grid
-from torchvision.io import read_image
 
 
 class BootstrappedDataset(Dataset):

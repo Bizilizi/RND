@@ -4,17 +4,16 @@ import shutil
 from configparser import ConfigParser
 
 import torch
-from avalanche.benchmarks.utils import AvalancheDataset
-from avalanche.benchmarks.utils.classification_dataset import (
-    ClassificationDataset,
-    make_classification_dataset,
-)
 from torch.utils.data import ConcatDataset
 from torchvision import transforms
 
 import wandb
 from avalanche.benchmarks import SplitCIFAR10, SplitImageNet
-
+from avalanche.benchmarks.utils import AvalancheDataset
+from avalanche.benchmarks.utils.classification_dataset import (
+    ClassificationDataset,
+    make_classification_dataset,
+)
 from src.avalanche.strategies import NaivePytorchLightning
 from src.utils.io import create_folders_if_not_exists
 from src.utils.summary_table import log_summary_table_to_wandb
@@ -29,10 +28,7 @@ from src.vq_vae.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
 )
-from src.vq_vae.train_image_gpt import (
-    train_igpt,
-    bootstrap_past_samples,
-)
+from src.vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
 from train_utils import get_device, get_loggers, get_wandb_params
 
 

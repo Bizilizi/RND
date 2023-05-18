@@ -1,5 +1,5 @@
-from torch.utils.data import Dataset, DataLoader
 import torch
+from torch.utils.data import DataLoader, Dataset
 from transformers import ImageGPTForCausalImageModeling
 
 from src.vq_vae.model.image_gpt_casual import ImageGPTCausal

@@ -1,8 +1,8 @@
 import torch
-from avalanche.benchmarks.utils import make_classification_dataset
 from einops import rearrange
 from torch.utils.data import Dataset
 
+from avalanche.benchmarks.utils import make_classification_dataset
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 
 

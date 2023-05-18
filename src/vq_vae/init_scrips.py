@@ -3,11 +3,10 @@ import typing as t
 
 import torch
 from pytorch_lightning import Callback
+from pytorch_lightning.callbacks import EarlyStopping
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
-from pytorch_lightning.callbacks import EarlyStopping
-
 from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.vq_vae.callbacks.mix_random_samples import LogDataset
 from src.vq_vae.configuration.config import TrainConfig

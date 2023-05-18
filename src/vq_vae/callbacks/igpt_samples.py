@@ -1,10 +1,9 @@
 import torch
 from pytorch_lightning.callbacks import Callback
-from pytorch_lightning.loggers import WandbLogger, TensorBoardLogger
-
-import wandb
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torchvision.utils import make_grid
 
+import wandb
 from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 from src.vq_vae.model.vq_vae import VQVae
 

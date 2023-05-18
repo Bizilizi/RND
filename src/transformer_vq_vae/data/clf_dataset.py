@@ -1,9 +1,8 @@
-from torch.utils.data import Dataset, DataLoader
 import torch
-from transformers import ImageGPTForCausalImageModeling
+from torch.utils.data import DataLoader, Dataset
+from tqdm.auto import tqdm
 
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
-from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
 
 
 class ClassificationDataset(Dataset):
@@ -34,7 +33,7 @@ class ClassificationDataset(Dataset):
         dataset: Dataset,
     ):
         dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=0)
-        for batch in dataloader:
+        for batch in tqdm(dataloader, leave=False):
             x, y, *_ = batch
             x = x.to(vq_vae.device)
 

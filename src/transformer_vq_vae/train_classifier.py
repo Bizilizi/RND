@@ -1,13 +1,14 @@
 import torch
-from avalanche.benchmarks import SplitCIFAR10
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
 from torch.utils.data import ConcatDataset
 from torchvision import datasets, transforms
 
+from avalanche.benchmarks import SplitCIFAR10
 from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
+from src.transformer_vq_vae.data.clf_dataset import ClassificationDataset
 from src.transformer_vq_vae.model.classification_head import CnnClassifier
 
 
@@ -17,11 +18,11 @@ def train_classifier_on_all_classes(
     benchmark: SplitCIFAR10,
     device: torch.device,
 ):
-    model = strategy.model.to(device)
+    vq_vae_model = strategy.model.to(device)
 
     clf_head = CnnClassifier(
+        emb_dim=config.embedding_dim,
         num_classes=benchmark.n_classes,
-        vq_vae=model,
         experience_step=strategy.experience_step,
         dataset_mode="all_cls",
     ).to(device)
@@ -31,11 +32,17 @@ def train_classifier_on_all_classes(
         train=True,
         transform=transforms.Compose(
             [
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
             ]
         ),
     )
+    train_dataset = ClassificationDataset(
+        vq_vae_model=vq_vae_model, dataset=train_dataset
+    )
+
     test_dataset = datasets.CIFAR10(
         root=config.dataset_path,
         train=False,
@@ -46,8 +53,12 @@ def train_classifier_on_all_classes(
             ]
         ),
     )
+    test_dataset = ClassificationDataset(
+        vq_vae_model=vq_vae_model, dataset=test_dataset
+    )
+
     datamodule = PLDataModule(
-        batch_size=256,
+        batch_size=128,
         num_workers=config.num_workers,
         train_dataset=train_dataset,
         val_dataset=test_dataset,
@@ -81,11 +92,11 @@ def train_classifier_on_observed_only_classes(
     benchmark: SplitCIFAR10,
     device: torch.device,
 ):
-    model = strategy.model.to(device)
+    vq_vae_model = strategy.model.to(device)
 
     clf_head = CnnClassifier(
+        emb_dim=config.embedding_dim,
         num_classes=benchmark.n_classes,
-        vq_vae=model,
         experience_step=strategy.experience_step,
         dataset_mode="observed_only_cls",
     ).to(device)
@@ -96,11 +107,18 @@ def train_classifier_on_observed_only_classes(
             for experience in benchmark.train_stream[: strategy.experience_step + 1]
         ]
     )
+    train_dataset = ClassificationDataset(
+        vq_vae_model=vq_vae_model, dataset=train_dataset
+    )
+
     test_dataset = ConcatDataset(
         [
             experience.dataset
             for experience in benchmark.test_stream[: strategy.experience_step + 1]
         ]
+    )
+    test_dataset = ClassificationDataset(
+        vq_vae_model=vq_vae_model, dataset=test_dataset
     )
 
     datamodule = PLDataModule(

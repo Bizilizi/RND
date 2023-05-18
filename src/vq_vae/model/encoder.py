@@ -1,4 +1,5 @@
 from torch import nn
+
 from src.vq_vae.model.resnet import ResidualStack
 
 

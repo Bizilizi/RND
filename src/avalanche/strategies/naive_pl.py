@@ -1,10 +1,10 @@
 import os
 import typing as t
 
-from pytorch_lightning.callbacks import EarlyStopping
-from pytorch_lightning.profilers import AdvancedProfiler
 import torch
 from pytorch_lightning import Callback, Trainer
+from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.profilers import AdvancedProfiler
 
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive

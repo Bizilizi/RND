@@ -17,16 +17,16 @@
 import math
 import os
 import warnings
-import torch.nn.functional as F
 from typing import Any, Optional, Tuple, Union
 
 import torch
+import torch.nn.functional as F
 import torch.utils.checkpoint
 from huggingface_hub.utils import logging
 from torch import nn
 from torch.cuda.amp import autocast
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from transformers import Conv1D, PreTrainedModel, ImageGPTConfig, add_start_docstrings
+from transformers import Conv1D, ImageGPTConfig, PreTrainedModel, add_start_docstrings
 from transformers.activations import ACT2FN
 from transformers.modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,

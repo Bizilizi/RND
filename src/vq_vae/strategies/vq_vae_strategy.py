@@ -1,14 +1,12 @@
 import typing as t
 
 from pytorch_lightning import Trainer
+from torch.utils.data import Dataset
 
 from avalanche.benchmarks import CLExperience
 from avalanche.training.templates.base import ExpSequence
-from torch.utils.data import Dataset
-
-from src.avalanche.strategies import NaivePytorchLightning
-
 from src.avalanche.data.default_pl_module import PLDataModule
+from src.avalanche.strategies import NaivePytorchLightning
 
 
 class VQVaeStrategy(NaivePytorchLightning):

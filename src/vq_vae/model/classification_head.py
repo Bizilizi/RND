@@ -6,8 +6,8 @@ from torch import nn
 from torch.nn import functional as F
 
 if t.TYPE_CHECKING:
-    from src.vq_vae.model.vq_vae import VQVae
     from src.vq_vae.model.image_gpt_casual import ImageGPTCausal
+    from src.vq_vae.model.vq_vae import VQVae
 
 
 class CnnClassifier(pl.LightningModule):

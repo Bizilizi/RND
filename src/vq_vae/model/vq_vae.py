@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from src.avalanche.model.cl_model import CLModel
 from src.vq_vae.model.decoder import Decoder
 from src.vq_vae.model.encoder import Encoder
-from src.vq_vae.model.quiantizer import VectorQuantizerEMA, VectorQuantizer
+from src.vq_vae.model.quiantizer import VectorQuantizer, VectorQuantizerEMA
 from src.vq_vae.model.resnet import ResidualStack
 
 
