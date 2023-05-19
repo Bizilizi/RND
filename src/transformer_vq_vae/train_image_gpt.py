@@ -83,7 +83,8 @@ def bootstrap_past_samples(
 
     image_embeddings = torch.nn.Embedding(
         config.num_embeddings + 1, config.embedding_dim
-    )
+    ).to(vq_vae_model.device)
+
     image_embeddings.weight.data[
         :-1
     ] = vq_vae_model.vq_vae._embedding.weight.data.clone()

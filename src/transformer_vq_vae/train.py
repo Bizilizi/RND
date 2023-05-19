@@ -60,6 +60,7 @@ def train_loop(
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
                     sos_token=config.num_embeddings + 1,
+                    experience_step=cl_strategy.experience_step,
                 )
 
                 train_experience.dataset = (
@@ -157,7 +158,6 @@ def main(args):
             f"BS-{config.batch_size * config.accumulate_grad_batches} | "
             f"#Emb-{config.num_embeddings} | "
             f"DEmb-{config.embedding_dim} | "
-            f"Dist-{config.embeddings_distance}"
         )
         wandb_params["name"] = wandb.run.name
         wandb_params["id"] = wandb.run.id

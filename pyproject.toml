@@ -25,6 +25,8 @@ jupyter = "^1.0.0"
 einops = "^0.6.1"
 timm = "^0.6.13"
 chainer = "^7.8.1"
+transformers = "^4.29.2"
+pytorch-metric-learning = "^2.1.1"
 
 [tool.poetry.group.dev.dependencies]
 lovely-tensors = "^0.1.10"
