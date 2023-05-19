@@ -57,6 +57,7 @@ class VitVQVae(CLModel):
         decoder_layer=4,
         decoder_head=3,
         mask_ratio=0.75,
+        use_lpips: bool = True,
     ) -> None:
         super().__init__()
 
@@ -83,7 +84,17 @@ class VitVQVae(CLModel):
         self.clf_head = None
         self.experience_step = 0
 
-        self._lpips = lpips.LPIPS(net="vgg")
+        if use_lpips:
+            self._lpips = lpips.LPIPS(net="vgg")
+            self.rec_loss_fn = lambda x, y: (
+                self._lpips(x, y).mean()
+                + F.l1_loss(x, y, reduction="mean") / self._data_variance
+            )
+        else:
+            self.rec_loss_fn = (
+                lambda x, y: F.l1_loss(x, y, reduction="mean") / self._data_variance
+            )
+
         self._data_variance = 0.06328692405746414
 
     def set_clf_head(self, model: "CnnClassifier"):
@@ -97,10 +108,7 @@ class VitVQVae(CLModel):
         x_data = forward_output.x_data
 
         # Compute contrastive loss
-        reconstruction_loss = (
-            self._lpips(x_recon, x_data).mean()
-            + F.l1_loss(x_recon, x_data, reduction="mean") / self._data_variance
-        )
+        reconstruction_loss = self.rec_loss_fn(x_recon, x_data)
 
         # Compute accuracy if classification head presents
         clf_loss = clf_acc = torch.tensor(0, device=self.device)

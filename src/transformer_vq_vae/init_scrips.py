@@ -61,6 +61,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         ),
         weight_decay=config.weight_decay,
         mask_ratio=config.mask_ratio,
+        use_lpips=config.use_lpips,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 
