@@ -173,7 +173,7 @@ def main(args):
     config.bootstrapped_dataset_path += f"/{run_id}/best_model"
 
     benchmark = SplitCIFAR10(
-        n_experiences=1,
+        n_experiences=5,
         return_task_id=True,
         shuffle=True,
         dataset_root=config.dataset_path,
