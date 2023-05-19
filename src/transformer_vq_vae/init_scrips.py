@@ -19,6 +19,7 @@ from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
 from src.transformer_vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
 from src.transformer_vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.vq_vae.callbacks.mix_random_samples import LogDataset
 
 
 def get_evaluation_plugin(
@@ -79,4 +80,5 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             checkpoint_path=config.checkpoint_path,
             experience_step=experience_step,
         ),
+        LogDataset(),
     ]

@@ -44,17 +44,6 @@ def train_loop(
         train_dataset = train_experience.dataset
         val_dataset = test_experience.dataset
 
-        train_experience.dataset = train_dataset.replace_current_transform_group(
-            transforms.Compose(
-                [
-                    transforms.RandomCrop(32, padding=4),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-                ]
-            )
-        )
-
         # bootstrap old data and modeled future samples
         if cl_strategy.experience_step != 0 and image_gpt is not None:
             image_gpt.to(device)
@@ -78,8 +67,6 @@ def train_loop(
                     + bootstrapped_dataset.replace_current_transform_group(
                         transforms.Compose(
                             [
-                                transforms.RandomCrop(32, padding=4),
-                                transforms.RandomHorizontalFlip(),
                                 transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
                             ]
                         )
@@ -99,17 +86,7 @@ def train_loop(
                     mode=config.future_samples_mode,
                 )
 
-                train_experience.dataset = (
-                    train_experience.dataset
-                    + future_dataset.replace_current_transform_group(
-                        transforms.Compose(
-                            [
-                                transforms.RandomCrop(32, padding=4),
-                                transforms.RandomHorizontalFlip(),
-                            ]
-                        )
-                    )
-                )
+                train_experience.dataset = train_experience.dataset + future_dataset
 
         # Train VQ-VAE
         cl_strategy.train(train_experience, [test_experience])
