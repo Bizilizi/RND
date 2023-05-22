@@ -80,6 +80,7 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             log_every=10,
             checkpoint_path=config.checkpoint_path,
             experience_step=experience_step,
+            log_to_wandb=False,
         ),
         LogDataset(),
     ]

@@ -74,7 +74,6 @@ def bootstrap_past_samples(
     config: TrainConfig,
     sos_token: int,
 ) -> ClassificationDataset:
-    num_images = num_images * experience_step
     num_images_per_batch = min(128, num_images)
 
     bootstrapped_dataset = BootstrappedDataset(

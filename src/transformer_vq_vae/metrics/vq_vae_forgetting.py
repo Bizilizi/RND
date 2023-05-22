@@ -1,6 +1,12 @@
 import typing as t
 
 from avalanche.evaluation import PluginMetric
+from avalanche.evaluation.metric_results import MetricValue, MetricResult
+from avalanche.evaluation.metric_utils import (
+    phase_and_task,
+    stream_type,
+    get_metric_name,
+)
 from avalanche.evaluation.metrics import (
     GenericExperienceForgetting,
     GenericStreamForgetting,
@@ -67,6 +73,14 @@ class VqVaeStreamForgetting(GenericStreamForgetting):
 
         return "undefined"
 
+    def _package_result(self, strategy: "SupervisedTemplate") -> MetricResult:
+        metric_value = self.result()
+
+        metric_name = f"{self}"
+        plot_x_position = strategy.clock.train_iterations
+
+        return [MetricValue(self, metric_name, metric_value, plot_x_position)]
+
 
 class VqVaeExperienceForgetting(GenericExperienceForgetting):
     def __init__(
@@ -128,6 +142,21 @@ class VqVaeExperienceForgetting(GenericExperienceForgetting):
             return "test/forgetting_exp/clf_accuracy"
 
         return "undefined"
+
+    def _package_result(self, strategy: "SupervisedTemplate") -> MetricResult:
+        # this checks if the evaluation experience has been
+        # already encountered at training time
+        # before the last training.
+        # If not, forgetting should not be returned.
+        forgetting = self.result(k=self.eval_exp_id)
+        if forgetting is not None:
+            metric_name = f"{self}/exp_{strategy.experience_step}"
+            plot_x_position = strategy.clock.train_iterations
+
+            metric_values = [
+                MetricValue(self, metric_name, forgetting, plot_x_position)
+            ]
+            return metric_values
 
 
 def vq_vae_forgetting_metrics(

@@ -41,8 +41,7 @@ def train_loop(
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
-        train_dataset = train_experience.dataset
-        val_dataset = test_experience.dataset
+        igpt_train_dataset = train_experience.dataset + test_experience.dataset
 
         # bootstrap old data and modeled future samples
         if cl_strategy.experience_step != 0 and image_gpt is not None:
@@ -62,10 +61,8 @@ def train_loop(
                     sos_token=config.num_embeddings + 1,
                     experience_step=cl_strategy.experience_step,
                 )
-
-                train_experience.dataset = (
-                    train_experience.dataset
-                    + bootstrapped_dataset.replace_current_transform_group(
+                bootstrapped_dataset = (
+                    bootstrapped_dataset.replace_current_transform_group(
                         transforms.Compose(
                             [
                                 transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
@@ -74,7 +71,11 @@ def train_loop(
                     )
                 )
 
-                train_dataset = train_dataset + bootstrapped_dataset
+                train_experience.dataset = (
+                    train_experience.dataset + bootstrapped_dataset
+                )
+
+                igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
 
             if config.num_random_future_samples != 0:
                 print(f"Model future samples..")
@@ -90,6 +91,7 @@ def train_loop(
                 train_experience.dataset = train_experience.dataset + future_dataset
 
         # Train VQ-VAE
+        cl_strategy.max_epochs = config.max_epochs * (cl_strategy.experience_step + 1)
         cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
@@ -102,7 +104,7 @@ def train_loop(
         image_gpt = train_igpt(
             strategy=cl_strategy,
             config=config,
-            train_dataset=train_dataset + val_dataset,
+            train_dataset=igpt_train_dataset,
             device=device,
             sos_token=config.num_embeddings + 1,
             mask_token=config.num_embeddings,

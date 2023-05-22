@@ -29,26 +29,24 @@ class VQVaeWandBStreamConfusionMatrix(WandBStreamConfusionMatrix):
     def __str__(self):
         return "test/confusion_matrix_stream"
 
-    # def _package_result(self, strategy: "NaivePytorchLightning") -> MetricResult:
-    #     outputs, targets = self.result()
-    #     phase_name, _ = phase_and_task(strategy)
-    #     stream = stream_type(strategy.experience)
-    #     metric_name = f"{str(self)}/experience_step_{strategy.experience_step}"
-    #     plot_x_position = strategy.clock.train_iterations
-    #
-    #     # compute predicted classes
-    #     preds = torch.argmax(outputs, dim=1).cpu().numpy()
-    #     result = wandb.plot.confusion_matrix(
-    #         preds=preds,
-    #         y_true=targets.cpu().numpy(),
-    #         class_names=self.class_names,
-    #     )
-    #
-    #     metric_representation = MetricValue(
-    #         self, metric_name, AlternativeValues(result), plot_x_position
-    #     )
-    #
-    #     return [metric_representation]
+    def _package_result(self, strategy: "SupervisedTemplate") -> MetricResult:
+        outputs, targets = self.result()
+        metric_name = f"{self}/{strategy.experience_step}"
+        plot_x_position = strategy.clock.train_iterations
+
+        # compute predicted classes
+        preds = torch.argmax(outputs, dim=1).cpu().numpy()
+        result = wandb.plot.confusion_matrix(
+            preds=preds,
+            y_true=targets.cpu().numpy(),
+            class_names=self.class_names,
+        )
+
+        metric_representation = MetricValue(
+            self, metric_name, AlternativeValues(result), plot_x_position
+        )
+
+        return [metric_representation]
 
 
 class VQVaeStreamConfusionMatrix(StreamConfusionMatrix):
