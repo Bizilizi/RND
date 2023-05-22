@@ -19,8 +19,9 @@ sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --num_random_past_samples 7000 \
-    --max_epochs 500 \
-    --min_epochs 500 \
-    --num_workers 12 \
+    --num_random_past_samples 0 \
+    --max_epochs 1500 \
+    --min_epochs 1500 \
+    --num_workers 4 \
+    --use_lpips true \
     --group mae
