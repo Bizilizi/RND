@@ -19,13 +19,8 @@ sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wand \
-    --num_random_past_samples 0 \
+    --num_random_past_samples 7000 \
     --max_epochs 500 \
     --min_epochs 500 \
-    --accumulate_grad_batches 1 \
-    --num_embeddings 128 \
-    --max_epochs_lin_eval 300 \
-    --embedding_dim 192 \
-    --batch_size 128 \
     --num_workers 12 \
     --group mae
