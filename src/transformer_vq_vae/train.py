@@ -94,7 +94,7 @@ def train_loop(
                 train_experience.dataset = train_experience.dataset + future_dataset
 
         # Train VQ-VAE
-        cl_strategy.max_epochs = config.max_epochs * (cl_strategy.experience_step + 1)
+        cl_strategy.max_epochs = min(50000 * 2000 // len(train_experience.dataset), 1)
         cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
@@ -200,7 +200,7 @@ def main(args):
         n_experiences=5,
         return_task_id=True,
         shuffle=True,
-        dataset_root=config.dataset_path,
+        dataset_root=target_dataset_dir,
         train_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
