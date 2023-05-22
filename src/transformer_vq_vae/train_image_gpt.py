@@ -1,3 +1,5 @@
+import os
+
 import math
 import pathlib
 
@@ -38,12 +40,17 @@ class BootstrappedDataset(Dataset):
             image_path = (
                 f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
             )
+            tmp = os.environ["TMPDIR"]
+            tmp_image_path = f"{tmp}/exp_{self.experience_step}/{total_img + i}.png"
 
             image = self._rescale_image(image)
             im = Image.fromarray(image)
-            im.save(image_path)
 
-            self.x.append(image_path)
+            # save image both to tmp and target dir
+            im.save(image_path)
+            im.save(tmp_image_path)
+
+            self.x.append(tmp_image_path)
             self.targets.append(-1)
 
     @staticmethod

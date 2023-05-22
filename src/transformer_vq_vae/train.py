@@ -1,4 +1,7 @@
 import datetime
+import os
+import pathlib
+import shutil
 from configparser import ConfigParser
 
 import torch
@@ -174,6 +177,25 @@ def main(args):
     config.best_model_prefix += f"/{run_id}/best_model"
     config.bootstrapped_dataset_path += f"/{run_id}/best_model"
 
+    # Moving dataset to tmp
+    datasets_dir = pathlib.Path(config.dataset_path)
+    tmp = os.environ["TMPDIR"]
+    target_dataset_dir = pathlib.Path(f"{tmp}/dzverev_data/")
+    target_dataset_dir.mkdir(exist_ok=True)
+
+    zip_path = datasets_dir / "cifar-10-python.tar.gz"
+    dataset_path = datasets_dir / "cifar-10-batches-py"
+
+    target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
+    target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
+
+    if zip_path.exists() and not target_zip_path.exists():
+        shutil.copy(str(zip_path), str(target_zip_path))
+
+    if dataset_path.exists() and not target_dataset_path.exists():
+        shutil.copytree(str(dataset_path), str(target_dataset_path))
+
+    # Create benchmark
     benchmark = SplitCIFAR10(
         n_experiences=1,
         return_task_id=True,
