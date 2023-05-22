@@ -18,7 +18,7 @@ sbatch submit.sh python train.py \
 sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
-    --wandb_dir /scratch/shared/beegfs/dzverev/wand \
+    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --num_random_past_samples 7000 \
     --max_epochs 500 \
     --min_epochs 500 \
