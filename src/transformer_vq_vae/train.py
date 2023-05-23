@@ -84,7 +84,7 @@ def train_loop(
                 print(f"Model future samples..")
                 future_dataset = model_future_samples(
                     vq_vae_model=cl_strategy.model,
-                    num_rand_samples=(
+                    num_images=(
                         config.num_random_future_samples
                         * (4 - cl_strategy.experience_step)
                     ),
