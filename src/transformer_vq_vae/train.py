@@ -94,7 +94,6 @@ def train_loop(
                 train_experience.dataset = train_experience.dataset + future_dataset
 
         # Train VQ-VAE
-        cl_strategy.max_epochs = max(50000 * 2000 // len(train_experience.dataset), 1)
         cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params

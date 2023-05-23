@@ -1,12 +1,10 @@
 import torch
-from einops import rearrange
 from torch.utils.data import Dataset
 
 from avalanche.benchmarks.utils import make_classification_dataset
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 
 from einops import rearrange
-from torchvision.utils import make_grid
 
 
 class TensorDataset(Dataset):
