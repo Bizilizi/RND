@@ -3,7 +3,58 @@ import torch.nn.functional as F
 from torch import nn
 
 
-class VitVectorQuantizerEMA(nn.Module):
+class FeatureQuantizer(nn.Module):
+    def __init__(
+        self,
+        num_class_embeddings,
+        num_embeddings,
+        embedding_dim,
+        commitment_cost,
+        decay,
+        epsilon=1e-5,
+    ):
+        super().__init__()
+
+        self._num_class_embeddings = num_class_embeddings
+        self.feature_quantization = VectorQuantizerEMA(
+            num_embeddings, embedding_dim, commitment_cost, decay, epsilon
+        )
+        self.class_quantization = VectorQuantizerEMA(
+            num_class_embeddings, embedding_dim, commitment_cost, decay, epsilon
+        )
+
+    def forward(self, features):
+        (
+            class_vq_loss,
+            quantized_class_emb,
+            class_perplexity,
+            class_indices,
+        ) = self.class_quantization(features[0][None])
+        (
+            feature_vq_loss,
+            quantized_features,
+            feature_perplexity,
+            feature_indices,
+        ) = self.feature_quantization(features[1:])
+
+        # Shift and concatenate indices
+        class_indices = class_indices.reshape(quantized_class_emb.shape[:2])
+        feature_indices = (feature_indices + self._num_class_embeddings).reshape(
+            quantized_features.shape[:2]
+        )
+
+        encoding_indices = torch.cat([class_indices, feature_indices]).reshape(-1, 1)
+        quantized_features = torch.cat([quantized_class_emb, quantized_features])
+
+        return (
+            feature_vq_loss + class_vq_loss,
+            quantized_features,
+            feature_perplexity + class_perplexity,
+            encoding_indices,
+        )
+
+
+class VectorQuantizerEMA(nn.Module):
     def __init__(
         self, num_embeddings, embedding_dim, commitment_cost, decay, epsilon=1e-5
     ):
@@ -36,6 +87,7 @@ class VitVectorQuantizerEMA(nn.Module):
             + torch.sum(self._embedding.weight**2, dim=1)
             - 2 * torch.matmul(flat_input, self._embedding.weight.t())
         )
+        """(flat_input - self._embedding.weight)^2"""
 
         # Encoding
         encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)

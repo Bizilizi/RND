@@ -12,7 +12,10 @@ from torch.nn import functional as F
 from src.avalanche.model.cl_model import CLModel
 from src.transformer_vq_vae.model.decoder import MAEDecoder
 from src.transformer_vq_vae.model.encoder import MAEEncoder
-from src.transformer_vq_vae.model.quiantizer import VitVectorQuantizerEMA
+from src.transformer_vq_vae.model.quiantizer import (
+    VectorQuantizerEMA,
+    FeatureQuantizer,
+)
 
 if t.TYPE_CHECKING:
     from src.transformer_vq_vae.model.classification_head import CnnClassifier
@@ -75,11 +78,8 @@ class VitVQVae(CLModel):
             encoder_layer,
             encoder_head,
         )
-        self.feature_quantization = VitVectorQuantizerEMA(
-            num_embeddings, embedding_dim, commitment_cost, decay
-        )
-        self.class_quantization = VitVectorQuantizerEMA(
-            num_class_embeddings, embedding_dim, commitment_cost, decay
+        self.feature_quantization = FeatureQuantizer(
+            num_class_embeddings, num_embeddings, embedding_dim, commitment_cost, decay
         )
         self.decoder = MAEDecoder(
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
@@ -133,20 +133,7 @@ class VitVQVae(CLModel):
         features, backward_indexes = self.encoder(x)
         image_emb = features[0]
 
-        (
-            feature_vq_loss,
-            quantized_features,
-            feature_perplexity,
-            _,
-        ) = self.feature_quantization(features[1:])
-        (
-            class_vq_loss,
-            quantized_class_emb,
-            class_perplexity,
-            _,
-        ) = self.class_quantization(image_emb[None])
-
-        quantized_features = torch.cat([quantized_class_emb, quantized_features])
+        vq_loss, quantized_features, perplexity, _ = self.feature_quantization(features)
         x_recon, mask = self.decoder(quantized_features, backward_indexes)
 
         # If the model has classification head
@@ -159,11 +146,11 @@ class VitVQVae(CLModel):
             clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
-            vq_loss=feature_vq_loss + class_vq_loss,
+            vq_loss=vq_loss,
             x_recon=x_recon,
             x_data=x,
             quantized=quantized_features,
-            perplexity=feature_perplexity + class_perplexity,
+            perplexity=perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
             mask=mask,

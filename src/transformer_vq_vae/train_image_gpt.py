@@ -71,6 +71,55 @@ class BootstrappedDataset(Dataset):
         return len(self.x)
 
 
+def init_token_embeddings(
+    vq_vae_model: VitVQVae,
+    image_gpt: ImageGPTForCausalImageModeling,
+    config: TrainConfig,
+) -> None:
+    """
+    Initialize image gpt token embeddings with vq_vae embeddings.
+    """
+    image_gpt.transformer.wte.weight.data[
+        : config.num_class_embeddings
+    ] = (
+        vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
+    )
+
+    image_gpt.transformer.wte.weight.data[
+        config.num_class_embeddings : -2
+    ] = (
+        vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
+    )
+
+
+def get_image_embedding(
+    vq_vae_model: VitVQVae,
+    config: TrainConfig,
+) -> torch.nn.Embedding:
+    """
+    Created Embedding instance that can take image gpt produced indices and
+    simply convert them to tokens suitable for decoder.
+    """
+
+    image_embeddings = torch.nn.Embedding(
+        config.num_class_embeddings + config.num_embeddings + 1, config.embedding_dim
+    ).to(vq_vae_model.device)
+
+    image_embeddings.weight.data[
+        : config.num_class_embeddings
+    ] = (
+        vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
+    )
+    image_embeddings.weight.data[
+        config.num_class_embeddings : -1
+    ] = (
+        vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
+    )
+    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data.clone()
+
+    return image_embeddings
+
+
 @torch.no_grad()
 def bootstrap_past_samples(
     image_gpt: ImageGPTForCausalImageModeling,
@@ -86,15 +135,7 @@ def bootstrap_past_samples(
     bootstrapped_dataset = BootstrappedDataset(
         dataset_path=dataset_path, experience_step=experience_step
     )
-
-    image_embeddings = torch.nn.Embedding(
-        config.num_embeddings + 1, config.embedding_dim
-    ).to(vq_vae_model.device)
-
-    image_embeddings.weight.data[
-        :-1
-    ] = vq_vae_model.feature_quantization._embedding.weight.data.clone()
-    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data.clone()
+    image_embeddings = get_image_embedding(vq_vae_model, config).to(vq_vae_model.device)
 
     for _ in range(num_images // num_images_per_batch):
         images = sample_images(
@@ -158,21 +199,13 @@ def train_igpt(
             "scale_attn_weights": True,
             "tie_word_embeddings": False,
             "use_cache": False,
-            "vocab_size": config.num_embeddings + 2,
+            "vocab_size": config.num_class_embeddings + config.num_embeddings + 2,
         }
     )
     image_gpt = ImageGPTForCausalImageModeling(configuration)
-    image_gpt.transformer.wte.weight.data[
-        :-2
-    ] = vq_vae_model.feature_quantization._embedding.weight.data.clone()
 
-    image_embeddings = torch.nn.Embedding(
-        config.num_embeddings + 1, config.embedding_dim
-    )
-    image_embeddings.weight.data[
-        :-1
-    ] = vq_vae_model.feature_quantization._embedding.weight.data.clone()
-    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data.clone()
+    init_token_embeddings(vq_vae_model, image_gpt, config)
+    image_embeddings = get_image_embedding(vq_vae_model, config).to(vq_vae_model.device)
 
     train_dataset = ImageGPTDataset(
         vq_vae_model=vq_vae_model,
@@ -180,6 +213,7 @@ def train_igpt(
         sos_token=sos_token,
         mask_token=mask_token,
         ratio=config.igpt_mask_ratio,
+        num_workers=config.num_workers,
     )
     data_loader = DataLoader(
         train_dataset,
@@ -206,20 +240,12 @@ def train_igpt(
     weights[-1] = config.igpt_mask_token_weight
     loss_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device)
 
-    image_embeddings = torch.nn.Embedding(
-        config.num_embeddings + 1, config.embedding_dim
-    )
-    image_embeddings.weight.data[
-        :-1
-    ] = vq_vae_model.feature_quantization._embedding.weight.data.clone()
-    image_embeddings.weight.data[-1] = vq_vae_model.decoder.mask_token.data.clone()
-
     vq_vae_model.to(device)
     image_gpt.to(device)
     image_embeddings.to(device)
 
     step = 0
-    for i in trange(0, epoch_num):
+    for i in trange(0, 0):
         counter = i
         logger.log_metrics({"igpt_epoch": counter}, step=step)
 

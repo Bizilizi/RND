@@ -7,12 +7,15 @@ from src.transformer_vq_vae.model.encoder import take_indexes
 
 
 class ImageGPTDataset(Dataset):
-    def __init__(self, vq_vae_model, dataset, sos_token, mask_token, ratio):
+    def __init__(
+        self, vq_vae_model, dataset, sos_token, mask_token, ratio, num_workers=4
+    ):
         super().__init__()
 
         self.sos_token = sos_token
         self.mask_token = mask_token
         self.ratio = ratio
+        self.num_workers = num_workers
 
         self.input_ids_values = []
         self.masked_input_ids_values = []
@@ -33,7 +36,10 @@ class ImageGPTDataset(Dataset):
     @torch.no_grad()
     def _project_dataset(self, vq_vae_model, dataset):
         dataloader = DataLoader(
-            ConcatDataset([dataset] * 5), batch_size=256, shuffle=False, num_workers=0
+            ConcatDataset([dataset] * 5),
+            batch_size=256,
+            shuffle=False,
+            num_workers=self.num_workers,
         )
         device = vq_vae_model.device
 
