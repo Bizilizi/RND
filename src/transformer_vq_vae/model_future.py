@@ -2,6 +2,8 @@ import torch
 from torch.utils.data import Dataset
 
 from avalanche.benchmarks.utils import make_classification_dataset
+
+from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 
 from einops import rearrange
@@ -21,6 +23,33 @@ class TensorDataset(Dataset):
         return len(self.x)
 
 
+def get_latent_embedding(
+    vq_vae_model: VitVQVae,
+    config: TrainConfig,
+) -> torch.nn.Embedding:
+    """
+    Created Embedding instance that can take indices and
+    simply convert them to tokens suitable for decoder.
+    """
+
+    image_embeddings = torch.nn.Embedding(
+        config.num_class_embeddings + config.num_embeddings, config.embedding_dim
+    ).to(vq_vae_model.device)
+
+    image_embeddings.weight.data[
+        : config.num_class_embeddings
+    ] = (
+        vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
+    )
+    image_embeddings.weight.data[
+        config.num_class_embeddings :
+    ] = (
+        vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
+    )
+
+    return image_embeddings
+
+
 @torch.no_grad()
 def sample_random_noise(
     num_images,
@@ -38,23 +67,45 @@ def sample_from_uniform_prior(
     num_images,
     vq_vae_model: VitVQVae,
 ):
-    num_emb, emb_dim = vq_vae_model.feature_quantization._embedding.weight.shape
+    feature_embedding = (
+        vq_vae_model.feature_quantization.feature_quantization._embedding
+    )
+    class_embedding = vq_vae_model.feature_quantization.class_quantization._embedding
+
     num_images = max(num_images, 256)
     decoder = vq_vae_model.decoder
 
     images = []
     for _ in range(num_images // 256):
-        batch = []
+        feature_ind_batch = []
+        class_ind_batch = []
+
         for _ in range(256):
-            indices = torch.multinomial(
-                torch.arange(num_emb, device=vq_vae_model.device).float(),
-                16 * 16 + 1,
+            feature_indices = torch.multinomial(
+                torch.arange(
+                    feature_embedding.weight.shape[0], device=vq_vae_model.device
+                ).float(),
+                16 * 16,
                 replacement=True,
             )
-            batch.append(indices[None])
+            class_indices = torch.multinomial(
+                torch.arange(
+                    class_embedding.weight.shape[0], device=vq_vae_model.device
+                ).float(),
+                1,
+                replacement=True,
+            )
 
-        batch = torch.cat(batch)
-        emb = vq_vae_model.feature_quantization._embedding(batch)
+            feature_ind_batch.append(feature_indices[None])
+            class_ind_batch.append(class_indices[None])
+
+        feature_ind_batch = torch.cat(feature_ind_batch)
+        class_ind_batch = torch.cat(class_ind_batch)
+
+        class_emb = class_embedding(class_ind_batch)
+        feature_emb = feature_embedding(feature_ind_batch)
+
+        emb = torch.cat((class_emb, feature_emb), dim=1)
         quantized = rearrange(emb, "b t c -> t b c")
         features = quantized + decoder.pos_embedding
 
@@ -74,9 +125,15 @@ def sample_from_uniform_prior(
 
 @torch.no_grad()
 def sample_image_from_sparse_vector(
-    vq_vae_model: VitVQVae, ratio: float = 0.2, num_images: int = 16
+    vq_vae_model: VitVQVae,
+    ratio: float = 0.2,
+    num_images: int = 16,
 ):
-    num_emb, emb_dim = vq_vae_model.feature_quantization._embedding.weight.shape
+    feature_embedding = (
+        vq_vae_model.feature_quantization.feature_quantization._embedding
+    )
+    class_embedding = vq_vae_model.feature_quantization.class_quantization._embedding
+
     num_images = max(num_images, 256)
 
     decoder = vq_vae_model.decoder
@@ -84,30 +141,37 @@ def sample_image_from_sparse_vector(
     images = []
     for _ in range(num_images // 256):
         batch = []
+
         for _ in range(256):
-            num_rand_samples = int((16 * 16 + 1) * ratio)
-            emb_indices = torch.multinomial(
+            num_rand_samples = int(16 * 16 * ratio)
+            feature_indices = torch.multinomial(
                 torch.arange(
-                    num_emb,
-                    device=vq_vae_model.device,
+                    feature_embedding.weight.shape[0], device=vq_vae_model.device
                 ).float(),
                 num_rand_samples,
-                replacement=False,
+                replacement=True,
+            )
+            class_indices = torch.multinomial(
+                torch.arange(
+                    class_embedding.weight.shape[0], device=vq_vae_model.device
+                ).float(),
+                1,
+                replacement=True,
             )
 
             emb_positions = torch.multinomial(
                 torch.arange(
-                    16 * 16 + 1,
+                    16 * 16,
                     device=vq_vae_model.device,
                 ).float(),
                 num_rand_samples,
                 replacement=False,
             )
+            emb_positions += 1
 
             mask_emb = vq_vae_model.decoder.mask_token[0].repeat(16 * 16 + 1, 1)
-            mask_emb[emb_positions] = vq_vae_model.feature_quantization._embedding(
-                emb_indices
-            )
+            mask_emb[0] = class_embedding(class_indices)
+            mask_emb[emb_positions] = feature_embedding(feature_indices)
 
             batch.append(mask_emb[None])
 

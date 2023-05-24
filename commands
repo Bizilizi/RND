@@ -15,17 +15,17 @@ sbatch submit.sh python train.py \
     --future_samples_mode noise
 
 
-sbatch -w gnodee5 submit.sh python train.py \
+sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --num_random_past_samples 0 \
+    --num_random_past_samples 7000 \
     --num_random_future_samples 0 \
-    --batch_size 256 \
-    --max_epochs 2000 \
-    --min_epochs 1500 \
-    --num_workers 4 \
+    --batch_size 512 \
+    --max_epochs 600 \
+    --min_epochs 600 \
+    --num_workers 8 \
     --use_lpips true \
-    --accumulate_grad_batches 4\
-    --group mae \
+    --accumulate_grad_batches 2\
+    --group mae\
     --precision 16-mixed

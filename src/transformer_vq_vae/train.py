@@ -29,6 +29,8 @@ from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_loggers, get_wandb_params
 
+from pathlib import Path
+
 
 def train_loop(
     benchmark: SplitCIFAR10,
@@ -41,6 +43,9 @@ def train_loop(
     :return:
     """
     image_gpt = None
+    sos_token = config.num_class_embeddings + config.num_embeddings + 1
+    mask_token = config.num_class_embeddings + config.num_embeddings
+
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
@@ -61,8 +66,9 @@ def train_loop(
                     ),
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
-                    sos_token=config.num_embeddings + 1,
+                    sos_token=sos_token,
                     experience_step=cl_strategy.experience_step,
+                    mask_token=mask_token,
                 )
                 bootstrapped_dataset = (
                     bootstrapped_dataset.replace_current_transform_group(
@@ -108,8 +114,8 @@ def train_loop(
             config=config,
             train_dataset=igpt_train_dataset,
             device=device,
-            sos_token=config.num_embeddings + 1,
-            mask_token=config.num_embeddings,
+            sos_token=sos_token,
+            mask_token=mask_token,
             n_layer=config.num_gpt_layers,
         )
 
@@ -175,6 +181,10 @@ def main(args):
     config.checkpoint_path += f"/{run_id}/model"
     config.best_model_prefix += f"/{run_id}/best_model"
     config.bootstrapped_dataset_path += f"/{run_id}/bootstrapped_dataset"
+
+    Path(config.checkpoint_path).mkdir(parents=True, exist_ok=True)
+    Path(config.best_model_prefix).mkdir(parents=True, exist_ok=True)
+    Path(config.bootstrapped_dataset_path).mkdir(parents=True, exist_ok=True)
 
     # Moving dataset to tmp
     datasets_dir = pathlib.Path(config.dataset_path)
