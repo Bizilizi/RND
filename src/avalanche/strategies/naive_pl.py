@@ -43,9 +43,11 @@ class NaivePytorchLightning(Naive):
         validate_every_n: int = 1,
         accumulate_grad_batches: t.Optional[int] = None,
         callbacks: t.Optional[t.Callable[[int], t.List[Callback]]] = None,
+        precision: str = "32-true",
         *args,
         **kwargs,
     ) -> None:
+        self.precision = precision
         self.initial_resume_from = initial_resume_from
         self.train_logger = train_logger
         self.train_mb_num_workers = train_mb_num_workers
@@ -106,6 +108,7 @@ class NaivePytorchLightning(Naive):
             callbacks=(
                 self.callbacks_factory(self.experience_step) + self.strategy_callbacks
             ),
+            precision=self.precision,
             accumulate_grad_batches=self.accumulate_grad_batches,
             log_every_n_steps=2
             # profiler=AdvancedProfiler(

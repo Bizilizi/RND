@@ -224,6 +224,7 @@ def main(args):
     )
 
     cl_strategy = NaivePytorchLightning(
+        precision=config.precision,
         accelerator=config.accelerator,
         devices=config.devices,
         validate_every_n=config.validate_every_n,

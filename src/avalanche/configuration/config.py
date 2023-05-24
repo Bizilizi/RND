@@ -49,6 +49,7 @@ class BaseTrainConfig(BaseModel):
     train_logger: str
     logging_path: str
     checkpoint_path: str = ""
+    precision: str = "32-true"
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser):
