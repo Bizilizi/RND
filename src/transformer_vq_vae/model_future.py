@@ -38,7 +38,7 @@ def sample_from_uniform_prior(
     num_images,
     vq_vae_model: VitVQVae,
 ):
-    num_emb, emb_dim = vq_vae_model.vq_vae._embedding.weight.shape
+    num_emb, emb_dim = vq_vae_model.feature_quantization._embedding.weight.shape
     num_images = max(num_images, 256)
     decoder = vq_vae_model.decoder
 
@@ -54,7 +54,7 @@ def sample_from_uniform_prior(
             batch.append(indices[None])
 
         batch = torch.cat(batch)
-        emb = vq_vae_model.vq_vae._embedding(batch)
+        emb = vq_vae_model.feature_quantization._embedding(batch)
         quantized = rearrange(emb, "b t c -> t b c")
         features = quantized + decoder.pos_embedding
 
@@ -76,7 +76,7 @@ def sample_from_uniform_prior(
 def sample_image_from_sparse_vector(
     vq_vae_model: VitVQVae, ratio: float = 0.2, num_images: int = 16
 ):
-    num_emb, emb_dim = vq_vae_model.vq_vae._embedding.weight.shape
+    num_emb, emb_dim = vq_vae_model.feature_quantization._embedding.weight.shape
     num_images = max(num_images, 256)
 
     decoder = vq_vae_model.decoder
@@ -105,7 +105,9 @@ def sample_image_from_sparse_vector(
             )
 
             mask_emb = vq_vae_model.decoder.mask_token[0].repeat(16 * 16 + 1, 1)
-            mask_emb[emb_positions] = vq_vae_model.vq_vae._embedding(emb_indices)
+            mask_emb[emb_positions] = vq_vae_model.feature_quantization._embedding(
+                emb_indices
+            )
 
             batch.append(mask_emb[None])
 

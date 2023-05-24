@@ -56,7 +56,9 @@ class ImageGPTDataset(Dataset):
                 features = rearrange(features, "b t c -> t b c")
 
                 # quantize features
-                _, quantized_features, _, input_ids = vq_vae_model.vq_vae(features)
+                _, quantized_features, _, input_ids = vq_vae_model.feature_quantization(
+                    features
+                )
                 input_ids = rearrange(input_ids, "(t b) 1 -> t b", b=x.shape[0])
 
                 # shuffle quantized features

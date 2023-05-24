@@ -24,8 +24,8 @@ class VitVectorQuantizerEMA(nn.Module):
         self._epsilon = epsilon
 
     def forward(self, inputs):
-        # convert inputs from BHW -> BHWC
         input_shape = inputs.shape
+        """BTC shape"""
 
         # Flatten input
         flat_input = inputs.reshape(-1, self._embedding_dim)

@@ -49,6 +49,7 @@ def get_evaluation_plugin(
 
 def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
     vae = VitVQVae(
+        num_class_embeddings=config.num_class_embeddings,
         num_embeddings=config.num_embeddings,
         embedding_dim=config.embedding_dim,
         commitment_cost=config.commitment_cost,

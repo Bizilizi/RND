@@ -229,7 +229,7 @@ def train_igpt(
     image_gpt = ImageGPTForCausalImageModeling(configuration)
     image_gpt.transformer.wte.weight.data[
         :-1
-    ] = strategy.model.vq_vae._embedding.weight.data
+    ] = strategy.model.feature_quantization._embedding.weight.data
 
     vq_vae_model = strategy.model
     logger = strategy.train_logger
@@ -389,7 +389,9 @@ def get_sample_image(image_gpt, vq_vae_model, num_images=8 * 4 * 10):
         output = output[:, 1:]
         output[output == 512] = 0
 
-        quantized = vq_vae_model.vq_vae._embedding(output).permute(0, 2, 1)
+        quantized = vq_vae_model.feature_quantization._embedding(output).permute(
+            0, 2, 1
+        )
         quantized = quantized.reshape(-1, quantized.shape[1], 8, 8)
 
         x_recon = vq_vae_model.decoder(quantized)

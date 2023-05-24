@@ -15,7 +15,7 @@ sbatch submit.sh python train.py \
     --future_samples_mode noise
 
 
-sbatch submit.sh python train.py \
+sbatch -w gnodee5 submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
@@ -27,5 +27,5 @@ sbatch submit.sh python train.py \
     --num_workers 4 \
     --use_lpips true \
     --accumulate_grad_batches 4\
-    --group mae
+    --group mae \
     --precision 16-mixed

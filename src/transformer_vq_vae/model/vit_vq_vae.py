@@ -45,6 +45,7 @@ class VitVQVae(CLModel):
     def __init__(
         self,
         num_embeddings,
+        num_class_embeddings,
         embedding_dim,
         commitment_cost,
         decay=0,
@@ -74,8 +75,11 @@ class VitVQVae(CLModel):
             encoder_layer,
             encoder_head,
         )
-        self.vq_vae = VitVectorQuantizerEMA(
+        self.feature_quantization = VitVectorQuantizerEMA(
             num_embeddings, embedding_dim, commitment_cost, decay
+        )
+        self.class_quantization = VitVectorQuantizerEMA(
+            num_class_embeddings, embedding_dim, commitment_cost, decay
         )
         self.decoder = MAEDecoder(
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
@@ -125,10 +129,24 @@ class VitVQVae(CLModel):
         )
 
     def forward(self, x) -> ForwardOutput:
+        # Extract features from backbone
         features, backward_indexes = self.encoder(x)
         image_emb = features[0]
 
-        vq_loss, quantized_features, perplexity, _ = self.vq_vae(features)
+        (
+            feature_vq_loss,
+            quantized_features,
+            feature_perplexity,
+            _,
+        ) = self.feature_quantization(features[1:])
+        (
+            class_vq_loss,
+            quantized_class_emb,
+            class_perplexity,
+            _,
+        ) = self.class_quantization(image_emb[None])
+
+        quantized_features = torch.cat([quantized_class_emb, quantized_features])
         x_recon, mask = self.decoder(quantized_features, backward_indexes)
 
         # If the model has classification head
@@ -141,11 +159,11 @@ class VitVQVae(CLModel):
             clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
-            vq_loss=vq_loss,
+            vq_loss=feature_vq_loss + class_vq_loss,
             x_recon=x_recon,
             x_data=x,
             quantized=quantized_features,
-            perplexity=perplexity,
+            perplexity=feature_perplexity + class_perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
             mask=mask,
@@ -221,7 +239,7 @@ class VitVQVae(CLModel):
         optimizer = torch.optim.AdamW(
             chain(
                 self.encoder.parameters(),
-                self.vq_vae.parameters(),
+                self.feature_quantization.parameters(),
                 self.decoder.parameters(),
             ),
             lr=self._learning_rate,
