@@ -174,11 +174,11 @@ def main(args):
 
     config.checkpoint_path += f"/{run_id}/model"
     config.best_model_prefix += f"/{run_id}/best_model"
-    config.bootstrapped_dataset_path += f"/{run_id}/best_model"
+    config.bootstrapped_dataset_path += f"/{run_id}/bootstrapped_dataset"
 
     # Moving dataset to tmp
     datasets_dir = pathlib.Path(config.dataset_path)
-    tmp = os.environ["TMPDIR"]
+    tmp = os.environ.get("TMPDIR", "/tmp")
     target_dataset_dir = pathlib.Path(f"{tmp}/dzverev_data/")
     target_dataset_dir.mkdir(exist_ok=True)
 
@@ -196,7 +196,7 @@ def main(args):
 
     # Create benchmark
     benchmark = SplitCIFAR10(
-        n_experiences=1,
+        n_experiences=5,
         return_task_id=True,
         shuffle=True,
         dataset_root=target_dataset_dir,

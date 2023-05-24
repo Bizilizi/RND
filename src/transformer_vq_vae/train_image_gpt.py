@@ -40,8 +40,16 @@ class BootstrappedDataset(Dataset):
             image_path = (
                 f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
             )
-            tmp = os.environ["TMPDIR"]
-            tmp_image_path = f"{tmp}/exp_{self.experience_step}/{total_img + i}.png"
+            tmp = os.environ.get("TMPDIR", "/tmp")
+            run_id, dataset_prefix = self.dataset_path.split("/")[-2:]
+            tmp_dir = (
+                pathlib.Path(tmp)
+                / run_id
+                / dataset_prefix
+                / f"exp_{self.experience_step}"
+            )
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            tmp_image_path = f"{tmp_dir}/{total_img + i}.png"
 
             image = self._rescale_image(image)
             im = Image.fromarray(image)
