@@ -35,7 +35,7 @@ class VQVaeWandBStreamConfusionMatrix(WandBStreamConfusionMatrix):
         plot_x_position = strategy.clock.train_iterations
 
         # compute predicted classes
-        preds = torch.argmax(outputs, dim=1).cpu().numpy()
+        preds = outputs.argmax(1).cpu().numpy()
         result = wandb.plot.confusion_matrix(
             preds=preds,
             y_true=targets.cpu().numpy(),

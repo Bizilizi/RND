@@ -207,6 +207,10 @@ def train_igpt(
     init_token_embeddings(vq_vae_model, image_gpt, config)
     image_embeddings = get_image_embedding(vq_vae_model, config).to(vq_vae_model.device)
 
+    vq_vae_model.to(device)
+    image_gpt.to(device)
+    image_embeddings.to(device)
+
     train_dataset = ImageGPTDataset(
         vq_vae_model=vq_vae_model,
         dataset=train_dataset,
@@ -240,12 +244,8 @@ def train_igpt(
     weights[-1] = config.igpt_mask_token_weight
     loss_fn = torch.nn.CrossEntropyLoss(weight=weights).to(device)
 
-    vq_vae_model.to(device)
-    image_gpt.to(device)
-    image_embeddings.to(device)
-
     step = 0
-    for i in trange(0, 0):
+    for i in trange(0, epoch_num):
         counter = i
         logger.log_metrics({"igpt_epoch": counter}, step=step)
 
