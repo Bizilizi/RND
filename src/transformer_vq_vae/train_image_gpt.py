@@ -165,6 +165,7 @@ def bootstrap_past_samples(
             vq_vae_model=vq_vae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
+            temperature=config.temperature,
         )
 
         bootstrapped_dataset.add_images(images.cpu())
@@ -303,6 +304,7 @@ def train_igpt(
                     embedding=image_embeddings,
                     sos_token=sos_token,
                     return_grid=True,
+                    temperature=config.temperature,
                 ).cpu()
 
                 if isinstance(logger, WandbLogger):
@@ -338,6 +340,7 @@ def sample_images(
     vq_vae_model,
     embedding,
     sos_token,
+    temperature=1.23,
     num_images=8 * 4 * 10,
     return_grid=False,
 ):
@@ -353,7 +356,7 @@ def sample_images(
     igpt_output = image_gpt.generate(
         input_ids=context,
         max_length=16 * 16 + 2,
-        temperature=1,
+        temperature=temperature,
         do_sample=True,
         top_k=45,
         top_p=0.9,

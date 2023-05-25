@@ -21,6 +21,7 @@ class TrainConfig(BaseTrainConfig):
     num_random_future_samples: int
     num_random_past_samples: int
     future_samples_mode: str
+    temperature: float
 
     # igpt
     num_gpt_layers: int
