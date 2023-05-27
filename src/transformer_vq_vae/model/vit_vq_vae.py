@@ -63,6 +63,7 @@ class VitVQVae(CLModel):
         decoder_head=3,
         mask_ratio=0.75,
         use_lpips: bool = True,
+        cycle_consistency_power=3,
     ) -> None:
         super().__init__()
 
@@ -88,6 +89,7 @@ class VitVQVae(CLModel):
 
         self.clf_head = None
         self.experience_step = 0
+        self.cycle_consistency_power = cycle_consistency_power
 
         if use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
@@ -175,13 +177,16 @@ class VitVQVae(CLModel):
         bootstrapped_data = y == -1
         cycle_consistency_loss = 0
         if bootstrapped_data.any():
+            q_prob = 1 / forward_output.latent_distances.pow(
+                self.cycle_consistency_power
+            )
+            q_prob = q_prob / q_prob.sum(-1, keepdim=True)
+            log_q_prob = torch.log(q_prob)
+            """log_q_prob - shape B x T x num_class_emb + num_emb"""
+
             indices = data["indices"].flatten()
-            log_q_prob = -forward_output.latent_distances.pow(2).flatten(0, 1)
-            """
-            logits = 1 / latent_distances
-            q_prob = exp(-1 / logist^2) = exp(-latent_distances^2)
-            log_q_prob = -latent_distances^2
-            """
+            log_q_prob = log_q_prob.flatten(0, 1)
+
             cycle_consistency_loss = F.nll_loss(log_q_prob, indices)
 
         loss = (
@@ -224,7 +229,17 @@ class VitVQVae(CLModel):
         bootstrapped_data = y == -1
         cycle_consistency_loss = 0
         if bootstrapped_data.any():
-            indices = data["indices"]
+            q_prob = 1 / forward_output.latent_distances.pow(
+                self.cycle_consistency_power
+            )
+            q_prob = q_prob / q_prob.sum(-1, keepdim=True)
+            log_q_prob = torch.log(q_prob)
+            """log_q_prob - shape B x T x num_class_emb + num_emb"""
+
+            indices = data["indices"].flatten()
+            log_q_prob = log_q_prob.flatten(0, 1)
+
+            cycle_consistency_loss = F.nll_loss(log_q_prob, indices)
 
         loss = (
             criterion_output.vq_loss
