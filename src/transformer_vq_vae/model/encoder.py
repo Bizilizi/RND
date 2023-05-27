@@ -82,19 +82,31 @@ class MAEEncoder(torch.nn.Module):
     def forward(self, img, shuffle: bool = True):
         patches = self.patchify(img)
         patches = rearrange(patches, "b c h w -> (h w) b c")
-        patches = patches + self.pos_embedding
+        full_patches = patches + self.pos_embedding
 
         backward_indexes = None
         if shuffle:
             ratio = choice(self.mask_ratios, p=self.mask_ratios_probs)
             self.shuffle.ratio = ratio
-            patches, forward_indexes, backward_indexes = self.shuffle(patches)
+            masked_patches, forward_indexes, backward_indexes = self.shuffle(
+                full_patches
+            )
 
-        patches = torch.cat(
-            [self.cls_token.expand(-1, patches.shape[1], -1), patches], dim=0
+        masked_patches = torch.cat(
+            [self.cls_token.expand(-1, masked_patches.shape[1], -1), masked_patches],
+            dim=0,
         )
-        patches = rearrange(patches, "t b c -> b t c")
-        features = self.layer_norm(self.transformer(patches))
-        features = rearrange(features, "b t c -> t b c")
+        masked_patches = rearrange(masked_patches, "t b c -> b t c")
 
-        return features, backward_indexes
+        full_patches = torch.cat(
+            [self.cls_token.expand(-1, full_patches.shape[1], -1), full_patches], dim=0
+        )
+        full_patches = rearrange(full_patches, "t b c -> b t c")
+
+        masked_features = self.layer_norm(self.transformer(masked_patches))
+        full_features = self.layer_norm(self.transformer(full_patches))
+
+        masked_features = rearrange(masked_features, "b t c -> t b c")
+        full_features = rearrange(full_features, "b t c -> t b c")
+
+        return masked_features, full_features, backward_indexes

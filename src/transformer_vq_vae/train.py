@@ -90,15 +90,7 @@ def train_loop(
                     sos_token=sos_token,
                     experience_step=cl_strategy.experience_step,
                     mask_token=mask_token,
-                )
-                bootstrapped_dataset = (
-                    bootstrapped_dataset.replace_current_transform_group(
-                        transforms.Compose(
-                            [
-                                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
-                            ]
-                        )
-                    )
+                    transform=transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
                 )
 
                 train_experience.dataset = (
@@ -121,6 +113,9 @@ def train_loop(
                 train_experience.dataset = train_experience.dataset + future_dataset
 
         # Train VQ-VAE
+        if cl_strategy.experience_step == 0:
+            cl_strategy.max_epochs *= 2
+
         cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
@@ -142,17 +137,17 @@ def train_loop(
 
         # Train classifier
         print(f"Train classifier..")
-        train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-        observed_only_clf_head = train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-
-        cl_strategy.model.set_clf_head(observed_only_clf_head)
-
-        # Evaluate VQ-VAE and linear classifier
-        cl_strategy.eval(benchmark.test_stream)
+        # train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        # observed_only_clf_head = train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        #
+        # cl_strategy.model.set_clf_head(observed_only_clf_head)
+        #
+        # # Evaluate VQ-VAE and linear classifier
+        # cl_strategy.eval(benchmark.test_stream)
 
         # Reset linear classifier and unfreeze params
         cl_strategy.model.reset_clf_head()
@@ -227,7 +222,7 @@ def main(args):
 
     # Create benchmark
     benchmark = SplitCIFAR10(
-        n_experiences=1,
+        n_experiences=5,
         return_task_id=True,
         shuffle=True,
         dataset_root=target_dataset_dir,

@@ -1,3 +1,4 @@
+import torch
 from avalanche.benchmarks.utils.dataset_definitions import ClassificationDataset
 from torch.utils.data import Dataset
 from avalanche.benchmarks.utils import make_classification_dataset
@@ -13,7 +14,7 @@ class WrappedDataset(Dataset):
         x, y, *_ = self.dataset[item]
         data = {
             "images": x,
-            "indices": -1,
+            "indices": torch.empty(16 * 16 + 1),
         }
 
         return data, y
