@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from einops import rearrange
 from torch import nn
 
 
@@ -15,7 +16,9 @@ class FeatureQuantizer(nn.Module):
     ):
         super().__init__()
 
+        self._num_embeddings = num_embeddings
         self._num_class_embeddings = num_class_embeddings
+
         self.feature_quantization = VectorQuantizerEMA(
             num_embeddings, embedding_dim, commitment_cost, decay, epsilon
         )
@@ -23,18 +26,20 @@ class FeatureQuantizer(nn.Module):
             num_class_embeddings, embedding_dim, commitment_cost, decay, epsilon
         )
 
-    def forward(self, features):
+    def forward(self, features, return_distances=False):
         (
             class_vq_loss,
             quantized_class_emb,
             class_perplexity,
             class_indices,
+            class_distances,
         ) = self.class_quantization(features[0][None])
         (
             feature_vq_loss,
             quantized_features,
             feature_perplexity,
             feature_indices,
+            feature_distances,
         ) = self.feature_quantization(features[1:])
 
         # Shift and concatenate indices
@@ -42,21 +47,89 @@ class FeatureQuantizer(nn.Module):
         feature_indices = (feature_indices + self._num_class_embeddings).reshape(
             quantized_features.shape[:2]
         )
+        """
+        class_indices shape   - 1 x B x 1
+        feature_indices shape - T x B x 1"""
+
+        # Concatenate distances
+        class_distances = class_distances.reshape(*quantized_class_emb.shape[:2], -1)
+        feature_distances = feature_distances.reshape(*quantized_features.shape[:2], -1)
+        """
+        class_distances shape   - 1 x B x num_class_emb
+        feature_distances shape - T x B x num_feature_emb
+        """
+
+        class_distances = torch.cat(
+            [
+                class_distances,
+                torch.full(
+                    (
+                        class_distances.shape[0],
+                        class_distances.shape[1],
+                        self._num_embeddings,
+                    ),
+                    torch.finfo(torch.float32).max,
+                    device=class_distances.device,
+                ),
+            ],
+            dim=-1,
+        )
+        feature_distances = torch.cat(
+            [
+                torch.full(
+                    (
+                        feature_distances.shape[0],
+                        feature_distances.shape[1],
+                        self._num_class_embeddings,
+                    ),
+                    torch.finfo(torch.float32).max,
+                    device=class_distances.device,
+                ),
+                feature_distances,
+            ],
+            dim=-1,
+        )
+        """
+        class_distances shape   - 1 x B x num_class_emb + num_feature_emb
+        feature_distances shape - T x B x num_class_emb + num_feature_emb
+        """
+
+        distances = torch.cat([class_distances, feature_distances])
+        distances = rearrange(distances, "t b c -> b t c")
+        """distances shape - B x (T+1) x num_class_emb + num_feature_emb"""
 
         encoding_indices = torch.cat([class_indices, feature_indices]).reshape(-1, 1)
         quantized_features = torch.cat([quantized_class_emb, quantized_features])
+        """
+        encoding_indices shape   - (T+1)B x emb_dim
+        quantized_features shape - (T+1) x B x emb_dim
+        """
 
-        return (
-            feature_vq_loss + class_vq_loss,
-            quantized_features,
-            feature_perplexity + class_perplexity,
-            encoding_indices,
-        )
+        if return_distances:
+            return (
+                feature_vq_loss + class_vq_loss,
+                quantized_features,
+                feature_perplexity + class_perplexity,
+                encoding_indices,
+                distances,
+            )
+        else:
+            return (
+                feature_vq_loss + class_vq_loss,
+                quantized_features,
+                feature_perplexity + class_perplexity,
+                encoding_indices,
+            )
 
 
 class VectorQuantizerEMA(nn.Module):
     def __init__(
-        self, num_embeddings, embedding_dim, commitment_cost, decay, epsilon=1e-5
+        self,
+        num_embeddings,
+        embedding_dim,
+        commitment_cost,
+        decay,
+        epsilon=1e-5,
     ):
         super().__init__()
 
@@ -131,4 +204,4 @@ class VectorQuantizerEMA(nn.Module):
         avg_probs = torch.mean(encodings, dim=0)
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 
-        return loss, quantized, perplexity, encoding_indices
+        return loss, quantized, perplexity, encoding_indices, distances

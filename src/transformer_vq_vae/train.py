@@ -25,6 +25,9 @@ from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_observed_only_classes,
 )
 from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.transformer_vq_vae.utils.wrap_empty_indices import (
+    wrap_dataset_with_empty_indices,
+)
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_loggers, get_wandb_params
@@ -49,9 +52,27 @@ def train_loop(
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
+        train_experience.dataset = wrap_dataset_with_empty_indices(
+            train_experience.dataset
+        )
+        test_experience.dataset = wrap_dataset_with_empty_indices(
+            test_experience.dataset
+        )
         igpt_train_dataset = train_experience.dataset + test_experience.dataset
 
-        # bootstrap old data and modeled future samples
+        # Model future at the very first step
+        if cl_strategy.experience_step == 0 and config.num_random_future_samples != 0:
+            print(f"Model future samples..")
+            future_dataset = model_future_samples(
+                vq_vae_model=cl_strategy.model,
+                num_images=(
+                    config.num_random_future_samples * (4 - cl_strategy.experience_step)
+                ),
+                mode=config.future_samples_mode,
+            )
+
+            train_experience.dataset = train_experience.dataset + future_dataset
+        # Bootstrap old data and modeled future samples
         if cl_strategy.experience_step != 0 and image_gpt is not None:
             image_gpt.to(device)
             cl_strategy.model.to(device)

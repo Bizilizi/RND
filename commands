@@ -19,8 +19,8 @@ sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --num_random_past_samples 7000 \
-    --num_random_future_samples 3500 \
+    --num_random_past_samples 0 \
+    --num_random_future_samples 7000 \
     --batch_size 512 \
     --max_epochs 800 \
     --min_epochs 800 \
@@ -29,4 +29,4 @@ sbatch submit.sh python train.py \
     --use_lpips true \
     --accumulate_grad_batches 2 \
     --group mae \
-    --future_samples_mode sparse_prior
+    --future_samples_mode noise

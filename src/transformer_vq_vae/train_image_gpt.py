@@ -28,37 +28,53 @@ class BootstrappedDataset(Dataset):
 
         self.dataset_path = dataset_path
         self.experience_step = experience_step
-        self.x = []
+        self.images = []
+        self.indices = []
         self.targets = []
 
-    def add_images(self, images):
-        total_img = len(self.x)
-        for i, image in enumerate(images):
-            pathlib.Path(f"{self.dataset_path}/exp_{self.experience_step}").mkdir(
-                parents=True, exist_ok=True
+    def add_data(self, images, latent_indices):
+        total_img = len(self.images)
+        for i, (image, indices) in enumerate(zip(images, latent_indices)):
+            experience_folder = pathlib.Path(
+                f"{self.dataset_path}/exp_{self.experience_step}"
             )
-            image_path = (
-                f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
-            )
+            experience_folder.mkdir(parents=True, exist_ok=True)
+
             tmp = os.environ.get("TMPDIR", "/tmp")
             run_id, dataset_prefix = self.dataset_path.split("/")[-2:]
-            tmp_dir = (
+            tmp_experience_folder = (
                 pathlib.Path(tmp)
                 / run_id
                 / dataset_prefix
                 / f"exp_{self.experience_step}"
             )
-            tmp_dir.mkdir(parents=True, exist_ok=True)
-            tmp_image_path = f"{tmp_dir}/{total_img + i}.png"
+            tmp_experience_folder.mkdir(parents=True, exist_ok=True)
+
+            # Prepare image path
+            image_path = (
+                f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
+            )
+            tmp_image_path = f"{tmp_experience_folder}/{total_img + i}.png"
 
             image = self._rescale_image(image)
             im = Image.fromarray(image)
 
-            # save image both to tmp and target dir
+            # Save image both to tmp and target dir
             im.save(image_path)
             im.save(tmp_image_path)
 
-            self.x.append(tmp_image_path)
+            # Save indices
+            indices_path = (
+                f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.pt"
+            )
+            tmp_indices_path = f"{tmp_experience_folder}/{total_img + i}.pt"
+
+            torch.save(indices, indices_path)
+            torch.save(indices, tmp_indices_path)
+
+            # Store paths for later access
+            self.images.append(tmp_image_path)
+            self.indices.append(tmp_indices_path)
             self.targets.append(-1)
 
     @staticmethod
@@ -71,12 +87,20 @@ class BootstrappedDataset(Dataset):
         return image
 
     def __getitem__(self, item):
-        image = read_image(self.x[item])
+        image = read_image(self.images[item])
         image = image / 255
-        return image, self.targets[item]
+        indices = torch.load(self.indices[item])
+
+        data = {
+            "images": image,
+            "indices": indices,
+        }
+        targets = self.targets[item]
+
+        return data, targets
 
     def __len__(self):
-        return len(self.x)
+        return len(self.images)
 
 
 def init_token_embeddings(
@@ -160,7 +184,7 @@ def bootstrap_past_samples(
     )
 
     for _ in range(num_images // num_images_per_batch):
-        images = sample_images(
+        images, latent_indices = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
             embedding=image_embeddings,
@@ -168,7 +192,10 @@ def bootstrap_past_samples(
             temperature=config.temperature,
         )
 
-        bootstrapped_dataset.add_images(images.cpu())
+        bootstrapped_dataset.add_data(
+            images=images.cpu(),
+            latent_indices=latent_indices.cpu(),
+        )
 
     dataset = make_classification_dataset(
         bootstrapped_dataset, targets=bootstrapped_dataset.targets
@@ -303,7 +330,7 @@ def train_igpt(
                     vq_vae_model=vq_vae_model,
                     embedding=image_embeddings,
                     sos_token=sos_token,
-                    return_grid=True,
+                    return_grid_only=True,
                     temperature=config.temperature,
                 ).cpu()
 
@@ -342,7 +369,7 @@ def sample_images(
     sos_token,
     temperature=1.23,
     num_images=8 * 4 * 10,
-    return_grid=False,
+    return_grid_only=False,
 ):
     image_gpt.eval()
     vq_vae_model.eval()
@@ -375,7 +402,7 @@ def sample_images(
     patches = decoder.head(features)
     x_recon = decoder.patch2img(patches)
 
-    if return_grid:
+    if return_grid_only:
         grid_image = make_grid(
             x_recon.cpu().data,
         )
@@ -384,4 +411,4 @@ def sample_images(
 
         return grid_image
     else:
-        return x_recon
+        return x_recon, igpt_output

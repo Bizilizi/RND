@@ -34,7 +34,9 @@ class ClassificationDataset(Dataset):
     ):
         dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=0)
         for batch in tqdm(dataloader, leave=False):
-            x, y, *_ = batch
+            data, y, *_ = batch
+
+            x = data["images"]
             x = x.to(vq_vae.device)
 
             with torch.no_grad():

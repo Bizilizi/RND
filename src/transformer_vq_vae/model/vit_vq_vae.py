@@ -28,6 +28,7 @@ class ForwardOutput(t.NamedTuple):
     x_recon: torch.Tensor
 
     quantized: torch.Tensor
+    latent_distances: torch.Tensor
     perplexity: torch.Tensor
 
     image_emb: torch.Tensor
@@ -133,7 +134,13 @@ class VitVQVae(CLModel):
         features, backward_indexes = self.encoder(x)
         image_emb = features[0]
 
-        vq_loss, quantized_features, perplexity, _ = self.feature_quantization(features)
+        (
+            vq_loss,
+            quantized_features,
+            perplexity,
+            _,
+            latent_distances,
+        ) = self.feature_quantization(features, return_distances=True)
         x_recon, mask = self.decoder(quantized_features, backward_indexes)
 
         # If the model has classification head
@@ -154,15 +161,34 @@ class VitVQVae(CLModel):
             image_emb=image_emb,
             clf_logits=clf_logits,
             mask=mask,
+            latent_distances=latent_distances,
         )
 
     def training_step(self, batch, batch_idx):
-        x, y, *_ = batch
+        data, y, *_ = batch
+
+        x = data["images"]
 
         forward_output = self.forward(x)
         criterion_output = self.criterion(forward_output, y)
 
-        loss = criterion_output.vq_loss + criterion_output.reconstruction_loss
+        bootstrapped_data = y == -1
+        cycle_consistency_loss = 0
+        if bootstrapped_data.any():
+            indices = data["indices"].flatten()
+            log_q_prob = -forward_output.latent_distances.pow(2).flatten(0, 1)
+            """
+            logits = 1 / latent_distances
+            q_prob = exp(-1 / logist^2) = exp(-latent_distances^2)
+            log_q_prob = -latent_distances^2
+            """
+            cycle_consistency_loss = F.nll_loss(log_q_prob, indices)
+
+        loss = (
+            criterion_output.vq_loss
+            + criterion_output.reconstruction_loss
+            + cycle_consistency_loss
+        )
 
         # LOGGING
         self.log_with_postfix(
@@ -188,12 +214,23 @@ class VitVQVae(CLModel):
         }
 
     def validation_step(self, batch, batch_idx):
-        x, y, *_ = batch
+        data, y, *_ = batch
+
+        x = data["images"]
 
         forward_output = self.forward(x)
         criterion_output = self.criterion(forward_output, y)
 
-        loss = criterion_output.vq_loss + criterion_output.reconstruction_loss
+        bootstrapped_data = y == -1
+        cycle_consistency_loss = 0
+        if bootstrapped_data.any():
+            indices = data["indices"]
+
+        loss = (
+            criterion_output.vq_loss
+            + criterion_output.reconstruction_loss
+            + cycle_consistency_loss
+        )
 
         # LOGGING
         self.log_with_postfix(

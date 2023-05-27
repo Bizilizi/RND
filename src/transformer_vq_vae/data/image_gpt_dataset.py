@@ -44,7 +44,9 @@ class ImageGPTDataset(Dataset):
         device = vq_vae_model.device
 
         for batch in tqdm(dataloader, leave=False):
-            x, y, *_ = batch
+            data, y, *_ = batch
+
+            x = data["images"]
             x = x.to(device)
 
             with torch.no_grad():

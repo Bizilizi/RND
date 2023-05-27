@@ -8,7 +8,7 @@ from pytorch_lightning.callbacks import EarlyStopping
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
 from src.rnd.callbacks.log_model import LogModelWightsCallback
-from src.transformer_vq_vae.callbacks.mix_random_samples import MixRandomNoise
+from src.transformer_vq_vae.callbacks.log_dataset import LogDataset
 from src.transformer_vq_vae.callbacks.training_reconstions_vis import (
     VisualizeTrainingReconstructions,
 )
@@ -19,7 +19,6 @@ from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
 from src.transformer_vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
 from src.transformer_vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
-from src.vq_vae.callbacks.mix_random_samples import LogDataset
 
 
 def get_evaluation_plugin(
@@ -76,7 +75,6 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             mode="min",
             patience=50,
         ),
-        VisualizeTrainingReconstructions(log_every=10),
         LogModelWightsCallback(
             log_every=10,
             checkpoint_path=config.checkpoint_path,

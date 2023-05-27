@@ -8,6 +8,10 @@ from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 
 from einops import rearrange
 
+from src.transformer_vq_vae.utils.wrap_empty_indices import (
+    wrap_dataset_with_empty_indices,
+)
+
 
 class TensorDataset(Dataset):
     def __init__(self, x, targets):
@@ -220,6 +224,8 @@ def model_future_samples(
         assert False, "wrong future mode"
 
     targets = [-2] * generated_images.shape[0]
-    tensor_dataset = TensorDataset(generated_images, targets)
+    tensor_dataset = wrap_dataset_with_empty_indices(
+        TensorDataset(generated_images, targets)
+    )
 
-    return make_classification_dataset(tensor_dataset, targets=targets)
+    return tensor_dataset
