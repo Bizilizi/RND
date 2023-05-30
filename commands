@@ -28,5 +28,5 @@ sbatch submit.sh python train.py \
     --num_workers 8 \
     --use_lpips true \
     --accumulate_grad_batches 2 \
-    --group mae \
+    --group mae-cycle \
     --future_samples_mode noise

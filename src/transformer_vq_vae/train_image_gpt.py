@@ -272,99 +272,99 @@ def train_igpt(
     image_gpt.to(device)
     image_embeddings.to(device)
 
-    # train_dataset = ImageGPTDataset(
-    #     vq_vae_model=vq_vae_model,
-    #     dataset=train_dataset,
-    #     sos_token=sos_token,
-    #     mask_token=mask_token,
-    #     ratio=config.igpt_mask_ratio,
-    #     num_workers=config.num_workers,
-    # )
-    # data_loader = DataLoader(
-    #     train_dataset,
-    #     batch_size=config.igpt_batch_size,
-    #     shuffle=True,
-    # )
-    #
-    # if strategy.experience_step < 2:
-    #     epoch_num = 3
-    # elif strategy.experience_step < 3:
-    #     epoch_num = 2
-    # else:
-    #     epoch_num = 1
-    #
-    # optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
-    # exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-    #     optimizer,
-    #     learning_rate_schedule(
-    #         500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
-    #     ),
-    # )
-    #
-    # loss_fn = torch.nn.CrossEntropyLoss().to(device)
-    #
-    # step = 0
-    # for i in trange(0, epoch_num):
-    #     counter = i
-    #     logger.log_metrics({"igpt_epoch": counter}, step=step)
-    #
-    #     for batch in tqdm(data_loader):
-    #         step += 1
-    #
-    #         masked_input_ids = batch["masked_input_ids"].to(device)
-    #         output = image_gpt(input_ids=masked_input_ids)
-    #         loss = loss_fn(
-    #             output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
-    #             masked_input_ids[..., 1:].reshape(-1),
-    #         )
-    #         loss.backward()
-    #
-    #         if step % config.igpt_accumulate_grad_batches == 0:
-    #             optimizer.step()
-    #             optimizer.zero_grad()
-    #             exp_lr_scheduler.step()
-    #
-    #         logger.log_metrics(
-    #             {
-    #                 f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
-    #                 "epoch": i,
-    #             },
-    #             step=i,
-    #         )
-    #
-    #         if step % 1000 == 0:
-    #             sample = sample_images(
-    #                 image_gpt=image_gpt,
-    #                 vq_vae_model=vq_vae_model,
-    #                 embedding=image_embeddings,
-    #                 sos_token=sos_token,
-    #                 return_grid_only=True,
-    #                 temperature=config.temperature,
-    #             ).cpu()
-    #
-    #             if isinstance(logger, WandbLogger):
-    #                 logger.log_metrics(
-    #                     {
-    #                         f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
-    #                             sample.permute(1, 2, 0).numpy()
-    #                         ),
-    #                         "epoch": i,
-    #                     }
-    #                 )
-    #             if isinstance(logger, TensorBoardLogger):
-    #                 logger.experiment.add_image(
-    #                     f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
-    #                     sample / 255,
-    #                     i,
-    #                 )
-    #
-    #         if step % 100 == 0:
-    #             model_ckpt_path = f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
-    #             state_dict = image_gpt.state_dict()
-    #             for k, v in state_dict.items():
-    #                 state_dict[k] = v.cpu()
-    #
-    #             torch.save(state_dict, model_ckpt_path)
+    train_dataset = ImageGPTDataset(
+        vq_vae_model=vq_vae_model,
+        dataset=train_dataset,
+        sos_token=sos_token,
+        mask_token=mask_token,
+        ratio=config.igpt_mask_ratio,
+        num_workers=config.num_workers,
+    )
+    data_loader = DataLoader(
+        train_dataset,
+        batch_size=config.igpt_batch_size,
+        shuffle=True,
+    )
+
+    if strategy.experience_step < 2:
+        epoch_num = 3
+    elif strategy.experience_step < 3:
+        epoch_num = 2
+    else:
+        epoch_num = 1
+
+    optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
+    exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer,
+        learning_rate_schedule(
+            500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
+        ),
+    )
+
+    loss_fn = torch.nn.CrossEntropyLoss().to(device)
+
+    step = 0
+    for i in trange(0, epoch_num):
+        counter = i
+        logger.log_metrics({"igpt_epoch": counter}, step=step)
+
+        for batch in tqdm(data_loader):
+            step += 1
+
+            masked_input_ids = batch["masked_input_ids"].to(device)
+            output = image_gpt(input_ids=masked_input_ids)
+            loss = loss_fn(
+                output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
+                masked_input_ids[..., 1:].reshape(-1),
+            )
+            loss.backward()
+
+            if step % config.igpt_accumulate_grad_batches == 0:
+                optimizer.step()
+                optimizer.zero_grad()
+                exp_lr_scheduler.step()
+
+            logger.log_metrics(
+                {
+                    f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
+                    "epoch": i,
+                },
+                step=i,
+            )
+
+            if step % 1000 == 0:
+                sample = sample_images(
+                    image_gpt=image_gpt,
+                    vq_vae_model=vq_vae_model,
+                    embedding=image_embeddings,
+                    sos_token=sos_token,
+                    return_grid_only=True,
+                    temperature=config.temperature,
+                ).cpu()
+
+                if isinstance(logger, WandbLogger):
+                    logger.log_metrics(
+                        {
+                            f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
+                                sample.permute(1, 2, 0).numpy()
+                            ),
+                            "epoch": i,
+                        }
+                    )
+                if isinstance(logger, TensorBoardLogger):
+                    logger.experiment.add_image(
+                        f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
+                        sample / 255,
+                        i,
+                    )
+
+            if step % 100 == 0:
+                model_ckpt_path = f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
+                state_dict = image_gpt.state_dict()
+                for k, v in state_dict.items():
+                    state_dict[k] = v.cpu()
+
+                torch.save(state_dict, model_ckpt_path)
 
     return image_gpt
 
