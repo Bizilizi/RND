@@ -7,6 +7,7 @@ import torch
 from pytorch_metric_learning.distances import CosineSimilarity
 from pytorch_metric_learning.losses import ContrastiveLoss
 from torch import nn
+from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
 
 from src.avalanche.model.cl_model import CLModel
@@ -64,6 +65,7 @@ class VitVQVae(CLModel):
         mask_ratio=0.75,
         use_lpips: bool = True,
         cycle_consistency_power=3,
+        precision: str = "32-true",
     ) -> None:
         super().__init__()
 
