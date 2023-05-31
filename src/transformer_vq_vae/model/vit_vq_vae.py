@@ -172,8 +172,7 @@ class VitVQVae(CLModel):
         # without masking random patches
         clf_logits = None
         if self.clf_head is not None:
-            non_shuffled_features, _ = self.encoder(x, shuffle=False)
-            image_emb = non_shuffled_features[0]
+            image_emb = full_features[0]
             clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(

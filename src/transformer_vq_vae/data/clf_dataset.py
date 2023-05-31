@@ -39,8 +39,8 @@ class ClassificationDataset(Dataset):
             x = x.to(vq_vae.device)
 
             with torch.no_grad():
-                non_shuffled_features, _ = vq_vae.encoder(x, shuffle=False)
-                image_emb = non_shuffled_features[0]
+                _, full_features, _ = vq_vae.encoder(x)
+                image_emb = full_features[0]
 
                 self.targets.append(y.cpu())
                 self.embeddings.append(image_emb.cpu())
