@@ -14,7 +14,7 @@ class WrappedDataset(Dataset):
         x, y, *_ = self.dataset[item]
         data = {
             "images": x,
-            "indices": torch.empty(16 * 16 + 1),
+            "indices": torch.zeros(16 * 16 + 1, dtype=torch.int64),
         }
 
         return data, y
