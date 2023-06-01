@@ -14,6 +14,7 @@ from src.avalanche.callbacks.lightning_training_to_avalanche import (
 )
 from src.avalanche.callbacks.restore_best_model import RestoreBestPerformingModel
 from src.rnd.callbacks.log_generated_images import LogSampledImagesCallback
+from pytorch_lightning.plugins import PrecisionPlugin
 
 if t.TYPE_CHECKING:
     from pytorch_lightning.loggers import Logger
@@ -33,6 +34,7 @@ class NaivePytorchLightning(Naive):
     def __init__(
         self,
         train_logger: t.Optional["Logger"],
+        train_plugins: t.List[t.Any],
         max_epochs: int,
         min_epochs: int,
         best_model_path_prefix: str = "",
@@ -58,7 +60,7 @@ class NaivePytorchLightning(Naive):
         self.min_epochs = min_epochs
         self.max_epochs = max_epochs
         self.best_model_path_prefix = best_model_path_prefix
-
+        self.train_plugins = train_plugins
         # Modify callback to
         self.callbacks_factory = callbacks
         self.strategy_callbacks = [
@@ -108,6 +110,7 @@ class NaivePytorchLightning(Naive):
             callbacks=(
                 self.callbacks_factory(self.experience_step) + self.strategy_callbacks
             ),
+            plugins=self.train_plugins,
             precision=self.precision,
             accumulate_grad_batches=self.accumulate_grad_batches,
             log_every_n_steps=2

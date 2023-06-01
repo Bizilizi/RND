@@ -18,6 +18,7 @@ from src.transformer_vq_vae.init_scrips import (
     get_callbacks,
     get_evaluation_plugin,
     get_model,
+    get_train_plugins,
 )
 from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
@@ -270,7 +271,8 @@ def main(args):
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
         best_model_path_prefix=config.best_model_prefix,
-        plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
+        # plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
+        train_plugins=get_train_plugins(config),
     )
 
     # Run training process

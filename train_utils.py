@@ -134,10 +134,8 @@ def get_loggers(
 def get_device(config):
     if config.accelerator == "gpu":
         return torch.device("cuda")
-    elif config.accelerator == "mps":
-        return torch.device("mps")
     else:
-        return torch.device("cpu")
+        return torch.device(config.accelerator)
 
 
 def get_wandb_params(args, config):
