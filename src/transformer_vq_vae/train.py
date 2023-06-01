@@ -116,10 +116,6 @@ def train_loop(
         # Train VQ-VAE
         if cl_strategy.experience_step == 0:
             cl_strategy.max_epochs *= 2
-        else:
-            cl_strategy.device = torch.device("cpu")
-            cl_strategy.accelerator = "cpu"
-            cl_strategy.train_mb_size = 16
 
         cl_strategy.train(train_experience, [test_experience])
 

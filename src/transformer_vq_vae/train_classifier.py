@@ -27,61 +27,61 @@ def train_classifier_on_all_classes(
         dataset_mode="all_cls",
     ).to(device)
 
-    # train_dataset = datasets.CIFAR10(
-    #     root=config.dataset_path,
-    #     train=True,
-    #     transform=transforms.Compose(
-    #         [
-    #             transforms.RandomCrop(32, padding=4),
-    #             transforms.RandomHorizontalFlip(),
-    #             transforms.ToTensor(),
-    #             transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
-    #         ]
-    #     ),
-    # )
-    # train_dataset = ClassificationDataset(
-    #     vq_vae_model=vq_vae_model, dataset=train_dataset
-    # )
-    #
-    # test_dataset = datasets.CIFAR10(
-    #     root=config.dataset_path,
-    #     train=False,
-    #     transform=transforms.Compose(
-    #         [
-    #             transforms.ToTensor(),
-    #             transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
-    #         ]
-    #     ),
-    # )
-    # test_dataset = ClassificationDataset(
-    #     vq_vae_model=vq_vae_model, dataset=test_dataset
-    # )
-    #
-    # datamodule = PLDataModule(
-    #     batch_size=128,
-    #     num_workers=config.num_workers,
-    #     train_dataset=train_dataset,
-    #     val_dataset=test_dataset,
-    # )
-    #
-    # # Training
-    # trainer = Trainer(
-    #     check_val_every_n_epoch=strategy.validate_every_n,
-    #     accelerator=strategy.accelerator,
-    #     devices=strategy.devices,
-    #     logger=strategy.train_logger,
-    #     callbacks=[
-    #         EarlyStopping(
-    #             monitor=f"val/all_cls_accuracy/experience_step_{strategy.experience_step}",
-    #             mode="max",
-    #             patience=50,
-    #         )
-    #     ],
-    #     max_epochs=config.max_epochs_lin_eval,
-    #     min_epochs=config.min_epochs_lin_eval,
-    # )
-    #
-    # trainer.fit(clf_head, datamodule=datamodule)
+    train_dataset = datasets.CIFAR10(
+        root=config.dataset_path,
+        train=True,
+        transform=transforms.Compose(
+            [
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+            ]
+        ),
+    )
+    train_dataset = ClassificationDataset(
+        vq_vae_model=vq_vae_model, dataset=train_dataset
+    )
+
+    test_dataset = datasets.CIFAR10(
+        root=config.dataset_path,
+        train=False,
+        transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+            ]
+        ),
+    )
+    test_dataset = ClassificationDataset(
+        vq_vae_model=vq_vae_model, dataset=test_dataset
+    )
+
+    datamodule = PLDataModule(
+        batch_size=128,
+        num_workers=config.num_workers,
+        train_dataset=train_dataset,
+        val_dataset=test_dataset,
+    )
+
+    # Training
+    trainer = Trainer(
+        check_val_every_n_epoch=strategy.validate_every_n,
+        accelerator=strategy.accelerator,
+        devices=strategy.devices,
+        logger=strategy.train_logger,
+        callbacks=[
+            EarlyStopping(
+                monitor=f"val/all_cls_accuracy/experience_step_{strategy.experience_step}",
+                mode="max",
+                patience=50,
+            )
+        ],
+        max_epochs=config.max_epochs_lin_eval,
+        min_epochs=config.min_epochs_lin_eval,
+    )
+
+    trainer.fit(clf_head, datamodule=datamodule)
 
     return clf_head
 
@@ -101,50 +101,50 @@ def train_classifier_on_observed_only_classes(
         dataset_mode="observed_only_cls",
     ).to(device)
 
-    # train_dataset = ConcatDataset(
-    #     [
-    #         experience.dataset
-    #         for experience in benchmark.train_stream[: strategy.experience_step + 1]
-    #     ]
-    # )
-    # train_dataset = ClassificationDataset(
-    #     vq_vae_model=vq_vae_model, dataset=train_dataset
-    # )
-    #
-    # test_dataset = ConcatDataset(
-    #     [
-    #         experience.dataset
-    #         for experience in benchmark.test_stream[: strategy.experience_step + 1]
-    #     ]
-    # )
-    # test_dataset = ClassificationDataset(
-    #     vq_vae_model=vq_vae_model, dataset=test_dataset
-    # )
-    #
-    # datamodule = PLDataModule(
-    #     batch_size=128,
-    #     num_workers=config.num_workers,
-    #     train_dataset=train_dataset,
-    #     val_dataset=test_dataset,
-    # )
-    #
-    # # Training
-    # trainer = Trainer(
-    #     check_val_every_n_epoch=strategy.validate_every_n,
-    #     accelerator=strategy.accelerator,
-    #     devices=strategy.devices,
-    #     logger=strategy.train_logger,
-    #     callbacks=[
-    #         EarlyStopping(
-    #             monitor=f"val/observed_only_cls_accuracy/experience_step_{strategy.experience_step}",
-    #             mode="max",
-    #             patience=50,
-    #         )
-    #     ],
-    #     max_epochs=config.max_epochs_lin_eval,
-    #     min_epochs=config.min_epochs_lin_eval,
-    # )
-    #
-    # trainer.fit(clf_head, datamodule=datamodule)
+    train_dataset = ConcatDataset(
+        [
+            experience.dataset
+            for experience in benchmark.train_stream[: strategy.experience_step + 1]
+        ]
+    )
+    train_dataset = ClassificationDataset(
+        vq_vae_model=vq_vae_model, dataset=train_dataset
+    )
+
+    test_dataset = ConcatDataset(
+        [
+            experience.dataset
+            for experience in benchmark.test_stream[: strategy.experience_step + 1]
+        ]
+    )
+    test_dataset = ClassificationDataset(
+        vq_vae_model=vq_vae_model, dataset=test_dataset
+    )
+
+    datamodule = PLDataModule(
+        batch_size=128,
+        num_workers=config.num_workers,
+        train_dataset=train_dataset,
+        val_dataset=test_dataset,
+    )
+
+    # Training
+    trainer = Trainer(
+        check_val_every_n_epoch=strategy.validate_every_n,
+        accelerator=strategy.accelerator,
+        devices=strategy.devices,
+        logger=strategy.train_logger,
+        callbacks=[
+            EarlyStopping(
+                monitor=f"val/observed_only_cls_accuracy/experience_step_{strategy.experience_step}",
+                mode="max",
+                patience=50,
+            )
+        ],
+        max_epochs=config.max_epochs_lin_eval,
+        min_epochs=config.min_epochs_lin_eval,
+    )
+
+    trainer.fit(clf_head, datamodule=datamodule)
 
     return clf_head
