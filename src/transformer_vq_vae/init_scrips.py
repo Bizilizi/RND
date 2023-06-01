@@ -65,9 +65,6 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         weight_decay=config.weight_decay,
         mask_ratio=config.mask_ratio,
         use_lpips=config.use_lpips,
-        # amp
-        accelerator=config.accelerator,
-        precision=config.precision,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 
@@ -93,11 +90,5 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
 
 def get_train_plugins(config: TrainConfig):
     plugins = []
-
-    if config.precision == "16-mixed":
-        device = "cuda" if config.accelerator == "gpu" else config.accelerator
-        plugins.append(
-            CustomMixedPrecisionPlugin(precision=config.precision, device=device)
-        )
 
     return plugins
