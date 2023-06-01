@@ -1,3 +1,4 @@
+import dataclasses
 import math
 import typing as t
 from itertools import chain
@@ -22,7 +23,8 @@ if t.TYPE_CHECKING:
     from src.transformer_vq_vae.model.classification_head import CnnClassifier
 
 
-class ForwardOutput(t.NamedTuple):
+@dataclasses.dataclass
+class ForwardOutput:
     vq_loss: torch.Tensor
 
     x_data: torch.Tensor
@@ -38,7 +40,8 @@ class ForwardOutput(t.NamedTuple):
     mask: torch.Tensor
 
 
-class CriterionOutput(t.NamedTuple):
+@dataclasses.dataclass
+class CriterionOutput:
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
     reconstruction_loss_weight: torch.Tensor
