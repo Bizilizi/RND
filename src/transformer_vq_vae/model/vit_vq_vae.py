@@ -203,7 +203,7 @@ class VitVQVae(CLModel):
         indices = data["indices"]
 
         if self._precision == "16-mixed":
-            dtype = torch.bfloat16 if self.precision == "bf16-mixed" else torch.half
+            dtype = torch.bfloat16 if self._precision == "bf16-mixed" else torch.half
             with torch.autocast(self._accelerator, dtype):
                 forward_output = self.forward(x)
                 forward_output.x_data = x

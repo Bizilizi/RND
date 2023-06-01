@@ -15,7 +15,7 @@ sbatch submit.sh python train.py \
     --future_samples_mode noise
 
 
-TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
+sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
@@ -28,5 +28,4 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --num_workers 8 \
     --accumulate_grad_batches 4 \
     --group mae-cycle \
-    --future_samples_mode noise \
-    --precision 16
+    --future_samples_mode noise
