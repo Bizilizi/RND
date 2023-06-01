@@ -96,7 +96,7 @@ class BootstrappedDataset(Dataset):
         if self.transform is not None:
             image = self.transform(image)
 
-        indices = torch.load(self.indices[item]).long()
+        indices = torch.load(self.indices[item])
 
         data = {
             "images": image,
