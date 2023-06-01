@@ -119,6 +119,7 @@ def train_loop(
         else:
             cl_strategy.device = torch.device("cpu")
             cl_strategy.accelerator = "cpu"
+            cl_strategy.train_mb_size = 16
 
         cl_strategy.train(train_experience, [test_experience])
 
