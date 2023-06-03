@@ -27,5 +27,6 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --max_epochs_lin_eval 600\
     --num_workers 8 \
     --accumulate_grad_batches 4 \
-    --group mae-cycle \
-    --future_samples_mode noise
+    --group mae-num-past-samples \
+    --future_samples_mode noise \
+    --precision 16-mixed

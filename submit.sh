@@ -11,5 +11,6 @@
 #SBATCH --gres=gpu:1                        # Requesting 1 GPUs
 #SBATCH --constraint=p40
 # -------------------------------
+echo $TIMM_FUSED_ATTN
 nvidia-smi
 eval "$@"
