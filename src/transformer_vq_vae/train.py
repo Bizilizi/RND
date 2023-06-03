@@ -10,9 +10,6 @@ from torchvision import transforms
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
-    ReconstructionVisualizationPlugin,
-)
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.init_scrips import (
     get_callbacks,
@@ -34,6 +31,20 @@ from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_loggers, get_wandb_params
 
 from pathlib import Path
+
+
+def get_num_random_past_samples(
+    config: TrainConfig, cl_strategy: NaivePytorchLightning
+):
+    if config.num_random_past_samples_schedule == "fixed":
+        return config.num_random_past_samples
+
+    if config.num_random_past_samples_schedule == "linear":
+        return config.num_random_past_samples * cl_strategy.experience_step
+
+    if config.num_random_past_samples_schedule == "schedule":
+        schedule = [0, 3000, 5000, 7000, 10000]
+        return schedule[int(cl_strategy.experience_step)]
 
 
 def train_loop(
@@ -83,9 +94,7 @@ def train_loop(
                 bootstrapped_dataset = bootstrap_past_samples(
                     image_gpt=image_gpt,
                     vq_vae_model=cl_strategy.model,
-                    num_images=(
-                        config.num_random_past_samples * cl_strategy.experience_step
-                    ),
+                    num_images=get_num_random_past_samples(config, cl_strategy),
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
                     sos_token=sos_token,

@@ -21,6 +21,7 @@ class TrainConfig(BaseTrainConfig):
     # sampling
     num_random_future_samples: int
     num_random_past_samples: int
+    num_random_past_samples_schedule: str
     future_samples_mode: str
     temperature: float
 
