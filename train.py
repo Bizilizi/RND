@@ -2,6 +2,7 @@ import argparse
 import logging
 from functools import partial
 
+import torch
 from lightning_fabric import seed_everything
 
 import wandb
@@ -14,6 +15,7 @@ from train_utils import add_arguments
 
 # configure logging at the root level of Lightning
 # logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
+torch.multiprocessing.set_sharing_strategy("file_system")
 
 if __name__ == "__main__":
 

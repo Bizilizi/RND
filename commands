@@ -15,16 +15,16 @@ sbatch submit.sh python train.py \
     --future_samples_mode noise
 
 
-sbatch submit.sh python train.py \
+TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --num_random_past_samples 1000 \
-    --num_random_future_samples 1000 \
+    --num_random_past_samples 7000 \
+    --num_random_future_samples 3000 \
     --batch_size 256 \
-    --max_epochs 3 \
-    --min_epochs 3 \
-    --max_epochs_lin_eval 3 \
+    --max_epochs 400 \
+    --min_epochs 400 \
+    --max_epochs_lin_eval 600\
     --num_workers 8 \
     --accumulate_grad_batches 4 \
     --group mae-cycle \

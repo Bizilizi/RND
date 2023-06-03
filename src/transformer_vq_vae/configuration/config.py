@@ -16,6 +16,7 @@ class TrainConfig(BaseTrainConfig):
     use_lpips: bool
     mask_ratio: float
     weight_decay: float
+    cycle_consistency_loss_weight: float
 
     # sampling
     num_random_future_samples: int

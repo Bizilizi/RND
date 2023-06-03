@@ -72,7 +72,9 @@ class VitVQVae(CLModel):
         mask_ratio=0.75,
         use_lpips: bool = True,
         cycle_consistency_power=3,
+        cycle_consistency_weight=1,
         precision: str = "32-true",
+        accelerator: str = "cuda",
     ) -> None:
         super().__init__()
 
@@ -82,6 +84,8 @@ class VitVQVae(CLModel):
         self._latent_sos_token = num_embeddings + 1
         self._mask_ratio = mask_ratio
         self._mask_token_id = mask_token_id
+        self._precision_dtype = torch.half if precision == "16-mixed" else torch.float32
+        self._accelerator = accelerator
 
         self.encoder = MAEEncoder(
             image_size,
@@ -100,6 +104,7 @@ class VitVQVae(CLModel):
         self.clf_head = None
         self.experience_step = 0
         self.cycle_consistency_power = cycle_consistency_power
+        self.cycle_consistency_weight = cycle_consistency_weight
         self.use_lpips = use_lpips
         self._data_variance = 0.06328692405746414
 
@@ -110,14 +115,13 @@ class VitVQVae(CLModel):
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
     ):
         # Create weight vector to shift gradient towards current dataset
-        weight_tensor = torch.ones(y.shape[0], device=self.device)
-        weight_tensor[y >= 0] = 1.25
+        # weight_tensor = torch.ones(y.shape[0], device=self.device)
+        # weight_tensor[y >= 0] = 1.25
 
         if self.use_lpips:
-            lpips_loss = (self._lpips(x, x_rec) * weight_tensor).mean()
+            lpips_loss = self._lpips(x, x_rec).mean()
             l1_loss = torch.mean(
                 F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
-                * weight_tensor
                 / self._data_variance
             )
             reconstruction_loss = lpips_loss + l1_loss
@@ -125,7 +129,6 @@ class VitVQVae(CLModel):
         else:
             reconstruction_loss = torch.mean(
                 F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
-                * weight_tensor
                 / self._data_variance
             )
 
@@ -154,7 +157,7 @@ class VitVQVae(CLModel):
         # Compute consistency loss
         bootstrapped_data = y == -1
         cycle_consistency_loss = torch.tensor(0, device=self.device)
-        if bootstrapped_data.any():
+        if self.cycle_consistency_weight != 0 and bootstrapped_data.any():
             distances = forward_output.latent_distances[bootstrapped_data]
             indices = x_indices[bootstrapped_data].long()
 
@@ -184,7 +187,10 @@ class VitVQVae(CLModel):
 
     def forward(self, x) -> ForwardOutput:
         # Extract features from backbone
-        masked_features, full_features, backward_indexes = self.encoder(x)
+
+        with torch.autocast(self._accelerator, dtype=self._precision_dtype):
+            masked_features, full_features, backward_indexes = self.encoder(x)
+
         image_emb = full_features[0]
 
         (
@@ -197,7 +203,8 @@ class VitVQVae(CLModel):
             full_features, return_distances=True
         )
 
-        x_recon, mask = self.decoder(quantized_features, backward_indexes)
+        with torch.autocast(self._accelerator, dtype=self._precision_dtype):
+            x_recon, mask = self.decoder(quantized_features, backward_indexes)
 
         # If the model has classification head
         # we calculate image embedding based on output of the encoder
@@ -234,7 +241,7 @@ class VitVQVae(CLModel):
         loss = (
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss
+            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
         )
 
         # LOGGING
@@ -278,7 +285,7 @@ class VitVQVae(CLModel):
         loss = (
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss
+            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
         )
 
         # LOGGING
