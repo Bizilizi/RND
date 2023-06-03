@@ -188,23 +188,22 @@ class VitVQVae(CLModel):
     def forward(self, x) -> ForwardOutput:
         # Extract features from backbone
 
-        with torch.autocast(self._accelerator, dtype=self._precision_dtype):
-            masked_features, full_features, backward_indexes = self.encoder(x)
+        masked_features, full_features, backward_indexes = self.encoder(x)
 
         image_emb = full_features[0]
 
-        (
-            vq_loss,
-            quantized_features,
-            perplexity,
-            *_,
-        ) = self.feature_quantization(masked_features)
-        (*_, latent_distances) = self.feature_quantization(
-            full_features, return_distances=True
-        )
+        with torch.autocast(self._accelerator, dtype=torch.float32):
+            (
+                vq_loss,
+                quantized_features,
+                perplexity,
+                *_,
+            ) = self.feature_quantization(masked_features)
+            (*_, latent_distances) = self.feature_quantization(
+                full_features, return_distances=True
+            )
 
-        with torch.autocast(self._accelerator, dtype=self._precision_dtype):
-            x_recon, mask = self.decoder(quantized_features, backward_indexes)
+        x_recon, mask = self.decoder(quantized_features, backward_indexes)
 
         # If the model has classification head
         # we calculate image embedding based on output of the encoder

@@ -94,11 +94,4 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
 def get_train_plugins(config: TrainConfig):
     plugins = []
 
-    if config.precision == "16-mixed":
-        plugins.append(
-            CustomMixedPrecisionPlugin(
-                precision=config.precision, device=config.accelerator
-            )
-        )
-
     return plugins
