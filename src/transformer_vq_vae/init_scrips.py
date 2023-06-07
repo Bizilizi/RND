@@ -68,6 +68,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         use_lpips=config.use_lpips,
         precision=config.precision,
         accelerator=config.accelerator,
+        current_samples_loss_weight=config.current_samples_loss_weight,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

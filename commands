@@ -22,12 +22,12 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --num_random_past_samples 0 \
     --num_random_past_samples_schedule fixed \
     --num_random_future_samples 0 \
-    --batch_size 256 \
-    --max_epochs 1000 \
-    --min_epochs 1000 \
+    --batch_size 512 \
+    --max_epochs 2000 \
+    --min_epochs 2000 \
     --max_epochs_lin_eval 1000\
     --num_workers 8 \
-    --accumulate_grad_batches 4 \
-    --group mae-no-cycle \
+    --accumulate_grad_batches 2 \
+    --group mae-1-task \
     --future_samples_mode noise \
     --precision 16-mixed

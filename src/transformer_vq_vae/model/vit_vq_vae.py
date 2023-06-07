@@ -73,6 +73,7 @@ class VitVQVae(CLModel):
         use_lpips: bool = True,
         cycle_consistency_power=3,
         cycle_consistency_weight=1,
+        current_samples_loss_weight=2,
         precision: str = "32-true",
         accelerator: str = "cuda",
     ) -> None:
@@ -86,6 +87,7 @@ class VitVQVae(CLModel):
         self._mask_token_id = mask_token_id
         self._precision_dtype = torch.half if precision == "16-mixed" else torch.float32
         self._accelerator = accelerator
+        self._current_samples_loss_weight = current_samples_loss_weight
 
         self.encoder = MAEEncoder(
             image_size,
@@ -115,13 +117,14 @@ class VitVQVae(CLModel):
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
     ):
         # Create weight vector to shift gradient towards current dataset
-        # weight_tensor = torch.ones(y.shape[0], device=self.device)
-        # weight_tensor[y >= 0] = 1.25
+        weight_tensor = torch.ones(y.shape[0], device=self.device)
+        weight_tensor[y >= 0] = self._current_samples_loss_weight
 
         if self.use_lpips:
-            lpips_loss = self._lpips(x, x_rec).mean()
+            lpips_loss = (self._lpips(x, x_rec) * weight_tensor).mean()
             l1_loss = torch.mean(
                 F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
+                * weight_tensor
                 / self._data_variance
             )
             reconstruction_loss = lpips_loss + l1_loss
@@ -129,6 +132,7 @@ class VitVQVae(CLModel):
         else:
             reconstruction_loss = torch.mean(
                 F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
+                * weight_tensor
                 / self._data_variance
             )
 

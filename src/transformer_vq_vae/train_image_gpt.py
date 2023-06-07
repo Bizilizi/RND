@@ -235,6 +235,7 @@ def train_igpt(
     sos_token: int,
     mask_token: int,
     n_layer: int = 12,
+    image_gpt: ImageGPTForCausalImageModeling = None,
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
@@ -261,7 +262,7 @@ def train_igpt(
             "vocab_size": vocab_size,
         }
     )
-    image_gpt = ImageGPTForCausalImageModeling(configuration)
+    image_gpt = image_gpt or ImageGPTForCausalImageModeling(configuration)
 
     init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
     image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(

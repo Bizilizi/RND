@@ -146,18 +146,19 @@ def train_loop(
             sos_token=sos_token,
             mask_token=mask_token,
             n_layer=config.num_gpt_layers,
+            image_gpt=image_gpt,
         )
 
         # Train classifier
         print(f"Train classifier..")
-        train_classifier_on_all_classes(
+        all_clf_head = train_classifier_on_all_classes(
             strategy=cl_strategy, config=config, benchmark=benchmark, device=device
         ).to(device)
-        observed_only_clf_head = train_classifier_on_observed_only_classes(
+        train_classifier_on_observed_only_classes(
             strategy=cl_strategy, config=config, benchmark=benchmark, device=device
         ).to(device)
 
-        cl_strategy.model.set_clf_head(observed_only_clf_head)
+        cl_strategy.model.set_clf_head(all_clf_head)
 
         # Evaluate VQ-VAE and linear classifier
         cl_strategy.eval(benchmark.test_stream)
@@ -235,7 +236,7 @@ def main(args):
 
     # Create benchmark
     benchmark = SplitCIFAR10(
-        n_experiences=1,
+        n_experiences=5,
         return_task_id=True,
         shuffle=True,
         dataset_root=target_dataset_dir,
