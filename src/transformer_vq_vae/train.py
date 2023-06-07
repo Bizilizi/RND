@@ -10,6 +10,9 @@ from torchvision import transforms
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
 from src.avalanche.strategies import NaivePytorchLightning
+from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
+    ReconstructionVisualizationPlugin,
+)
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.init_scrips import (
     get_callbacks,
@@ -123,8 +126,8 @@ def train_loop(
                 train_experience.dataset = train_experience.dataset + future_dataset
 
         # Train VQ-VAE
-        if cl_strategy.experience_step == 0:
-            cl_strategy.max_epochs *= 2
+        # if cl_strategy.experience_step == 0:
+        #     cl_strategy.max_epochs *= 2
 
         cl_strategy.train(train_experience, [test_experience])
 
@@ -280,7 +283,7 @@ def main(args):
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
         best_model_path_prefix=config.best_model_prefix,
-        # plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
+        plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
         train_plugins=get_train_plugins(config),
     )
 

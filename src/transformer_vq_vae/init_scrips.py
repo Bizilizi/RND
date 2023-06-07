@@ -87,7 +87,7 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             experience_step=experience_step,
             log_to_wandb=False,
         ),
-        # LogDataset(),
+        LogDataset(),
     ]
 
 
