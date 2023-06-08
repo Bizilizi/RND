@@ -10,6 +10,12 @@ import wandb
 from src.transformer_vq_vae.model.vit_vq_vae import ForwardOutput, VitVQVae
 
 
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]
+
+
 class VisualizeTrainingReconstructions(Callback):
     """
     This callback visualizes reconstruction for training data
@@ -18,9 +24,13 @@ class VisualizeTrainingReconstructions(Callback):
     def __init__(
         self,
         num_images: int = 100,
+        w1: int = 2,
         log_every: int = 200,
+        name: str = "rec_img",
     ):
         self.image_indices = torch.arange(num_images)
+        self.w1 = w1
+        self.name = name
         self.log_every = log_every
 
     @torch.no_grad()
@@ -36,21 +46,39 @@ class VisualizeTrainingReconstructions(Callback):
 
         for logger in trainer.loggers:
             if isinstance(logger, WandbLogger):
-                images = [dataset[idx][0][None] for idx in self.image_indices]
-                images = torch.cat(images).to(model.device)
+                mask_images = []
+                predicted_images = []
+                original_images = []
+                for image_indices_chunk in chunks(self.image_indices, 100):
+                    images = [
+                        dataset[idx][0]["images"][None] for idx in image_indices_chunk
+                    ]
+                    images = torch.cat(images).to(model.device)
 
-                forward_data: ForwardOutput = model(images)
-                predicted_val_img = forward_data.x_recon
-                mask = forward_data.mask
-                predicted_val_img = predicted_val_img * mask + images * (1 - mask)
-                img = torch.cat([images * (1 - mask), predicted_val_img, images], dim=0)
-                img = rearrange(img, "(v h1 w1) c h w -> c (h1 h) (w1 v w)", w1=2, v=3)
-                img = self._rescale_image(img)
+                    forward_data: ForwardOutput = model(images)
+                    predicted_val_img = forward_data.x_recon
+                    mask = forward_data.mask
+                    predicted_val_img = predicted_val_img * mask + images * (1 - mask)
+
+                    mask_images.append((images * (1 - mask)).cpu())
+                    predicted_images.append(predicted_val_img.cpu())
+                    original_images.append(images.cpu())
+
+                mask_images = torch.cat(mask_images)
+                predicted_images = torch.cat(predicted_images)
+                original_images = torch.cat(original_images)
+
+                all_images = torch.cat([mask_images, predicted_images, original_images])
+                all_images = rearrange(
+                    all_images, "(v h1 w1) c h w -> c (w1 v h) (h1 w)", w1=self.w1, v=3
+                )
+
+                all_images = self._rescale_image(all_images)
 
                 wandb.log(
                     {
-                        f"train/dataset/experience_step_{experience_step}/rec_img": wandb.Image(
-                            img.cpu().numpy(),
+                        f"train/dataset/experience_step_{experience_step}/{self.name}": wandb.Image(
+                            all_images.numpy(),
                             caption=f"target_img",
                         )
                     }

@@ -89,6 +89,10 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             log_to_wandb=False,
         ),
         LogDataset(),
+        VisualizeTrainingReconstructions(log_every=10, name="rec_img_100"),
+        VisualizeTrainingReconstructions(
+            log_every=100, num_images=1000, w1=10, name="rec_img_1000"
+        ),
     ]
 
 
