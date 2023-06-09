@@ -138,16 +138,16 @@ def train_loop(
 
         # Train new image gpt model
         print(f"Train igpt..")
-        image_gpt = train_igpt(
-            strategy=cl_strategy,
-            config=config,
-            train_dataset=igpt_train_dataset,
-            device=device,
-            sos_token=sos_token,
-            mask_token=mask_token,
-            n_layer=config.num_gpt_layers,
-            image_gpt=image_gpt,
-        )
+        # image_gpt = train_igpt(
+        #     strategy=cl_strategy,
+        #     config=config,
+        #     train_dataset=igpt_train_dataset,
+        #     device=device,
+        #     sos_token=sos_token,
+        #     mask_token=mask_token,
+        #     n_layer=config.num_gpt_layers,
+        #     image_gpt=image_gpt,
+        # )
 
         # Train classifier
         print(f"Train classifier..")

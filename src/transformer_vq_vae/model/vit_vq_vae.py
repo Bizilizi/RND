@@ -193,41 +193,39 @@ class VitVQVae(CLModel):
         # Extract features from backbone
 
         masked_features, full_features, backward_indexes = self.encoder(x)
-
         image_emb = full_features[0]
 
-        with torch.autocast(self._accelerator, dtype=torch.float32):
-            (
-                vq_loss,
-                quantized_features,
-                perplexity,
-                *_,
-            ) = self.feature_quantization(masked_features)
-            (*_, latent_distances) = self.feature_quantization(
-                full_features, return_distances=True
-            )
+        # with torch.autocast(self._accelerator, dtype=torch.float32):
+        #     (
+        #         vq_loss,
+        #         quantized_features,
+        #         perplexity,
+        #         *_,
+        #     ) = self.feature_quantization(masked_features)
+        #     (*_, latent_distances) = self.feature_quantization(
+        #         full_features, return_distances=True
+        #     )
 
-        x_recon, mask = self.decoder(quantized_features, backward_indexes)
+        x_recon, mask = self.decoder(masked_features, backward_indexes)
 
         # If the model has classification head
         # we calculate image embedding based on output of the encoder
         # without masking random patches
         clf_logits = None
         if self.clf_head is not None:
-            image_emb = full_features[0]
             clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
-            vq_loss=vq_loss,
+            vq_loss=torch.tensor(0, device=self.device),
             x_recon=x_recon,
             x_data=x,
             x_indices=None,
-            quantized=quantized_features,
-            perplexity=perplexity,
+            quantized=None,
+            perplexity=torch.tensor(0, device=self.device),
             image_emb=image_emb,
             clf_logits=clf_logits,
             mask=mask,
-            latent_distances=latent_distances,
+            latent_distances=None,
         )
 
     def training_step(self, batch, batch_idx):
@@ -242,9 +240,9 @@ class VitVQVae(CLModel):
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
-            criterion_output.vq_loss
-            + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            # criterion_output.vq_loss
+            +criterion_output.reconstruction_loss
+            # + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
         )
 
         # LOGGING
@@ -286,9 +284,9 @@ class VitVQVae(CLModel):
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
-            criterion_output.vq_loss
-            + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            # criterion_output.vq_loss
+            +criterion_output.reconstruction_loss
+            # + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
         )
 
         # LOGGING

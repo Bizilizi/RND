@@ -31,5 +31,4 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --accumulate_grad_batches 1 \
     --group mae-1-task \
     --future_samples_mode noise \
-    --use_lpips false \
     --precision 16-mixed
