@@ -77,13 +77,13 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
 
 def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
     return lambda experience_step: [
-        EarlyStopping(
-            monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
-            mode="min",
-            patience=50,
-        ),
+        #     EarlyStopping(
+        #         monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
+        #         mode="min",
+        #         patience=50,
+        #     ),
         LogModelWightsCallback(
-            log_every=10,
+            log_every=100,
             checkpoint_path=config.checkpoint_path,
             experience_step=experience_step,
             log_to_wandb=False,
