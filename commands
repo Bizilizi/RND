@@ -12,7 +12,7 @@ sbatch submit.sh python train.py \
     --train_logger wandb \
     --group igpt-bootstrap \
     --num_workers 12 \
-    --future_samples_mode noise
+    --future_samples_mode noiseg
 
 
 TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
@@ -20,15 +20,16 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --current_samples_loss_weight 2 \
-    --num_random_past_samples 20000 \
+    --num_random_past_samples 0 \
     --num_random_past_samples_schedule fixed \
     --num_random_future_samples 0 \
     --batch_size 512 \
-    --max_epochs 800 \
-    --min_epochs 800 \
-    --max_epochs_lin_eval 800\
+    --max_epochs 2000 \
+    --min_epochs 2000 \
+    --max_epochs_lin_eval 1000\
     --num_workers 8 \
     --accumulate_grad_batches 1 \
-    --group mae-igpt-bootstrap \
+    --group mae-1-task \
     --future_samples_mode noise \
+    --use_lpips false \
     --precision 16-mixed
