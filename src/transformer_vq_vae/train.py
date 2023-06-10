@@ -273,7 +273,7 @@ def main(args):
         initial_resume_from=args.resume_from,
         model=model,
         device=device,
-        optimizer=model.configure_optimizers()[0][0],
+        optimizer=model.configure_optimizers()["optimizer"],
         criterion=model.criterion,
         train_mb_size=config.batch_size,
         train_mb_num_workers=config.num_workers,

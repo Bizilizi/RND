@@ -69,6 +69,8 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         precision=config.precision,
         accelerator=config.accelerator,
         current_samples_loss_weight=config.current_samples_loss_weight,
+        batch_size=config.batch_size * config.accumulate_grad_batches,
+        num_epochs=config.max_epochs,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

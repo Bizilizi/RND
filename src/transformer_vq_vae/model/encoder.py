@@ -79,11 +79,12 @@ class MAEEncoder(torch.nn.Module):
         trunc_normal_(self.cls_token, std=0.02)
         trunc_normal_(self.pos_embedding, std=0.02)
 
-    def forward(self, img):
+    def forward(self, img, return_full_features: bool = True):
         patches = self.patchify(img)
         patches = rearrange(patches, "b c h w -> (h w) b c")
         full_patches = patches + self.pos_embedding
 
+        # randomly choose ratio of path masking
         ratio = choice(self.mask_ratios, p=self.mask_ratios_probs)
         self.shuffle.ratio = ratio
         masked_patches, forward_indexes, backward_indexes = self.shuffle(full_patches)
@@ -93,16 +94,18 @@ class MAEEncoder(torch.nn.Module):
             dim=0,
         )
         masked_patches = rearrange(masked_patches, "t b c -> b t c")
-
-        full_patches = torch.cat(
-            [self.cls_token.expand(-1, full_patches.shape[1], -1), full_patches], dim=0
-        )
-        full_patches = rearrange(full_patches, "t b c -> b t c")
-
         masked_features = self.layer_norm(self.transformer(masked_patches))
-        full_features = self.layer_norm(self.transformer(full_patches))
-
         masked_features = rearrange(masked_features, "b t c -> t b c")
-        full_features = rearrange(full_features, "b t c -> t b c")
 
-        return masked_features, full_features, backward_indexes
+        if return_full_features:
+            full_patches = torch.cat(
+                [self.cls_token.expand(-1, full_patches.shape[1], -1), full_patches],
+                dim=0,
+            )
+            full_patches = rearrange(full_patches, "t b c -> b t c")
+            full_features = self.layer_norm(self.transformer(full_patches))
+            full_features = rearrange(full_features, "b t c -> t b c")
+
+            return masked_features, full_features, backward_indexes
+        else:
+            return masked_features, None, backward_indexes
