@@ -21,7 +21,7 @@ from src.transformer_vq_vae.model.quiantizer import (
 )
 
 if t.TYPE_CHECKING:
-    from src.transformer_vq_vae.model.classification_head import CnnClassifier
+    from src.transformer_vq_vae.model.classification_head import EmbClassifier
 
 
 @dataclasses.dataclass
@@ -142,7 +142,7 @@ class VitVQVae(CLModel):
 
         return reconstruction_loss
 
-    def set_clf_head(self, model: "CnnClassifier"):
+    def set_clf_head(self, model: "EmbClassifier"):
         self.__dict__["clf_head"] = model
 
     def reset_clf_head(self):
@@ -154,10 +154,10 @@ class VitVQVae(CLModel):
         x_indices = forward_output.x_indices
 
         # Compute contrastive loss
-        # reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
-        reconstruction_loss = (
-            torch.mean((x_recon - x_data) ** 2 * forward_output.mask) / self._mask_ratio
-        )
+        reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
+        # reconstruction_loss = (
+        #     torch.mean((x_recon - x_data) ** 2 * forward_output.mask) / self._mask_ratio
+        # )
 
         # Compute accuracy if classification head presents
         clf_loss = clf_acc = torch.tensor(0, device=self.device)
@@ -199,20 +199,20 @@ class VitVQVae(CLModel):
     def forward(self, x) -> ForwardOutput:
         # Extract features from backbone
 
-        masked_features, _, backward_indexes = self.encoder(
-            x, return_full_features=False
+        masked_features, full_features, backward_indexes = self.encoder(
+            x, return_full_features=True
         )
 
-        # with torch.autocast(self._accelerator, dtype=torch.float32):
-        #     (
-        #         vq_loss,
-        #         quantized_features,
-        #         perplexity,
-        #         *_,
-        #     ) = self.feature_quantization(masked_features)
-        #     (*_, latent_distances) = self.feature_quantization(
-        #         full_features, return_distances=True
-        #     )
+        with torch.autocast(self._accelerator, dtype=torch.float32):
+            (
+                vq_loss,
+                quantized_features,
+                perplexity,
+                *_,
+            ) = self.feature_quantization(masked_features)
+            (*_, latent_distances) = self.feature_quantization(
+                full_features, return_distances=True
+            )
 
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
@@ -222,7 +222,7 @@ class VitVQVae(CLModel):
         clf_logits = None
         image_emb = None
         if self.clf_head is not None:
-            _, full_features, _ = self.encoder(x)
+            # _, full_features, _ = self.encoder(x)
             image_emb = full_features[0]
             clf_logits = self.clf_head(image_emb)
 
@@ -231,12 +231,12 @@ class VitVQVae(CLModel):
             x_recon=x_recon,
             x_data=x,
             x_indices=None,
-            quantized=None,
+            quantized=quantized_features,
             perplexity=torch.tensor(0, device=self.device),
             image_emb=image_emb,
             clf_logits=clf_logits,
             mask=mask,
-            latent_distances=None,
+            latent_distances=latent_distances,
         )
 
     def training_step(self, batch, batch_idx):
@@ -251,9 +251,9 @@ class VitVQVae(CLModel):
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
-            # criterion_output.vq_loss
-            +criterion_output.reconstruction_loss
-            # + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            criterion_output.vq_loss
+            + criterion_output.reconstruction_loss
+            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
         )
 
         # LOGGING
@@ -295,9 +295,9 @@ class VitVQVae(CLModel):
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
-            # criterion_output.vq_loss
-            +criterion_output.reconstruction_loss
-            # + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            criterion_output.vq_loss
+            + criterion_output.reconstruction_loss
+            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
         )
 
         # LOGGING

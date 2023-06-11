@@ -8,7 +8,7 @@ from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.clf_dataset import ClassificationDataset
-from src.transformer_vq_vae.model.classification_head import CnnClassifier
+from src.transformer_vq_vae.model.classification_head import EmbClassifier
 
 
 def train_classifier_on_all_classes(
@@ -19,11 +19,13 @@ def train_classifier_on_all_classes(
 ):
     vq_vae_model = strategy.model.to(device)
 
-    clf_head = CnnClassifier(
+    clf_head = EmbClassifier(
         emb_dim=config.embedding_dim,
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
         dataset_mode="all_cls",
+        num_epochs=config.max_epochs_lin_eval,
+        batch_size=128,
     ).to(device)
 
     train_dataset = ConcatDataset(
@@ -77,11 +79,13 @@ def train_classifier_on_observed_only_classes(
 ):
     vq_vae_model = strategy.model.to(device)
 
-    clf_head = CnnClassifier(
+    clf_head = EmbClassifier(
         emb_dim=config.embedding_dim,
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
         dataset_mode="observed_only_cls",
+        num_epochs=config.max_epochs_lin_eval,
+        batch_size=128,
     ).to(device)
 
     train_dataset = ConcatDataset(
