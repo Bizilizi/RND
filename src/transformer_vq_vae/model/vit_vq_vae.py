@@ -189,8 +189,8 @@ class VitVQVae(CLModel):
             q_class_logits = q_class_logits[class_indices != self._mask_token_id]
             class_indices = class_indices[class_indices != self._mask_token_id]
 
-            q_patch_logits = q_logits[..., : self._num_class_embeddings].flatten()
-            patch_indices = indices[:, 0].flatten()
+            q_patch_logits = q_logits[..., self._num_class_embeddings :].flatten()
+            patch_indices = indices[:, 1:].flatten()
 
             q_patch_logits = q_patch_logits[patch_indices != self._mask_token_id]
             patch_indices = patch_indices[patch_indices != self._mask_token_id]
