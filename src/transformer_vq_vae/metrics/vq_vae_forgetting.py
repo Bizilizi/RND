@@ -40,7 +40,7 @@ class VqVaeStreamForgetting(GenericStreamForgetting):
 
     def metric_update(self, strategy):
         criterion_output = strategy.loss
-        loss = 0
+        loss = 0.0
 
         if self.with_vq_loss:
             loss -= criterion_output.vq_loss
@@ -109,7 +109,7 @@ class VqVaeExperienceForgetting(GenericExperienceForgetting):
 
     def metric_update(self, strategy):
         criterion_output = strategy.loss
-        loss = 0
+        loss = 0.0
 
         if self.with_vq_loss:
             loss -= criterion_output.vq_loss

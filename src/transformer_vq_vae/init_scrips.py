@@ -71,6 +71,8 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         current_samples_loss_weight=config.current_samples_loss_weight,
         batch_size=config.batch_size * config.accumulate_grad_batches,
         num_epochs=config.max_epochs,
+        cycle_consistency_weight=config.cycle_consistency_loss_weight,
+        cycle_consistency_sigma=config.cycle_consistency_sigma,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

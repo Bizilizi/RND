@@ -312,7 +312,7 @@ def train_igpt(
         for batch in tqdm(data_loader):
             step += 1
 
-            masked_input_ids = batch["masked_input_ids"].to(device)
+            masked_input_ids = batch["input_ids"].to(device)
             output = image_gpt(input_ids=masked_input_ids)
             loss = loss_fn(
                 output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),

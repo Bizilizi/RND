@@ -161,7 +161,7 @@ def train_loop(
         cl_strategy.model.set_clf_head(all_clf_head)
 
         # Evaluate VQ-VAE and linear classifier
-        cl_strategy.eval(benchmark.test_stream)
+        # cl_strategy.eval(benchmark.test_stream)
 
         # Reset linear classifier and unfreeze params
         cl_strategy.model.reset_clf_head()

@@ -75,12 +75,15 @@ class VitVQVae(CLModel):
         use_lpips: bool = True,
         cycle_consistency_power=3,
         cycle_consistency_weight=1,
+        cycle_consistency_sigma: float = 1,
         current_samples_loss_weight=2,
         precision: str = "32-true",
         accelerator: str = "cuda",
     ) -> None:
         super().__init__()
 
+        self._num_embeddings = num_embeddings
+        self._num_class_embeddings = num_class_embeddings
         self._learning_rate = learning_rate
         self._weight_decay = weight_decay
         self._embedding_dim = embedding_dim
@@ -92,6 +95,7 @@ class VitVQVae(CLModel):
         self._current_samples_loss_weight = current_samples_loss_weight
         self._num_epochs = num_epochs
         self._batch_size = batch_size
+        self._cycle_consistency_sigma = cycle_consistency_sigma
 
         self.encoder = MAEEncoder(
             image_size,
@@ -153,8 +157,13 @@ class VitVQVae(CLModel):
         x_data = forward_output.x_data
         x_indices = forward_output.x_indices
 
+        past_data = y == -1
+        current_data = y >= 0
+
         # Compute contrastive loss
-        reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
+        reconstruction_loss = self.get_reconstruction_loss(
+            x_recon[current_data], x_data[current_data], y[current_data]
+        )
         # reconstruction_loss = (
         #     torch.mean((x_recon - x_data) ** 2 * forward_output.mask) / self._mask_ratio
         # )
@@ -166,26 +175,29 @@ class VitVQVae(CLModel):
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
 
         # Compute consistency loss
-        bootstrapped_data = y == -1
         cycle_consistency_loss = torch.tensor(0, device=self.device)
-        if self.cycle_consistency_weight != 0 and bootstrapped_data.any():
-            distances = forward_output.latent_distances[bootstrapped_data]
-            indices = x_indices[bootstrapped_data].long()
+        if self.cycle_consistency_weight != 0 and past_data.any():
+            distances = forward_output.latent_distances[past_data]
+            indices = x_indices[past_data].long()
 
-            q_prob = 1 / distances.pow(self.cycle_consistency_power) + 0.0001
-            q_prob = q_prob / q_prob.sum(-1, keepdim=True)
-            log_q_prob = torch.log(q_prob)
-            """log_q_prob - shape B x T x num_class_emb + num_emb"""
-
-            indices = indices.flatten()
-            log_q_prob = log_q_prob.flatten(0, 1)
+            q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
 
             # Remove loss for mask token
-            non_masked_token = indices != self._mask_token_id
-            indices = indices[non_masked_token]
-            log_q_prob = log_q_prob[non_masked_token]
+            q_class_logits = q_logits[..., : self._num_class_embeddings].flatten()
+            class_indices = indices[:, 0].flatten()
 
-            cycle_consistency_loss = F.nll_loss(log_q_prob, indices)
+            q_class_logits = q_class_logits[class_indices != self._mask_token_id]
+            class_indices = class_indices[class_indices != self._mask_token_id]
+
+            q_patch_logits = q_logits[..., : self._num_class_embeddings].flatten()
+            patch_indices = indices[:, 0].flatten()
+
+            q_patch_logits = q_patch_logits[patch_indices != self._mask_token_id]
+            patch_indices = patch_indices[patch_indices != self._mask_token_id]
+
+            cycle_consistency_loss = F.cross_entropy(
+                q_class_logits, class_indices
+            ) + F.cross_entropy(q_patch_logits, patch_indices)
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
