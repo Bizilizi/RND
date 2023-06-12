@@ -52,7 +52,7 @@ class MAEEncoder(torch.nn.Module):
         emb_dim=192,
         num_layer=12,
         num_head=3,
-        mask_ratios=[0.75, 0.75, 0.75],
+        mask_ratios=[0.75, 0.4, 0.1],
         mask_ratios_probs=[0.6, 0.2, 0.2],
     ) -> None:
         super().__init__()

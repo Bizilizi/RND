@@ -161,43 +161,37 @@ class VitVQVae(CLModel):
         current_data = y >= 0
 
         # Compute contrastive loss
-        reconstruction_loss = self.get_reconstruction_loss(
-            x_recon[current_data], x_data[current_data], y[current_data]
-        )
+        reconstruction_loss = torch.tensor(0.0, device=self.device)
+        if current_data.any():
+            reconstruction_loss = self.get_reconstruction_loss(
+                x_recon[current_data], x_data[current_data], y[current_data]
+            )
         # reconstruction_loss = (
         #     torch.mean((x_recon - x_data) ** 2 * forward_output.mask) / self._mask_ratio
         # )
 
         # Compute accuracy if classification head presents
-        clf_loss = clf_acc = torch.tensor(0, device=self.device)
+        clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
         if forward_output.clf_logits is not None:
             clf_loss = F.cross_entropy(forward_output.clf_logits, y)
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
 
         # Compute consistency loss
-        cycle_consistency_loss = torch.tensor(0, device=self.device)
+        cycle_consistency_loss = torch.tensor(0.0, device=self.device)
         if self.cycle_consistency_weight != 0 and past_data.any():
             distances = forward_output.latent_distances[past_data]
             indices = x_indices[past_data].long()
 
             q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
 
+            q_logits = q_logits.flatten(0, 1)
+            q_indices = indices.flatten()
+
             # Remove loss for mask token
-            q_class_logits = q_logits[:, 0, : self._num_class_embeddings].flatten()
-            class_indices = indices[:, 0].flatten()
+            q_logits = q_logits[q_indices != self._mask_token_id]
+            q_indices = q_indices[q_indices != self._mask_token_id]
 
-            q_class_logits = q_class_logits[class_indices != self._mask_token_id]
-            class_indices = class_indices[class_indices != self._mask_token_id]
-
-            q_patch_logits = q_logits[:, 1:, self._num_class_embeddings :].flatten()
-            patch_indices = indices[:, 1:].flatten()
-
-            q_patch_logits = q_patch_logits[patch_indices != self._mask_token_id]
-            patch_indices = patch_indices[patch_indices != self._mask_token_id]
-
-            cycle_consistency_loss = F.cross_entropy(
-                q_class_logits, class_indices
-            ) + F.cross_entropy(q_patch_logits, patch_indices)
+            cycle_consistency_loss = F.cross_entropy(q_logits, q_indices)
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
@@ -239,12 +233,12 @@ class VitVQVae(CLModel):
             clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
-            vq_loss=torch.tensor(0, device=self.device),
+            vq_loss=vq_loss,
             x_recon=x_recon,
             x_data=x,
             x_indices=None,
             quantized=quantized_features,
-            perplexity=torch.tensor(0, device=self.device),
+            perplexity=perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
             mask=mask,

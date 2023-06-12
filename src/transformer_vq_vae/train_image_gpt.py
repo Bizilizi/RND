@@ -366,6 +366,7 @@ def train_igpt(
                     state_dict[k] = v.cpu()
 
                 torch.save(state_dict, model_ckpt_path)
+        break
 
     return image_gpt
 

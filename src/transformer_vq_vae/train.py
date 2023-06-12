@@ -126,8 +126,8 @@ def train_loop(
                 train_experience.dataset = train_experience.dataset + future_dataset
 
         # Train VQ-VAE
-        # if cl_strategy.experience_step == 0:
-        #     cl_strategy.max_epochs *= 2
+        # if cl_strategy.experience_step != 0:
+        #     cl_strategy.device = torch.device("cpu")
 
         cl_strategy.train(train_experience, [test_experience])
 
@@ -161,7 +161,7 @@ def train_loop(
         cl_strategy.model.set_clf_head(all_clf_head)
 
         # Evaluate VQ-VAE and linear classifier
-        # cl_strategy.eval(benchmark.test_stream)
+        cl_strategy.eval(benchmark.test_stream)
 
         # Reset linear classifier and unfreeze params
         cl_strategy.model.reset_clf_head()
