@@ -10,6 +10,7 @@ class TrainConfig(BaseTrainConfig):
     embedding_dim: int
     commitment_cost: float
     decay: float
+    quantize_features: bool
 
     bootstrapped_dataset_path: str
 

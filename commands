@@ -32,5 +32,5 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --group mae-cycle \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight 1 \
-    --cycle_consistency_sigma 1000 \
+    --cycle_consistency_sigma 500 \
     --precision 16-mixed

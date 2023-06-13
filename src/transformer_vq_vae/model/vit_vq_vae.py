@@ -79,6 +79,7 @@ class VitVQVae(CLModel):
         current_samples_loss_weight=2,
         precision: str = "32-true",
         accelerator: str = "cuda",
+        quantize_features: bool = True,
     ) -> None:
         super().__init__()
 
@@ -96,6 +97,7 @@ class VitVQVae(CLModel):
         self._num_epochs = num_epochs
         self._batch_size = batch_size
         self._cycle_consistency_sigma = cycle_consistency_sigma
+        self._quantize_features = quantize_features
 
         self.encoder = MAEEncoder(
             image_size,
@@ -153,32 +155,37 @@ class VitVQVae(CLModel):
         self.clf_head = None
 
     def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
+        # prepare default values
+        clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
+        cycle_consistency_loss = torch.tensor(0.0, device=self.device)
+        reconstruction_loss = torch.tensor(0.0, device=self.device)
+
+        # unpack variables from forward output
         x_recon = forward_output.x_recon
         x_data = forward_output.x_data
         x_indices = forward_output.x_indices
+        latent_distances = forward_output.latent_distances
 
         past_data = y == -1
         current_data = y >= 0
 
-        # Compute contrastive loss
-        reconstruction_loss = torch.tensor(0.0, device=self.device)
+        # Compute reconstruction loss
         if current_data.any():
             reconstruction_loss = self.get_reconstruction_loss(
                 x_recon[current_data], x_data[current_data], y[current_data]
             )
-        # reconstruction_loss = (
-        #     torch.mean((x_recon - x_data) ** 2 * forward_output.mask) / self._mask_ratio
-        # )
 
         # Compute accuracy if classification head presents
-        clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
         if forward_output.clf_logits is not None:
             clf_loss = F.cross_entropy(forward_output.clf_logits, y)
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
 
         # Compute consistency loss
-        cycle_consistency_loss = torch.tensor(0.0, device=self.device)
-        if self.cycle_consistency_weight != 0 and past_data.any():
+        if (
+            latent_distances is not None
+            and self.cycle_consistency_weight != 0
+            and past_data.any()
+        ):
             distances = forward_output.latent_distances[past_data]
             indices = x_indices[past_data].long()
 
@@ -203,32 +210,36 @@ class VitVQVae(CLModel):
         )
 
     def forward(self, x) -> ForwardOutput:
-        # Extract features from backbone
+        # prepare default values
+        latent_distances = None
+        perplexity = torch.tensor(0.0, device=self.device)
+        vq_loss = torch.tensor(0.0, device=self.device)
+        clf_logits = None
+        image_emb = None
 
+        # Extract features from backbone
         masked_features, full_features, backward_indexes = self.encoder(
             x, return_full_features=True
         )
 
-        with torch.autocast(self._accelerator, dtype=torch.float32):
-            (
-                vq_loss,
-                quantized_features,
-                perplexity,
-                *_,
-            ) = self.feature_quantization(masked_features)
-            (*_, latent_distances) = self.feature_quantization(
-                full_features, return_distances=True
-            )
+        if self._quantize_features:
+            with torch.autocast(self._accelerator, dtype=torch.float32):
+                (
+                    vq_loss,
+                    masked_features,
+                    perplexity,
+                    *_,
+                ) = self.feature_quantization(masked_features)
+                (*_, latent_distances) = self.feature_quantization(
+                    full_features, return_distances=True
+                )
 
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
         # If the model has classification head
         # we calculate image embedding based on output of the encoder
         # without masking random patches
-        clf_logits = None
-        image_emb = None
         if self.clf_head is not None:
-            # _, full_features, _ = self.encoder(x)
             image_emb = full_features[0]
             clf_logits = self.clf_head(image_emb)
 
@@ -237,7 +248,7 @@ class VitVQVae(CLModel):
             x_recon=x_recon,
             x_data=x,
             x_indices=None,
-            quantized=quantized_features,
+            quantized=masked_features,
             perplexity=perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
