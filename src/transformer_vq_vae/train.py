@@ -37,7 +37,7 @@ from pathlib import Path
 
 
 def get_num_random_past_samples(
-    config: TrainConfig, cl_strategy: NaivePytorchLightning
+        config: TrainConfig, cl_strategy: NaivePytorchLightning
 ):
     if config.num_random_past_samples_schedule == "fixed":
         return config.num_random_past_samples
@@ -51,11 +51,11 @@ def get_num_random_past_samples(
 
 
 def train_loop(
-    benchmark: SplitCIFAR10,
-    cl_strategy: NaivePytorchLightning,
-    is_using_wandb: bool,
-    config: TrainConfig,
-    device: torch.device,
+        benchmark: SplitCIFAR10,
+        cl_strategy: NaivePytorchLightning,
+        is_using_wandb: bool,
+        config: TrainConfig,
+        device: torch.device,
 ) -> None:
     """
     :return:
@@ -65,7 +65,7 @@ def train_loop(
     mask_token = config.num_class_embeddings + config.num_embeddings
 
     for train_experience, test_experience in zip(
-        benchmark.train_stream, benchmark.test_stream
+            benchmark.train_stream, benchmark.test_stream
     ):
         train_experience.dataset = wrap_dataset_with_empty_indices(
             train_experience.dataset
@@ -81,7 +81,7 @@ def train_loop(
             future_dataset = model_future_samples(
                 vq_vae_model=cl_strategy.model,
                 num_images=(
-                    config.num_random_future_samples * (4 - cl_strategy.experience_step)
+                        config.num_random_future_samples * (4 - cl_strategy.experience_step)
                 ),
                 mode=config.future_samples_mode,
             )
@@ -107,7 +107,7 @@ def train_loop(
                 )
 
                 train_experience.dataset = (
-                    train_experience.dataset + bootstrapped_dataset
+                        train_experience.dataset + bootstrapped_dataset
                 )
 
                 igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
@@ -117,8 +117,8 @@ def train_loop(
                 future_dataset = model_future_samples(
                     vq_vae_model=cl_strategy.model,
                     num_images=(
-                        config.num_random_future_samples
-                        * (4 - cl_strategy.experience_step)
+                            config.num_random_future_samples
+                            * (4 - cl_strategy.experience_step)
                     ),
                     mode=config.future_samples_mode,
                 )
@@ -187,9 +187,9 @@ def main(args):
 
     # Construct wandb params if necessary
     is_using_wandb = (
-        config.train_logger == "wandb"
-        or config.evaluation_logger == "wandb"
-        or args.run_id
+            config.train_logger == "wandb"
+            or config.evaluation_logger == "wandb"
+            or args.run_id
     )
     if is_using_wandb:
         wandb_params = get_wandb_params(args, config)
@@ -236,7 +236,7 @@ def main(args):
 
     # Create benchmark
     benchmark = SplitCIFAR10(
-        n_experiences=5,
+        n_experiences=config.num_tasks,
         return_task_id=True,
         shuffle=True,
         dataset_root=target_dataset_dir,

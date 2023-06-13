@@ -11,6 +11,7 @@ class TrainConfig(BaseTrainConfig):
     commitment_cost: float
     decay: float
     quantize_features: bool
+    num_tasks: int
 
     bootstrapped_dataset_path: str
 
