@@ -33,4 +33,6 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight 1 \
     --cycle_consistency_sigma 1000 \
+    --num_tasks 1 \
+    --quantize_features False\
     --precision 16-mixed
