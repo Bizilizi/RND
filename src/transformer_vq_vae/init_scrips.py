@@ -76,6 +76,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         cycle_consistency_sigma=config.cycle_consistency_sigma,
         quantize_features=config.quantize_features,
         quantize_top_k=config.quantize_top_k,
+        separate_codebooks=config.separate_codebooks,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 
