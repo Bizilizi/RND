@@ -35,7 +35,8 @@ class ForwardOutput:
 
     quantized: torch.Tensor
     latent_distances: torch.Tensor
-    perplexity: torch.Tensor
+    feature_perplexity: torch.Tensor
+    class_perplexity: torch.Tensor
 
     image_emb: torch.Tensor
     clf_logits: torch.Tensor
@@ -50,6 +51,8 @@ class CriterionOutput:
 
     clf_loss: torch.Tensor
     clf_acc: torch.Tensor
+    feature_perplexity: torch.Tensor
+    class_perplexity: torch.Tensor
     perplexity: torch.Tensor
 
 
@@ -217,13 +220,18 @@ class VitVQVae(CLModel):
             cycle_consistency_loss=cycle_consistency_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
-            perplexity=forward_output.perplexity,
+            feature_perplexity=forward_output.feature_perplexity,
+            class_perplexity=forward_output.class_perplexity,
+            perplexity=(
+                forward_output.feature_perplexity + forward_output.class_perplexity
+            ),
         )
 
     def forward(self, x) -> ForwardOutput:
         # prepare default values
         latent_distances = None
-        perplexity = torch.tensor(0.0, device=self.device)
+        feature_perplexity = torch.tensor(0.0, device=self.device)
+        class_perplexity = torch.tensor(0.0, device=self.device)
         vq_loss = torch.tensor(0.0, device=self.device)
         clf_logits = None
         image_emb = None
@@ -238,7 +246,8 @@ class VitVQVae(CLModel):
                 (
                     vq_loss,
                     masked_features,
-                    perplexity,
+                    feature_perplexity,
+                    class_perplexity,
                     *_,
                 ) = self.feature_quantization(masked_features)
                 """
@@ -248,7 +257,6 @@ class VitVQVae(CLModel):
                 """
                 masked_features shape - T x B x emb_dim
                 """
-
                 (*_, latent_distances) = self.feature_quantization(
                     full_features, return_distances=True
                 )
@@ -268,7 +276,8 @@ class VitVQVae(CLModel):
             x_data=x,
             x_indices=None,
             quantized=masked_features,
-            perplexity=perplexity,
+            feature_perplexity=feature_perplexity,
+            class_perplexity=class_perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
             mask=mask,
@@ -308,6 +317,14 @@ class VitVQVae(CLModel):
         self.log_with_postfix(
             f"train/perplexity",
             criterion_output.perplexity.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/class_perplexity",
+            criterion_output.class_perplexity.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/feature_perplexity",
+            criterion_output.feature_perplexity.cpu().item(),
         )
         self.log_with_postfix(
             f"train/cycle_consistency_loss",
@@ -352,6 +369,14 @@ class VitVQVae(CLModel):
         self.log_with_postfix(
             f"val/perplexity",
             criterion_output.perplexity.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/class_perplexity",
+            criterion_output.class_perplexity.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/feature_perplexity",
+            criterion_output.feature_perplexity.cpu().item(),
         )
         self.log_with_postfix(
             f"val/cycle_consistency_loss",

@@ -8,6 +8,7 @@ from pytorch_lightning.callbacks import EarlyStopping
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
 from src.rnd.callbacks.log_model import LogModelWightsCallback
+from src.transformer_vq_vae.callbacks.codebook_histogram import LogCodebookHistogram
 from src.transformer_vq_vae.callbacks.log_dataset import LogDataset
 from src.transformer_vq_vae.callbacks.training_reconstions_vis import (
     VisualizeTrainingReconstructions,
@@ -99,6 +100,7 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
         VisualizeTrainingReconstructions(
             log_every=100, num_images=1000, w1=10, name="rec_img_1000"
         ),
+        LogCodebookHistogram(log_every=1000),
     ]
 
 

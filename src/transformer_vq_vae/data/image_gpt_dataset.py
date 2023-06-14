@@ -69,7 +69,7 @@ class ImageGPTDataset(Dataset):
                 (
                     _,
                     quantized_features,
-                    _,
+                    *_,
                     input_ids,
                 ) = vq_vae_model.feature_quantization(features)
                 """

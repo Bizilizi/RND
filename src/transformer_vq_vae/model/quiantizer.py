@@ -127,7 +127,8 @@ class FeatureQuantizer(nn.Module):
             return (
                 feature_vq_loss + class_vq_loss,
                 quantized_features,
-                feature_perplexity + class_perplexity,
+                feature_perplexity,
+                class_perplexity,
                 encoding_indices,
                 distances,
             )
@@ -135,7 +136,8 @@ class FeatureQuantizer(nn.Module):
             return (
                 feature_vq_loss + class_vq_loss,
                 quantized_features,
-                feature_perplexity + class_perplexity,
+                feature_perplexity,
+                class_perplexity,
                 encoding_indices,
             )
 
