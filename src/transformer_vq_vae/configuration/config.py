@@ -12,7 +12,7 @@ class TrainConfig(BaseTrainConfig):
     decay: float
     quantize_features: bool
     num_tasks: int
-
+    quantize_top_k: int
     bootstrapped_dataset_path: str
 
     use_lpips: bool

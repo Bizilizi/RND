@@ -1,6 +1,6 @@
 import torch
 import torch.nn.functional as F
-from einops import rearrange
+from einops import rearrange, repeat
 from torch import nn
 
 
@@ -13,6 +13,7 @@ class FeatureQuantizer(nn.Module):
         commitment_cost,
         decay,
         epsilon=1e-5,
+        top_k: int = 3,
     ):
         super().__init__()
 
@@ -20,10 +21,20 @@ class FeatureQuantizer(nn.Module):
         self._num_class_embeddings = num_class_embeddings
 
         self.feature_quantization = VectorQuantizerEMA(
-            num_embeddings, embedding_dim, commitment_cost, decay, epsilon
+            num_embeddings,
+            embedding_dim,
+            commitment_cost,
+            decay,
+            epsilon,
+            top_k=top_k,
         )
         self.class_quantization = VectorQuantizerEMA(
-            num_class_embeddings, embedding_dim, commitment_cost, decay, epsilon
+            num_class_embeddings,
+            embedding_dim,
+            commitment_cost,
+            decay,
+            epsilon,
+            top_k=top_k,
         )
 
     def forward(self, features, return_distances=False):
@@ -41,15 +52,23 @@ class FeatureQuantizer(nn.Module):
             feature_indices,
             feature_distances,
         ) = self.feature_quantization(features[1:])
+        """
+        quantized_class_emb shape - 1 x B x top_k x emb_dim
+        quantized_features shape  - T x B x top_k x emb_dim
+        
+        class_indices shape       - B x top_k
+        feature_indices shape     - (BT) x top_k
+        """
 
         # Shift and concatenate indices
-        class_indices = class_indices.reshape(quantized_class_emb.shape[:2])
+        class_indices = class_indices.reshape(quantized_class_emb.shape[:3])
         feature_indices = (feature_indices + self._num_class_embeddings).reshape(
-            quantized_features.shape[:2]
+            quantized_features.shape[:3]
         )
         """
-        class_indices shape   - 1 x B x 1
-        feature_indices shape - T x B x 1"""
+        class_indices shape   - 1 x B x top_k
+        feature_indices shape - T x B x top_k
+        """
 
         # Concatenate distances
         class_distances = class_distances.reshape(*quantized_class_emb.shape[:2], -1)
@@ -95,14 +114,13 @@ class FeatureQuantizer(nn.Module):
         """
 
         distances = torch.cat([class_distances, feature_distances])
-        distances = rearrange(distances, "t b c -> b t c")
-        """distances shape - B x (T+1) x num_class_emb + num_feature_emb"""
+        """distances shape - (T+1) x B x num_class_emb + num_feature_emb"""
 
-        encoding_indices = torch.cat([class_indices, feature_indices]).reshape(-1, 1)
+        encoding_indices = torch.cat([class_indices, feature_indices])
         quantized_features = torch.cat([quantized_class_emb, quantized_features])
         """
-        encoding_indices shape   - (T+1)B x emb_dim
-        quantized_features shape - (T+1) x B x emb_dim
+        encoding_indices shape   - (T+1) x B x top_k
+        quantized_features shape - (T+1) x B x top_k x emb_dim
         """
 
         if return_distances:
@@ -130,6 +148,7 @@ class VectorQuantizerEMA(nn.Module):
         commitment_cost,
         decay,
         epsilon=1e-5,
+        top_k: int = 3,
     ):
         super().__init__()
 
@@ -147,9 +166,11 @@ class VectorQuantizerEMA(nn.Module):
         self._decay = decay
         self._epsilon = epsilon
 
+        self._k = top_k
+
     def forward(self, inputs):
         input_shape = inputs.shape
-        """BTC shape"""
+        """B T emb_dim"""
 
         # Flatten input
         flat_input = inputs.reshape(-1, self._embedding_dim)
@@ -163,14 +184,28 @@ class VectorQuantizerEMA(nn.Module):
         """(flat_input - self._embedding.weight)^2"""
 
         # Encoding
-        encoding_indices = torch.argmin(distances, dim=1).unsqueeze(1)
+        encoding_indices = torch.topk(
+            distances, k=self._k, dim=1, largest=False
+        ).indices
         encodings = torch.zeros(
             encoding_indices.shape[0], self._num_embeddings, device=inputs.device
         )
         encodings.scatter_(1, encoding_indices, 1)
 
         # Quantize and unflatten
-        quantized = torch.matmul(encodings, self._embedding.weight).view(input_shape)
+        quantized = self._embedding(encoding_indices)
+        """
+        Since we used top_k closest elements, dimensionality of 
+        quantized is - (B T) x top_k x emb_dim
+        """
+
+        # Reshape input and quantized
+        quantized = rearrange(quantized, "(b t) k c -> b t k c", b=input_shape[0])
+        inputs = repeat(inputs, "b t c -> b t k c", k=self._k)
+        """
+        quantized shape - B x T x top_k x emb_dim
+        inputs shape    - B x T x top_k x emb_dim
+        """
 
         # Use EMA to update the embedding vectors
         if self.training:

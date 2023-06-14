@@ -6,6 +6,7 @@ from itertools import chain
 
 import lpips
 import torch
+from einops import rearrange
 from pytorch_metric_learning.distances import CosineSimilarity
 from pytorch_metric_learning.losses import ContrastiveLoss
 from torch import nn
@@ -80,6 +81,7 @@ class VitVQVae(CLModel):
         precision: str = "32-true",
         accelerator: str = "cuda",
         quantize_features: bool = True,
+        quantize_top_k: int = 3,
     ) -> None:
         super().__init__()
 
@@ -98,6 +100,7 @@ class VitVQVae(CLModel):
         self._batch_size = batch_size
         self._cycle_consistency_sigma = cycle_consistency_sigma
         self._quantize_features = quantize_features
+        self._quantize_top_k = quantize_top_k
 
         self.encoder = MAEEncoder(
             image_size,
@@ -107,7 +110,12 @@ class VitVQVae(CLModel):
             encoder_head,
         )
         self.feature_quantization = FeatureQuantizer(
-            num_class_embeddings, num_embeddings, embedding_dim, commitment_cost, decay
+            num_class_embeddings,
+            num_embeddings,
+            embedding_dim,
+            commitment_cost,
+            decay,
+            top_k=quantize_top_k,
         )
         self.decoder = MAEDecoder(
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
@@ -165,6 +173,7 @@ class VitVQVae(CLModel):
         x_data = forward_output.x_data
         x_indices = forward_output.x_indices
         latent_distances = forward_output.latent_distances
+        latent_distances = rearrange(latent_distances, "t b c -> b t c")
 
         past_data = y == -1
         current_data = y >= 0
@@ -186,8 +195,10 @@ class VitVQVae(CLModel):
             and self.cycle_consistency_weight != 0
             and past_data.any()
         ):
-            distances = forward_output.latent_distances[past_data]
+            distances = latent_distances[past_data]
             indices = x_indices[past_data].long()
+            indices = rearrange(indices, "b (t k) -> b t k", k=self._quantize_top_k)
+            indices = indices[..., 0]
 
             q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
 
@@ -230,6 +241,14 @@ class VitVQVae(CLModel):
                     perplexity,
                     *_,
                 ) = self.feature_quantization(masked_features)
+                """
+                masked_features shape - T x B x top_k x emb_dim
+                """
+                masked_features = masked_features.mean(2)
+                """
+                masked_features shape - T x B x emb_dim
+                """
+
                 (*_, latent_distances) = self.feature_quantization(
                     full_features, return_distances=True
                 )

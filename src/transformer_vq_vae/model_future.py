@@ -201,6 +201,7 @@ def sample_image_from_sparse_vector(
 @torch.no_grad()
 def model_future_samples(
     vq_vae_model: VitVQVae,
+    config: TrainConfig,
     num_images: int = 5_000,
     mode: str = "noise",
 ):
@@ -225,7 +226,7 @@ def model_future_samples(
 
     targets = [-2] * generated_images.shape[0]
     tensor_dataset = wrap_dataset_with_empty_indices(
-        TensorDataset(generated_images, targets)
+        TensorDataset(generated_images, targets), num_neighbours=config.quantize_top_k
     )
 
     return tensor_dataset
