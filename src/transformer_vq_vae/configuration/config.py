@@ -13,6 +13,7 @@ class TrainConfig(BaseTrainConfig):
     quantize_features: bool
     num_tasks: int
     quantize_top_k: int
+    separate_codebooks: bool
     bootstrapped_dataset_path: str
 
     use_lpips: bool

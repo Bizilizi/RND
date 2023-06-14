@@ -14,6 +14,7 @@ class FeatureQuantizer(nn.Module):
         decay,
         epsilon=1e-5,
         top_k: int = 3,
+        separate_codebooks: bool = True,
     ):
         super().__init__()
 
@@ -28,14 +29,17 @@ class FeatureQuantizer(nn.Module):
             epsilon,
             top_k=top_k,
         )
-        self.class_quantization = VectorQuantizerEMA(
-            num_class_embeddings,
-            embedding_dim,
-            commitment_cost,
-            decay,
-            epsilon,
-            top_k=top_k,
-        )
+        if separate_codebooks:
+            self.class_quantization = VectorQuantizerEMA(
+                num_class_embeddings,
+                embedding_dim,
+                commitment_cost,
+                decay,
+                epsilon,
+                top_k=top_k,
+            )
+        else:
+            self.class_quantization = self.feature_quantization
 
     def forward(self, features, return_distances=False):
         (

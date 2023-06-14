@@ -85,6 +85,7 @@ class VitVQVae(CLModel):
         accelerator: str = "cuda",
         quantize_features: bool = True,
         quantize_top_k: int = 3,
+        separate_codebooks: bool = True,
     ) -> None:
         super().__init__()
 
@@ -119,6 +120,7 @@ class VitVQVae(CLModel):
             commitment_cost,
             decay,
             top_k=quantize_top_k,
+            separate_codebooks=separate_codebooks,
         )
         self.decoder = MAEDecoder(
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head

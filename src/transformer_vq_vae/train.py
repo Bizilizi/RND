@@ -60,6 +60,10 @@ def train_loop(
     """
     :return:
     """
+    # Fix num_class_embeddings in case of non-separated codebook
+    if not config.separate_codebooks:
+        config.num_class_embeddings = config.num_embeddings
+
     image_gpt = None
     sos_token = config.num_class_embeddings + config.num_embeddings + 1
     mask_token = config.num_class_embeddings + config.num_embeddings
