@@ -291,9 +291,9 @@ def train_igpt(
     )
 
     if strategy.experience_step < 2:
-        epoch_num = 15
-    elif strategy.experience_step < 3:
         epoch_num = 10
+    elif strategy.experience_step < 3:
+        epoch_num = 7
     else:
         epoch_num = 5
 
@@ -374,6 +374,7 @@ def train_igpt(
                     state_dict[k] = v.cpu()
 
                 torch.save(state_dict, model_ckpt_path)
+        break
 
     return image_gpt
 
