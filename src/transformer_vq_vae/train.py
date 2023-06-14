@@ -60,9 +60,6 @@ def train_loop(
     """
     :return:
     """
-    # Fix num_class_embeddings in case of non-separated codebook
-    if not config.separate_codebooks:
-        config.num_class_embeddings = config.num_embeddings
 
     image_gpt = None
     sos_token = config.num_class_embeddings + config.num_embeddings + 1
@@ -190,6 +187,10 @@ def main(args):
     # Unpack config to typed config class and create the model
     config = TrainConfig.construct_typed_config(ini_config)
     overwrite_config_with_args(args, config)
+
+    # Fix num_class_embeddings in case of non-separated codebook
+    if not config.separate_codebooks:
+        config.num_class_embeddings = config.num_embeddings
 
     # Construct wandb params if necessary
     is_using_wandb = (

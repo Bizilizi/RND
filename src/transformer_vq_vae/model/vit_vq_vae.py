@@ -97,7 +97,14 @@ class VitVQVae(CLModel):
         self._latent_sos_token = num_embeddings + 1
         self._mask_ratio = mask_ratio
         self._mask_token_id = mask_token_id
-        self._precision_dtype = torch.half if precision == "16-mixed" else torch.float32
+
+        if precision == "16-mixed" and accelerator == "cpu":
+            self._precision_dtype = torch.bfloat16
+        elif precision == "16-mixed":
+            self._precision_dtype = torch.half
+        else:
+            self._precision_dtype = torch.float32
+
         self._accelerator = accelerator
         self._current_samples_loss_weight = current_samples_loss_weight
         self._num_epochs = num_epochs
@@ -244,24 +251,24 @@ class VitVQVae(CLModel):
         )
 
         if self._quantize_features:
-            with torch.autocast(self._accelerator, dtype=torch.float32):
-                (
-                    vq_loss,
-                    masked_features,
-                    feature_perplexity,
-                    class_perplexity,
-                    *_,
-                ) = self.feature_quantization(masked_features)
-                """
-                masked_features shape - T x B x top_k x emb_dim
-                """
-                masked_features = masked_features.mean(2)
-                """
-                masked_features shape - T x B x emb_dim
-                """
-                (*_, latent_distances) = self.feature_quantization(
-                    full_features, return_distances=True
-                )
+            # with torch.autocast(self._accelerator, dtype=torch.float32):
+            (
+                vq_loss,
+                masked_features,
+                feature_perplexity,
+                class_perplexity,
+                *_,
+            ) = self.feature_quantization(masked_features)
+            """
+            masked_features shape - T x B x top_k x emb_dim
+            """
+            masked_features = masked_features.mean(2)
+            """
+            masked_features shape - T x B x emb_dim
+            """
+            (*_, latent_distances) = self.feature_quantization(
+                full_features, return_distances=True
+            )
 
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
