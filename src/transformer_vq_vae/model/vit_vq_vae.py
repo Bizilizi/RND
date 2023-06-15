@@ -251,6 +251,7 @@ class VitVQVae(CLModel):
             z_second_order_distances is not None
             and self._past_cycle_consistency_weight != 0
             and current_data.any()
+            and self.current_epoch >= self._num_epochs // 2
         ):
             distances = z_second_order_distances[current_data]
             indices = z_indices[current_data].long()
