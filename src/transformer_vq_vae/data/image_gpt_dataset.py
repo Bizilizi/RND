@@ -121,9 +121,7 @@ class ImageGPTDataset(Dataset):
                     ],
                     dim=0,
                 )
-                masked_input_ids = take_indexes(
-                    masked_input_ids, backward_indexes
-                ).squeeze()
+                masked_input_ids = take_indexes(masked_input_ids, backward_indexes)
 
                 # Transform to batch
                 masked_input_ids = rearrange(masked_input_ids, "t b k-> b (t k)")
@@ -215,14 +213,15 @@ class ImageGPTDataset(Dataset):
 #         cycle_consistency_weight=1,
 #         cycle_consistency_sigma=1000,
 #         quantize_features=True,
+#         quantize_top_k=1,
 #     )
 #
 #     ImageGPTDataset(
 #         vq_vae_model,
-#         wrap_dataset_with_empty_indices(benchmark.train_stream[0].dataset),
+#         wrap_dataset_with_empty_indices(benchmark.train_stream[0].dataset, 1),
 #         sos_token,
 #         mask_token,
 #         0.1,
-#         3,
+#         top_k=1,
 #         num_workers=0,
 #     )
