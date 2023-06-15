@@ -214,10 +214,16 @@ class VitVQVae(CLModel):
         x_recon = forward_output.x_recon
         x_data = forward_output.x_data
         z_indices = forward_output.z_indices
+
         z_distances = forward_output.z_distances
-        z_distances = rearrange(z_distances, "t b c -> b t c")
+        if z_distances is not None:
+            z_distances = rearrange(z_distances, "t b c -> b t c")
+
         z_second_order_distances = forward_output.z_second_order_distances
-        z_second_order_distances = rearrange(z_second_order_distances, "t b c -> b t c")
+        if z_second_order_distances is not None:
+            z_second_order_distances = rearrange(
+                z_second_order_distances, "t b c -> b t c"
+            )
 
         past_data = y == -1
         current_data = y >= 0
