@@ -286,6 +286,7 @@ class VitVQVae(CLModel):
     def forward(self, x) -> ForwardOutput:
         # prepare default values
         latent_distances = None
+        second_order_latent_distances = None
         feature_perplexity = torch.tensor(0.0, device=self.device)
         class_perplexity = torch.tensor(0.0, device=self.device)
         vq_loss = torch.tensor(0.0, device=self.device)
@@ -323,12 +324,15 @@ class VitVQVae(CLModel):
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
         # To compute cycle consistency loss we apply encoder/quant again
-        _, second_order_features, _ = self.encoder(x_recon, return_full_features=True)
-        if self._quantize_features:
-            with torch.autocast(self._accelerator, dtype=torch.float32):
-                (*_, second_order_latent_distances) = self.feature_quantization(
-                    second_order_features, return_distances=True
-                )
+        if self._current_cycle_consistency_weight != 0:
+            _, second_order_features, _ = self.encoder(
+                x_recon, return_full_features=True
+            )
+            if self._quantize_features:
+                with torch.autocast(self._accelerator, dtype=torch.float32):
+                    (*_, second_order_latent_distances) = self.feature_quantization(
+                        second_order_features, return_distances=True
+                    )
 
         # If the model has classification head we calculate image embedding
         # based on output of the encoder without masking random patches
