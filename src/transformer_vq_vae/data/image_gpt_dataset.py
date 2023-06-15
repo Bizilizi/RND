@@ -51,7 +51,7 @@ class ImageGPTDataset(Dataset):
             x = x.to(device)
 
             with torch.no_grad():
-                # extract pathes featues
+                # extract patches features
                 encoder = vq_vae_model.encoder
                 patches = encoder.patchify(x)
                 patches = rearrange(patches, "b c h w -> (h w) b c")

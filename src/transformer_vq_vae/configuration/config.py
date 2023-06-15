@@ -19,7 +19,8 @@ class TrainConfig(BaseTrainConfig):
     use_lpips: bool
     mask_ratio: float
     weight_decay: float
-    cycle_consistency_loss_weight: float
+    cycle_consistency_loss_weight_for_past: float
+    cycle_consistency_loss_weight_for_current: float
     current_samples_loss_weight: float
     cycle_consistency_sigma: float
 

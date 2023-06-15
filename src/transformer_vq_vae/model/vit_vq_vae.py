@@ -27,30 +27,42 @@ if t.TYPE_CHECKING:
 
 @dataclasses.dataclass
 class ForwardOutput:
-    vq_loss: torch.Tensor
-
+    # data input
     x_data: torch.Tensor
-    x_recon: torch.Tensor
-    x_indices: torch.Tensor
+    mask: torch.Tensor
 
-    quantized: torch.Tensor
-    latent_distances: torch.Tensor
+    # first order features
+    z_quantized: torch.Tensor
+    z_distances: torch.Tensor
+    z_indices: torch.Tensor
+    x_recon: torch.Tensor
+
+    # second order features
+    z_second_order_distances: torch.Tensor
+
+    # metrics
+    vq_loss: torch.Tensor
     feature_perplexity: torch.Tensor
     class_perplexity: torch.Tensor
 
+    # classification
     image_emb: torch.Tensor
     clf_logits: torch.Tensor
-    mask: torch.Tensor
 
 
 @dataclasses.dataclass
 class CriterionOutput:
-    vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
+    past_cycle_consistency_loss: torch.Tensor
+    current_cycle_consistency_loss: torch.Tensor
     cycle_consistency_loss: torch.Tensor
 
+    # classification loss
     clf_loss: torch.Tensor
     clf_acc: torch.Tensor
+
+    # quantization loss
+    vq_loss: torch.Tensor
     feature_perplexity: torch.Tensor
     class_perplexity: torch.Tensor
     perplexity: torch.Tensor
@@ -77,9 +89,9 @@ class VitVQVae(CLModel):
         decoder_head=3,
         mask_ratio=0.75,
         use_lpips: bool = True,
-        cycle_consistency_power=3,
-        cycle_consistency_weight=1,
         cycle_consistency_sigma: float = 1,
+        past_cycle_consistency_weight=1,
+        current_cycle_consistency_weight=1,
         current_samples_loss_weight=2,
         precision: str = "32-true",
         accelerator: str = "cuda",
@@ -109,7 +121,11 @@ class VitVQVae(CLModel):
         self._current_samples_loss_weight = current_samples_loss_weight
         self._num_epochs = num_epochs
         self._batch_size = batch_size
+
         self._cycle_consistency_sigma = cycle_consistency_sigma
+        self._current_cycle_consistency_weight = current_cycle_consistency_weight
+        self._past_cycle_consistency_weight = past_cycle_consistency_weight
+
         self._quantize_features = quantize_features
         self._quantize_top_k = quantize_top_k
 
@@ -135,13 +151,17 @@ class VitVQVae(CLModel):
 
         self.clf_head = None
         self.experience_step = 0
-        self.cycle_consistency_power = cycle_consistency_power
-        self.cycle_consistency_weight = cycle_consistency_weight
         self.use_lpips = use_lpips
         self._data_variance = 0.06328692405746414
 
         if self.use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
+
+    def set_clf_head(self, model: "EmbClassifier"):
+        self.__dict__["clf_head"] = model
+
+    def reset_clf_head(self):
+        self.clf_head = None
 
     def get_reconstruction_loss(
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
@@ -168,32 +188,76 @@ class VitVQVae(CLModel):
 
         return reconstruction_loss
 
-    def set_clf_head(self, model: "EmbClassifier"):
-        self.__dict__["clf_head"] = model
+    def get_cycle_consistency_loss(self, distances, indices):
+        indices = rearrange(indices, "b (t k) -> b t k", k=self._quantize_top_k)
+        indices = indices[..., 0]
 
-    def reset_clf_head(self):
-        self.clf_head = None
+        q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
+
+        q_logits = q_logits.flatten(0, 1)
+        q_indices = indices.flatten()
+
+        # Remove loss for mask token if it presents there
+        q_logits = q_logits[q_indices != self._mask_token_id]
+        q_indices = q_indices[q_indices != self._mask_token_id]
+
+        return F.cross_entropy(q_logits, q_indices)
 
     def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
         # prepare default values
         clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
-        cycle_consistency_loss = torch.tensor(0.0, device=self.device)
+        past_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
+        current_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
         reconstruction_loss = torch.tensor(0.0, device=self.device)
 
         # unpack variables from forward output
         x_recon = forward_output.x_recon
         x_data = forward_output.x_data
-        x_indices = forward_output.x_indices
-        latent_distances = forward_output.latent_distances
-        latent_distances = rearrange(latent_distances, "t b c -> b t c")
+        z_indices = forward_output.z_indices
+        z_distances = forward_output.z_distances
+        z_distances = rearrange(z_distances, "t b c -> b t c")
+        z_second_order_distances = forward_output.z_second_order_distances
+        z_second_order_distances = rearrange(z_second_order_distances, "t b c -> b t c")
 
         past_data = y == -1
         current_data = y >= 0
+        future_data = y == -2
 
-        # Compute reconstruction loss
-        if current_data.any():
+        # Compute reconstruction loss for future and current data
+        cf_data = current_data | future_data
+        if cf_data.any():
             reconstruction_loss = self.get_reconstruction_loss(
-                x_recon[current_data], x_data[current_data], y[current_data]
+                x_recon[cf_data],
+                x_data[cf_data],
+                y[cf_data],
+            )
+
+        # Compute consistency loss past data
+        if (
+            z_distances is not None
+            and self._current_samples_loss_weight != 0
+            and past_data.any()
+        ):
+            distances = z_distances[past_data]
+            indices = z_indices[past_data].long()
+
+            past_cycle_consistency_loss = (
+                self.get_cycle_consistency_loss(distances, indices)
+                * self._current_samples_loss_weight
+            )
+
+        # Compute consistency loss current data
+        if (
+            z_second_order_distances is not None
+            and self._past_cycle_consistency_weight != 0
+            and current_data.any()
+        ):
+            distances = z_second_order_distances[current_data]
+            indices = z_indices[current_data].long()
+
+            current_cycle_consistency_loss = (
+                self.get_cycle_consistency_loss(distances, indices)
+                * self._past_cycle_consistency_weight
             )
 
         # Compute accuracy if classification head presents
@@ -201,39 +265,21 @@ class VitVQVae(CLModel):
             clf_loss = F.cross_entropy(forward_output.clf_logits, y)
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
 
-        # Compute consistency loss
-        if (
-            latent_distances is not None
-            and self.cycle_consistency_weight != 0
-            and past_data.any()
-        ):
-            distances = latent_distances[past_data]
-            indices = x_indices[past_data].long()
-            indices = rearrange(indices, "b (t k) -> b t k", k=self._quantize_top_k)
-            indices = indices[..., 0]
-
-            q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
-
-            q_logits = q_logits.flatten(0, 1)
-            q_indices = indices.flatten()
-
-            # Remove loss for mask token
-            q_logits = q_logits[q_indices != self._mask_token_id]
-            q_indices = q_indices[q_indices != self._mask_token_id]
-
-            cycle_consistency_loss = F.cross_entropy(q_logits, q_indices)
-
+        perplexity = forward_output.feature_perplexity + forward_output.class_perplexity
+        cycle_consistency_loss = (
+            past_cycle_consistency_loss + current_cycle_consistency_loss
+        )
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
+            past_cycle_consistency_loss=past_cycle_consistency_loss,
+            current_cycle_consistency_loss=current_cycle_consistency_loss,
             cycle_consistency_loss=cycle_consistency_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
             feature_perplexity=forward_output.feature_perplexity,
             class_perplexity=forward_output.class_perplexity,
-            perplexity=(
-                forward_output.feature_perplexity + forward_output.class_perplexity
-            ),
+            perplexity=perplexity,
         )
 
     def forward(self, x) -> ForwardOutput:
@@ -250,6 +296,7 @@ class VitVQVae(CLModel):
             x, return_full_features=True
         )
 
+        # Quantize features
         if self._quantize_features:
             with torch.autocast(self._accelerator, dtype=torch.float32):
                 (
@@ -266,48 +313,68 @@ class VitVQVae(CLModel):
                 """
                 masked_features shape - T x B x emb_dim
                 """
-                (*_, latent_distances) = self.feature_quantization(
+                (*_, z_indices, latent_distances) = self.feature_quantization(
                     full_features, return_distances=True
                 )
+                z_indices = rearrange(z_indices, "t b k -> b (t k)")
 
+        # Reconstruct an image from quantized patches' features
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
-        # If the model has classification head
-        # we calculate image embedding based on output of the encoder
-        # without masking random patches
+        # To compute cycle consistency loss we apply encoder/quant again
+        _, second_order_features, _ = self.encoder(x_recon, return_full_features=True)
+        if self._quantize_features:
+            with torch.autocast(self._accelerator, dtype=torch.float32):
+                (*_, second_order_latent_distances) = self.feature_quantization(
+                    second_order_features, return_distances=True
+                )
+
+        # If the model has classification head we calculate image embedding
+        # based on output of the encoder without masking random patches
         if self.clf_head is not None:
             image_emb = full_features[0]
             clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
-            vq_loss=vq_loss,
-            x_recon=x_recon,
+            # data
             x_data=x,
-            x_indices=None,
-            quantized=masked_features,
+            mask=mask,
+            # first order
+            z_quantized=masked_features,
+            z_indices=z_indices,
+            z_distances=latent_distances,
+            x_recon=x_recon,
+            # seconds order
+            z_second_order_distances=second_order_latent_distances,
+            # metrics
+            vq_loss=vq_loss,
             feature_perplexity=feature_perplexity,
             class_perplexity=class_perplexity,
+            # classification
             image_emb=image_emb,
             clf_logits=clf_logits,
-            mask=mask,
-            latent_distances=latent_distances,
         )
 
     def training_step(self, batch, batch_idx):
         data, y, *_ = batch
 
         x = data["images"]
+        past_data = y == -1
 
         forward_output = self.forward(x)
-        forward_output.x_data = x
-        forward_output.x_indices = data["indices"]
+
+        # The forward_output.z_indices contains indices for latent codes
+        # we overwrite it with data from the batch to make sure
+        # that z_indices now contains target indices for past and current data
+        if past_data.any():
+            forward_output.z_indices[past_data] = data["indices"][past_data]
 
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            + criterion_output.cycle_consistency_loss
         )
 
         # LOGGING
@@ -336,6 +403,14 @@ class VitVQVae(CLModel):
             criterion_output.feature_perplexity.cpu().item(),
         )
         self.log_with_postfix(
+            f"train/current_cycle_consistency_loss",
+            criterion_output.current_cycle_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/past_cycle_consistency_loss",
+            criterion_output.past_cycle_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
             f"train/cycle_consistency_loss",
             criterion_output.cycle_consistency_loss.cpu().item(),
         )
@@ -349,17 +424,19 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
+        past_data = y == -1
 
         forward_output = self.forward(x)
-        forward_output.x_data = x
-        forward_output.x_indices = data["indices"]
+
+        if past_data.any():
+            forward_output.z_indices[past_data] = data["indices"][past_data]
 
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            + criterion_output.cycle_consistency_loss
         )
 
         # LOGGING
@@ -405,7 +482,7 @@ class VitVQVae(CLModel):
         optimizer = torch.optim.AdamW(
             chain(
                 self.encoder.parameters(),
-                # self.feature_quantization.parameters(),
+                self.feature_quantization.parameters(),
                 self.decoder.parameters(),
             ),
             lr=self._learning_rate * self._batch_size / 256,

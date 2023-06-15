@@ -316,12 +316,12 @@ def train_igpt(
         for batch in tqdm(data_loader):
             step += 1
 
-            masked_input_ids = batch["input_ids"].to(device)
+            input_ids = batch["input_ids"].to(device)
             with torch.autocast(device_type=config.accelerator):
-                output = image_gpt(input_ids=masked_input_ids)
+                output = image_gpt(input_ids=input_ids)
                 loss = loss_fn(
                     output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
-                    masked_input_ids[..., 1:].reshape(-1),
+                    input_ids[..., 1:].reshape(-1),
                 )
                 grad_scaler.scale(loss).backward()
 
@@ -340,16 +340,17 @@ def train_igpt(
             )
 
             if step % 1000 == 0:
-                sample = sample_images(
-                    image_gpt=image_gpt,
-                    vq_vae_model=vq_vae_model,
-                    embedding=image_embeddings,
-                    sos_token=sos_token,
-                    return_grid_only=True,
-                    temperature=config.temperature,
-                    max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
-                    num_neighbours=config.quantize_top_k,
-                ).cpu()
+                with torch.autocast(device_type=config.accelerator):
+                    sample = sample_images(
+                        image_gpt=image_gpt,
+                        vq_vae_model=vq_vae_model,
+                        embedding=image_embeddings,
+                        sos_token=sos_token,
+                        return_grid_only=True,
+                        temperature=config.temperature,
+                        max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
+                        num_neighbours=config.quantize_top_k,
+                    ).cpu()
 
                 if isinstance(logger, WandbLogger):
                     logger.log_metrics(
