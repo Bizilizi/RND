@@ -10,7 +10,7 @@ class ClassificationDataset(Dataset):
         self,
         vq_vae_model: VitVQVae,
         dataset: Dataset,
-        depth: int = 10,
+        depth: int = 8,
     ):
         super().__init__()
 
