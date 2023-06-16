@@ -10,6 +10,7 @@ class ClassificationDataset(Dataset):
         self,
         vq_vae_model: VitVQVae,
         dataset: Dataset,
+        depth: int = 10,
     ):
         super().__init__()
 
@@ -18,6 +19,7 @@ class ClassificationDataset(Dataset):
 
         self.vq_vae_model = vq_vae_model
         self.dataset = dataset
+        self.depth = depth
 
         self._project_dataset(vq_vae_model, dataset)
 
@@ -33,6 +35,11 @@ class ClassificationDataset(Dataset):
         dataset: Dataset,
     ):
         dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=0)
+
+        # Cut transformer depth
+        old_transformer_seq = vq_vae.encoder.transformer
+        vq_vae.encoder.transformer = vq_vae.encoder.transformer[: self.depth]
+
         for batch in tqdm(dataloader, leave=False):
             x, y, *_ = batch
 
@@ -40,13 +47,16 @@ class ClassificationDataset(Dataset):
 
             with torch.no_grad():
                 _, full_features, _ = vq_vae.encoder(x)
-                image_emb = full_features[0]
+                image_emb = full_features.mean(dim=0)
 
                 self.targets.append(y.cpu())
                 self.embeddings.append(image_emb.cpu())
 
         self.targets = torch.cat(self.targets)
         self.embeddings = torch.cat(self.embeddings)
+
+        # Restore transformer depth
+        vq_vae.encoder.transformer = old_transformer_seq
 
     def __len__(self):
         return len(self.targets)
