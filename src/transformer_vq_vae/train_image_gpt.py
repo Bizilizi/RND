@@ -340,16 +340,15 @@ def train_igpt(
             )
 
             if step % 1000 == 0:
-                with torch.autocast(device_type=config.accelerator):
-                    images, _ = sample_images(
-                        image_gpt=image_gpt,
-                        vq_vae_model=vq_vae_model,
-                        embedding=image_embeddings,
-                        sos_token=sos_token,
-                        temperature=config.temperature,
-                        max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
-                        num_neighbours=config.quantize_top_k,
-                    )
+                images, _ = sample_images(
+                    image_gpt=image_gpt,
+                    vq_vae_model=vq_vae_model,
+                    embedding=image_embeddings,
+                    sos_token=sos_token,
+                    temperature=config.temperature,
+                    max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
+                    num_neighbours=config.quantize_top_k,
+                )
 
                 sample = make_grid(images.cpu().data)
                 sample = (sample + 0.5) * 255
