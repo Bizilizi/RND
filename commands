@@ -24,19 +24,19 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --num_random_past_samples_schedule fixed \
     --num_random_future_samples 0 \
     --batch_size 512 \
-    --max_epochs 800 \
-    --min_epochs 800 \
-    --max_epochs_lin_eval 100 \
+    --max_epochs 3 \
+    --min_epochs 3 \
+    --max_epochs_lin_eval 5 \
     --num_workers 8 \
     --accumulate_grad_batches 1 \
     --group mae-cycle-consist \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
-    --cycle_consistency_sigma 500 \
-    --separate_codebooks false \
-    --quantize_top_k 1 \
-    --num_tasks 1 \
-    --num_embeddings 512 \
-    --num_class_embeddings 16 \
+    --cycle_consistency_sigma 1000 \
+    --separate_codebooks true \
+    --quantize_top_k 3 \
+    --num_tasks 5 \
+    --num_embeddings 128 \
+    --num_class_embeddings 4 \
     --precision 16-mixed

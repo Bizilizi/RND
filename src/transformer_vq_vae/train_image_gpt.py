@@ -349,7 +349,7 @@ def train_igpt(
                         temperature=config.temperature,
                         max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
                         num_neighbours=config.quantize_top_k,
-                    ).cpu()
+                    )
 
                 sample = make_grid(images.cpu().data)
                 sample = (sample + 0.5) * 255
