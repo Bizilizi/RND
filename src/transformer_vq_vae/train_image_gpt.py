@@ -341,16 +341,19 @@ def train_igpt(
 
             if step % 1000 == 0:
                 with torch.autocast(device_type=config.accelerator):
-                    sample = sample_images(
+                    images, _ = sample_images(
                         image_gpt=image_gpt,
                         vq_vae_model=vq_vae_model,
                         embedding=image_embeddings,
                         sos_token=sos_token,
-                        return_grid_only=True,
                         temperature=config.temperature,
                         max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
                         num_neighbours=config.quantize_top_k,
                     ).cpu()
+
+                sample = make_grid(images.cpu().data)
+                sample = (sample + 0.5) * 255
+                sample = sample.clip(0, 255)
 
                 if isinstance(logger, WandbLogger):
                     logger.log_metrics(
@@ -389,7 +392,6 @@ def sample_images(
     num_neighbours,
     temperature=1.23,
     num_images=8 * 4 * 10,
-    return_grid_only=False,
 ):
     image_gpt.eval()
     vq_vae_model.eval()
@@ -425,13 +427,4 @@ def sample_images(
     patches = decoder.head(features)
     x_recon = decoder.patch2img(patches)
 
-    if return_grid_only:
-        grid_image = make_grid(
-            x_recon.cpu().data,
-        )
-        grid_image = (grid_image + 0.5) * 255
-        grid_image = grid_image.clip(0, 255)
-
-        return grid_image
-    else:
-        return x_recon, igpt_output
+    return x_recon, igpt_output
