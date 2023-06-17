@@ -176,6 +176,7 @@ class ImageGPTDataset(Dataset):
 #     num_embeddings = 128
 #     sos_token = num_class_embeddings + num_embeddings + 1
 #     mask_token = num_class_embeddings + num_embeddings
+#     quantize_top_k = 3
 #
 #     benchmark = SplitCIFAR10(
 #         n_experiences=5,
@@ -210,18 +211,19 @@ class ImageGPTDataset(Dataset):
 #         current_samples_loss_weight=1,
 #         batch_size=64,
 #         num_epochs=1000,
-#         cycle_consistency_weight=1,
 #         cycle_consistency_sigma=1000,
 #         quantize_features=True,
-#         quantize_top_k=1,
+#         quantize_top_k=quantize_top_k,
 #     )
 #
 #     ImageGPTDataset(
 #         vq_vae_model,
-#         wrap_dataset_with_empty_indices(benchmark.train_stream[0].dataset, 1),
+#         wrap_dataset_with_empty_indices(
+#             benchmark.train_stream[0].dataset, quantize_top_k
+#         ),
 #         sos_token,
 #         mask_token,
 #         0.1,
-#         top_k=1,
+#         top_k=quantize_top_k,
 #         num_workers=0,
 #     )

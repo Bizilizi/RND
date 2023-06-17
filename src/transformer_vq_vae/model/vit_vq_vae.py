@@ -238,10 +238,10 @@ class VitVQVae(CLModel):
                 y[cf_data],
             )
 
-        # Compute consistency loss past data
+        # Compute consistency loss for past data
         if (
             z_distances is not None
-            and self._current_samples_loss_weight != 0
+            and self._past_cycle_consistency_weight != 0
             and past_data.any()
         ):
             distances = z_distances[past_data]
@@ -249,13 +249,13 @@ class VitVQVae(CLModel):
 
             past_cycle_consistency_loss = (
                 self.get_cycle_consistency_loss(distances, indices)
-                * self._current_samples_loss_weight
+                * self._past_cycle_consistency_weight
             )
 
         # Compute consistency loss current data
         if (
             z_second_order_distances is not None
-            and self._past_cycle_consistency_weight != 0
+            and self._current_cycle_consistency_weight != 0
             and current_data.any()
             and self.current_epoch >= self._num_epochs // 2
         ):
@@ -264,7 +264,7 @@ class VitVQVae(CLModel):
 
             current_cycle_consistency_loss = (
                 self.get_cycle_consistency_loss(distances, indices)
-                * self._past_cycle_consistency_weight
+                * self._current_cycle_consistency_weight
             )
 
         # Compute accuracy if classification head presents

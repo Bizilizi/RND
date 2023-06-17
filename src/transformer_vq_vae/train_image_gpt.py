@@ -191,7 +191,7 @@ def bootstrap_past_samples(
         vq_vae_model.device
     )
 
-    for _ in range(num_images // num_images_per_batch):
+    for _ in trange(num_images // num_images_per_batch):
         images, latent_indices = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
