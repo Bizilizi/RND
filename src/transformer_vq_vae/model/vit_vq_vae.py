@@ -92,7 +92,9 @@ class VitVQVae(CLModel):
         cycle_consistency_sigma: float = 1,
         past_cycle_consistency_weight=1,
         current_cycle_consistency_weight=1,
-        current_samples_loss_weight=2,
+        past_samples_loss_weight=1,
+        current_samples_loss_weight=1,
+        future_samples_loss_weight=1,
         precision: str = "32-true",
         accelerator: str = "cuda",
         quantize_features: bool = True,
@@ -118,9 +120,12 @@ class VitVQVae(CLModel):
             self._precision_dtype = torch.float32
 
         self._accelerator = accelerator
-        self._current_samples_loss_weight = current_samples_loss_weight
         self._num_epochs = num_epochs
         self._batch_size = batch_size
+
+        self._past_samples_loss_weight = past_samples_loss_weight
+        self._current_samples_loss_weight = current_samples_loss_weight
+        self._future_samples_loss_weight = future_samples_loss_weight
 
         self._cycle_consistency_sigma = cycle_consistency_sigma
         self._current_cycle_consistency_weight = current_cycle_consistency_weight
@@ -166,9 +171,15 @@ class VitVQVae(CLModel):
     def get_reconstruction_loss(
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
     ):
+        past_data = y == -1
+        current_data = y >= 0
+        future_data = y == -2
+
         # Create weight vector to shift gradient towards current dataset
         weight_tensor = torch.ones(y.shape[0], device=self.device)
-        weight_tensor[y >= 0] = self._current_samples_loss_weight
+        weight_tensor[past_data] = self._past_samples_loss_weight
+        weight_tensor[current_data] = self._current_samples_loss_weight
+        weight_tensor[future_data] = self._future_samples_loss_weight
 
         if self.use_lpips:
             lpips_loss = (self._lpips(x, x_rec) * weight_tensor).mean()
@@ -230,13 +241,7 @@ class VitVQVae(CLModel):
         future_data = y == -2
 
         # Compute reconstruction loss for future and current data
-        cf_data = current_data | future_data
-        if cf_data.any():
-            reconstruction_loss = self.get_reconstruction_loss(
-                x_recon[cf_data],
-                x_data[cf_data],
-                y[cf_data],
-            )
+        reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
 
         # Compute consistency loss for past data
         if (

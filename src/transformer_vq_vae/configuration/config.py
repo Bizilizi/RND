@@ -21,8 +21,11 @@ class TrainConfig(BaseTrainConfig):
     weight_decay: float
     cycle_consistency_loss_weight_for_past: float
     cycle_consistency_loss_weight_for_current: float
-    current_samples_loss_weight: float
     cycle_consistency_sigma: float
+
+    past_samples_loss_weight: float
+    current_samples_loss_weight: float
+    future_samples_loss_weight: float
 
     # sampling
     num_random_future_samples: int

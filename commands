@@ -19,22 +19,24 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --group mae-cycle-consist \
-    --batch_size 256 \
-    --accumulate_grad_batches 2 \
+    --group mae-stable-sampling \
+    --batch_size 512 \
+    --accumulate_grad_batches 1 \
     --num_workers 8 \
     --num_tasks 5 \
-    --max_epochs 1000 \
-    --min_epochs 1000 \
+    --max_epochs 600 \
+    --min_epochs 600 \
     --max_epochs_lin_eval 100 \
-    --current_samples_loss_weight 1 \
     --num_random_past_samples 10000 \
     --num_random_past_samples_schedule fixed \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
-    --cycle_consistency_loss_weight_for_current 0.2 \
+    --cycle_consistency_loss_weight_for_current 0 \
     --cycle_consistency_sigma 1000 \
+    --past_samples_loss_weight 1 \
+    --current_samples_loss_weight 1 \
+    --future_samples_loss_weight 1 \
     --separate_codebooks true \
     --quantize_top_k 1 \
     --num_embeddings 256 \
