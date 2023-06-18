@@ -316,7 +316,7 @@ def train_igpt(
         for batch in tqdm(data_loader):
             step += 1
 
-            input_ids = batch["input_ids"].to(device)
+            input_ids = batch["masked_input_ids"].to(device)
             with torch.autocast(device_type=config.accelerator):
                 output = image_gpt(input_ids=input_ids)
                 loss = loss_fn(
@@ -339,7 +339,7 @@ def train_igpt(
                 step=i,
             )
 
-            if step % 1000 == 0:
+            if step % 500 == 0:
                 images, _ = sample_images(
                     image_gpt=image_gpt,
                     vq_vae_model=vq_vae_model,
@@ -360,14 +360,14 @@ def train_igpt(
                             f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
                                 sample.permute(1, 2, 0).numpy()
                             ),
-                            "epoch": i,
+                            "step": step,
                         }
                     )
                 if isinstance(logger, TensorBoardLogger):
                     logger.experiment.add_image(
                         f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
                         sample / 255,
-                        i,
+                        step,
                     )
 
             if step % 100 == 0:
