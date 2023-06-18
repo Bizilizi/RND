@@ -313,25 +313,25 @@ class VitVQVae(CLModel):
 
         # Quantize features
         if self._quantize_features:
-            # with torch.autocast(self._accelerator, dtype=torch.float32):
-            (
-                vq_loss,
-                masked_features,
-                feature_perplexity,
-                class_perplexity,
-                *_,
-            ) = self.feature_quantization(masked_features)
-            """
-            masked_features shape - T x B x top_k x emb_dim
-            """
-            masked_features = masked_features.mean(2)
-            """
-            masked_features shape - T x B x emb_dim
-            """
-            (*_, z_indices, latent_distances) = self.feature_quantization(
-                full_features, return_distances=True
-            )
-            z_indices = rearrange(z_indices, "t b k -> b (t k)")
+            with torch.autocast(self._accelerator, dtype=torch.float32):
+                (
+                    vq_loss,
+                    masked_features,
+                    feature_perplexity,
+                    class_perplexity,
+                    *_,
+                ) = self.feature_quantization(masked_features)
+                """
+                masked_features shape - T x B x top_k x emb_dim
+                """
+                masked_features = masked_features.mean(2)
+                """
+                masked_features shape - T x B x emb_dim
+                """
+                (*_, z_indices, latent_distances) = self.feature_quantization(
+                    full_features, return_distances=True
+                )
+                z_indices = rearrange(z_indices, "t b k -> b (t k)")
 
         # Reconstruct an image from quantized patches' features
         x_recon, mask = self.decoder(masked_features, backward_indexes)
