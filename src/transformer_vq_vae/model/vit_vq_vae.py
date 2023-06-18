@@ -174,11 +174,13 @@ class VitVQVae(CLModel):
 
         past_data = y == -1
         current_data = y >= 0
+        future_data = y == -2
 
         # Compute reconstruction loss
+        cf_data = future_data | current_data
         if current_data.any():
             reconstruction_loss = self.get_reconstruction_loss(
-                x_recon[current_data], x_data[current_data], y[current_data]
+                x_recon[cf_data], x_data[cf_data], y[cf_data]
             )
 
         # Compute accuracy if classification head presents
