@@ -80,6 +80,8 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         quantize_features=config.quantize_features,
         quantize_top_k=config.quantize_top_k,
         separate_codebooks=config.separate_codebooks,
+        patches_perplexity_threshold=config.patches_perplexity_threshold,
+        class_perplexity_threshold=config.class_perplexity_threshold,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

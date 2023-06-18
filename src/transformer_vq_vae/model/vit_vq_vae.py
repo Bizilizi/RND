@@ -100,6 +100,8 @@ class VitVQVae(CLModel):
         quantize_features: bool = True,
         quantize_top_k: int = 3,
         separate_codebooks: bool = True,
+        class_perplexity_threshold: float = 0,
+        patches_perplexity_threshold: float = 0,
     ) -> None:
         super().__init__()
 
@@ -149,6 +151,8 @@ class VitVQVae(CLModel):
             decay,
             top_k=quantize_top_k,
             separate_codebooks=separate_codebooks,
+            class_perplexity_threshold=class_perplexity_threshold,
+            patches_perplexity_threshold=patches_perplexity_threshold,
         )
         self.decoder = MAEDecoder(
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
@@ -219,7 +223,6 @@ class VitVQVae(CLModel):
         clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
         past_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
         current_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
-        reconstruction_loss = torch.tensor(0.0, device=self.device)
 
         # unpack variables from forward output
         x_recon = forward_output.x_recon
@@ -238,7 +241,6 @@ class VitVQVae(CLModel):
 
         past_data = y == -1
         current_data = y >= 0
-        future_data = y == -2
 
         # Compute reconstruction loss for future and current data
         reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
@@ -311,25 +313,25 @@ class VitVQVae(CLModel):
 
         # Quantize features
         if self._quantize_features:
-            with torch.autocast(self._accelerator, dtype=torch.float32):
-                (
-                    vq_loss,
-                    masked_features,
-                    feature_perplexity,
-                    class_perplexity,
-                    *_,
-                ) = self.feature_quantization(masked_features)
-                """
-                masked_features shape - T x B x top_k x emb_dim
-                """
-                masked_features = masked_features.mean(2)
-                """
-                masked_features shape - T x B x emb_dim
-                """
-                (*_, z_indices, latent_distances) = self.feature_quantization(
-                    full_features, return_distances=True
-                )
-                z_indices = rearrange(z_indices, "t b k -> b (t k)")
+            # with torch.autocast(self._accelerator, dtype=torch.float32):
+            (
+                vq_loss,
+                masked_features,
+                feature_perplexity,
+                class_perplexity,
+                *_,
+            ) = self.feature_quantization(masked_features)
+            """
+            masked_features shape - T x B x top_k x emb_dim
+            """
+            masked_features = masked_features.mean(2)
+            """
+            masked_features shape - T x B x emb_dim
+            """
+            (*_, z_indices, latent_distances) = self.feature_quantization(
+                full_features, return_distances=True
+            )
+            z_indices = rearrange(z_indices, "t b k -> b (t k)")
 
         # Reconstruct an image from quantized patches' features
         x_recon, mask = self.decoder(masked_features, backward_indexes)

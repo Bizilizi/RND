@@ -15,6 +15,8 @@ class FeatureQuantizer(nn.Module):
         epsilon=1e-5,
         top_k: int = 3,
         separate_codebooks: bool = True,
+        class_perplexity_threshold: float = 0,
+        patches_perplexity_threshold: float = 0,
     ):
         super().__init__()
 
@@ -22,21 +24,23 @@ class FeatureQuantizer(nn.Module):
         self._num_class_embeddings = num_class_embeddings
 
         self.feature_quantization = VectorQuantizerEMA(
-            num_embeddings,
-            embedding_dim,
-            commitment_cost,
-            decay,
-            epsilon,
+            num_embeddings=num_embeddings,
+            embedding_dim=embedding_dim,
+            commitment_cost=commitment_cost,
+            decay=decay,
+            epsilon=epsilon,
             top_k=top_k,
+            perplexity_threshold=patches_perplexity_threshold,
         )
         if separate_codebooks:
             self.class_quantization = VectorQuantizerEMA(
-                num_class_embeddings,
-                embedding_dim,
-                commitment_cost,
-                decay,
-                epsilon,
+                num_embeddings=num_class_embeddings,
+                embedding_dim=embedding_dim,
+                commitment_cost=commitment_cost,
+                decay=decay,
+                epsilon=epsilon,
                 top_k=top_k,
+                perplexity_threshold=class_perplexity_threshold,
             )
         else:
             self.class_quantization = self.feature_quantization
@@ -155,6 +159,7 @@ class VectorQuantizerEMA(nn.Module):
         decay,
         epsilon=1e-5,
         top_k: int = 3,
+        perplexity_threshold: float = 0,
     ):
         super().__init__()
 
@@ -164,6 +169,7 @@ class VectorQuantizerEMA(nn.Module):
         self._embedding = nn.Embedding(self._num_embeddings, self._embedding_dim)
         self._embedding.weight.data.normal_()
         self._commitment_cost = commitment_cost
+        self._perplexity_threshold = perplexity_threshold
 
         self.register_buffer("_ema_cluster_size", torch.zeros(num_embeddings))
         self._ema_w = nn.Parameter(torch.Tensor(num_embeddings, self._embedding_dim))
@@ -173,6 +179,18 @@ class VectorQuantizerEMA(nn.Module):
         self._epsilon = epsilon
 
         self._k = top_k
+
+    def reset_codebook(self, inputs, encodings):
+        # Find embeddings that wasn't used in this batch
+        encodings_count = encodings.sum(dim=0)
+        num_embeddings_to_reset = (encodings_count == 0).float().sum().long()
+
+        # Randomly select inputs
+        flat_inputs = inputs.flatten(0, 2)
+        random_idx = torch.randperm(flat_inputs.shape[0])[:num_embeddings_to_reset]
+
+        # Replace embedding with random input from batch
+        self._embedding.weight.data[encodings_count == 0] = flat_inputs[random_idx]
 
     def forward(self, inputs):
         input_shape = inputs.shape
@@ -244,5 +262,8 @@ class VectorQuantizerEMA(nn.Module):
         quantized = inputs + (quantized - inputs).detach()
         avg_probs = torch.mean(encodings, dim=0)
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
+
+        if perplexity < self._perplexity_threshold:
+            self.reset_codebook(inputs, encodings)
 
         return loss, quantized, perplexity, encoding_indices, distances

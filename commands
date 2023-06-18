@@ -33,8 +33,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
-    --cycle_consistency_sigma 1000 \
-    --past_samples_loss_weight 1 \
+    --cycle_consistency_sigma 200 \
+    --past_samples_loss_weight 0 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \

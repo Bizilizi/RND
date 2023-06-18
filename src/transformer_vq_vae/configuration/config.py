@@ -27,6 +27,9 @@ class TrainConfig(BaseTrainConfig):
     current_samples_loss_weight: float
     future_samples_loss_weight: float
 
+    class_perplexity_threshold: float
+    patches_perplexity_threshold: float
+
     # sampling
     num_random_future_samples: int
     num_random_past_samples: int
