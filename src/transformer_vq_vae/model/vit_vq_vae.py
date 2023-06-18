@@ -80,6 +80,8 @@ class VitVQVae(CLModel):
         precision: str = "32-true",
         accelerator: str = "cuda",
         quantize_features: bool = True,
+        patches_perplexity_threshold: float = 150,
+        class_perplexity_threshold: float = 0,
     ) -> None:
         super().__init__()
 
@@ -107,11 +109,15 @@ class VitVQVae(CLModel):
             encoder_head,
         )
         self.feature_quantization = FeatureQuantizer(
-            num_class_embeddings, num_embeddings, embedding_dim, commitment_cost, decay
+            num_class_embeddings,
+            num_embeddings,
+            embedding_dim,
+            commitment_cost,
+            decay,
+            patches_perplexity_threshold=patches_perplexity_threshold,
+            class_perplexity_threshold=class_perplexity_threshold,
         )
-        self.decoder = MAEDecoder(
-            image_size, patch_size, embedding_dim, decoder_layer, decoder_head
-        )
+        self.decoder = MAEDecoder()
 
         self.clf_head = None
         self.experience_step = 0
