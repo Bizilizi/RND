@@ -73,7 +73,9 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         num_epochs=config.max_epochs,
         cycle_consistency_weight=config.cycle_consistency_loss_weight,
         cycle_consistency_sigma=config.cycle_consistency_sigma,
-        quantize_features=config.quantize_features
+        quantize_features=config.quantize_features,
+        patches_perplexity_threshold=config.patches_perplexity_threshold,
+        class_perplexity_threshold=config.class_perplexity_threshold,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

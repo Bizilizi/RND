@@ -21,6 +21,8 @@ class TrainConfig(BaseTrainConfig):
     cycle_consistency_loss_weight: float
     current_samples_loss_weight: float
     cycle_consistency_sigma: float
+    patches_perplexity_threshold: float
+    class_perplexity_threshold: float
 
     # sampling
     num_random_future_samples: int
