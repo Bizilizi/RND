@@ -24,7 +24,7 @@ from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 
 class BootstrappedDataset(Dataset):
     def __init__(
-            self, dataset_path: str, experience_step: int, transform: t.Optional[t.Any]
+        self, dataset_path: str, experience_step: int, transform: t.Optional[t.Any]
     ):
         super().__init__()
 
@@ -47,10 +47,10 @@ class BootstrappedDataset(Dataset):
             tmp = os.environ.get("TMPDIR", "/tmp")
             run_id, dataset_prefix = self.dataset_path.split("/")[-2:]
             tmp_experience_folder = (
-                    pathlib.Path(tmp)
-                    / run_id
-                    / dataset_prefix
-                    / f"exp_{self.experience_step}"
+                pathlib.Path(tmp)
+                / run_id
+                / dataset_prefix
+                / f"exp_{self.experience_step}"
             )
             tmp_experience_folder.mkdir(parents=True, exist_ok=True)
 
@@ -111,10 +111,10 @@ class BootstrappedDataset(Dataset):
 
 
 def init_token_embeddings(
-        vq_vae_model: VitVQVae,
-        image_gpt: ImageGPTForCausalImageModeling,
-        config: TrainConfig,
-        mask_token: int,
+    vq_vae_model: VitVQVae,
+    image_gpt: ImageGPTForCausalImageModeling,
+    config: TrainConfig,
+    mask_token: int,
 ) -> None:
     """
     Initialize image gpt token embeddings with vq_vae embeddings.
@@ -122,13 +122,13 @@ def init_token_embeddings(
     VQ-Vae model, and the rest of two, corresponds to mask_token and sos_token
     """
     image_gpt.transformer.wte.weight.data[
-    : config.num_class_embeddings
+        : config.num_class_embeddings
     ] = (
         vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
     )
 
     image_gpt.transformer.wte.weight.data[
-    config.num_class_embeddings: -2
+        config.num_class_embeddings : -2
     ] = (
         vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
     )
@@ -138,9 +138,9 @@ def init_token_embeddings(
 
 
 def get_image_embedding(
-        vq_vae_model: VitVQVae,
-        config: TrainConfig,
-        mask_token: int,
+    vq_vae_model: VitVQVae,
+    config: TrainConfig,
+    mask_token: int,
 ) -> torch.nn.Embedding:
     """
     Created Embedding instance that can take image gpt produced indices and
@@ -154,12 +154,12 @@ def get_image_embedding(
     ).to(vq_vae_model.device)
 
     image_embeddings.weight.data[
-    : config.num_class_embeddings
+        : config.num_class_embeddings
     ] = (
         vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
     )
     image_embeddings.weight.data[
-    config.num_class_embeddings: -1
+        config.num_class_embeddings : -1
     ] = (
         vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
     )
@@ -172,15 +172,15 @@ def get_image_embedding(
 
 @torch.no_grad()
 def bootstrap_past_samples(
-        image_gpt: ImageGPTForCausalImageModeling,
-        vq_vae_model: VitVQVae,
-        num_images: int,
-        experience_step: int,
-        dataset_path: str,
-        config: TrainConfig,
-        sos_token: int,
-        mask_token: int,
-        transform: t.Optional[t.Any] = None,
+    image_gpt: ImageGPTForCausalImageModeling,
+    vq_vae_model: VitVQVae,
+    num_images: int,
+    experience_step: int,
+    dataset_path: str,
+    config: TrainConfig,
+    sos_token: int,
+    mask_token: int,
+    transform: t.Optional[t.Any] = None,
 ) -> ClassificationDataset:
     num_images_per_batch = min(128, num_images)
 
@@ -228,14 +228,14 @@ def learning_rate_schedule(warmup_steps, total_steps):
 
 
 def train_igpt(
-        strategy: NaivePytorchLightning,
-        config: TrainConfig,
-        train_dataset: Dataset,
-        device: torch.device,
-        sos_token: int,
-        mask_token: int,
-        n_layer: int = 12,
-        image_gpt: ImageGPTForCausalImageModeling = None,
+    strategy: NaivePytorchLightning,
+    config: TrainConfig,
+    train_dataset: Dataset,
+    device: torch.device,
+    sos_token: int,
+    mask_token: int,
+    n_layer: int = 12,
+    image_gpt: ImageGPTForCausalImageModeling = None,
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
@@ -313,7 +313,7 @@ def train_igpt(
         for batch in tqdm(data_loader):
             step += 1
 
-            masked_input_ids = batch["input_ids"].to(device)
+            masked_input_ids = batch["masked_input_ids"].to(device)
             with torch.autocast(device_type=config.accelerator):
                 output = image_gpt(input_ids=masked_input_ids)
                 loss = loss_fn(
@@ -375,13 +375,13 @@ def train_igpt(
 
 @torch.no_grad()
 def sample_images(
-        image_gpt,
-        vq_vae_model,
-        embedding,
-        sos_token,
-        temperature=1.23,
-        num_images=8 * 4 * 10,
-        return_grid_only=False,
+    image_gpt,
+    vq_vae_model,
+    embedding,
+    sos_token,
+    temperature=1.23,
+    num_images=8 * 4 * 10,
+    return_grid_only=False,
 ):
     image_gpt.eval()
     vq_vae_model.eval()
