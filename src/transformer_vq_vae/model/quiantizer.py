@@ -50,6 +50,7 @@ class FeatureQuantizer(nn.Module):
             class_vq_loss,
             quantized_class_emb,
             class_perplexity,
+            class_avg_probs,
             class_indices,
             class_distances,
         ) = self.class_quantization(features[0][None])
@@ -57,6 +58,7 @@ class FeatureQuantizer(nn.Module):
             feature_vq_loss,
             quantized_features,
             feature_perplexity,
+            feature_avg_probs,
             feature_indices,
             feature_distances,
         ) = self.feature_quantization(features[1:])
@@ -137,6 +139,8 @@ class FeatureQuantizer(nn.Module):
                 quantized_features,
                 feature_perplexity,
                 class_perplexity,
+                class_avg_probs,
+                feature_avg_probs,
                 encoding_indices,
                 distances,
             )
@@ -146,6 +150,8 @@ class FeatureQuantizer(nn.Module):
                 quantized_features,
                 feature_perplexity,
                 class_perplexity,
+                class_avg_probs,
+                feature_avg_probs,
                 encoding_indices,
             )
 
@@ -170,6 +176,7 @@ class VectorQuantizerEMA(nn.Module):
         self._embedding.weight.data.normal_()
         self._commitment_cost = commitment_cost
         self._perplexity_threshold = perplexity_threshold
+        self._reset_counter = 200 * 400
 
         self.register_buffer("_ema_cluster_size", torch.zeros(num_embeddings))
         self._ema_w = nn.Parameter(torch.Tensor(num_embeddings, self._embedding_dim))
@@ -194,7 +201,7 @@ class VectorQuantizerEMA(nn.Module):
 
     def forward(self, inputs):
         input_shape = inputs.shape
-        """B T emb_dim"""
+        """T B emb_dim"""
 
         # Flatten input
         flat_input = inputs.reshape(-1, self._embedding_dim)
@@ -215,6 +222,7 @@ class VectorQuantizerEMA(nn.Module):
             encoding_indices.shape[0], self._num_embeddings, device=inputs.device
         )
         encodings.scatter_(1, encoding_indices, 1)
+        """(T B) x emb_dim"""
 
         # Quantize and unflatten
         quantized = self._embedding(encoding_indices)
@@ -263,7 +271,9 @@ class VectorQuantizerEMA(nn.Module):
         avg_probs = torch.mean(encodings, dim=0)
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 
-        if perplexity < self._perplexity_threshold:
+        if perplexity < self._perplexity_threshold and self._reset_counter >= 200 * 400:
             self.reset_codebook(inputs, encodings)
+            self._reset_counter = 0
+        self._reset_counter += 1
 
-        return loss, quantized, perplexity, encoding_indices, distances
+        return loss, quantized, perplexity, avg_probs, encoding_indices, distances

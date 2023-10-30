@@ -6,7 +6,9 @@ from itertools import chain
 
 import lpips
 import torch
+import wandb
 from einops import rearrange
+from pytorch_lightning.loggers import WandbLogger
 from pytorch_metric_learning.distances import CosineSimilarity
 from pytorch_metric_learning.losses import ContrastiveLoss
 from torch import nn
@@ -44,6 +46,8 @@ class ForwardOutput:
     vq_loss: torch.Tensor
     feature_perplexity: torch.Tensor
     class_perplexity: torch.Tensor
+    class_avg_probs: torch.Tensor
+    feature_avg_probs: torch.Tensor
 
     # classification
     image_emb: torch.Tensor
@@ -165,6 +169,9 @@ class VitVQVae(CLModel):
 
         if self.use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
+
+        # codebook probs
+        self.feature_avg_probs_outputs = []
 
     def set_clf_head(self, model: "EmbClassifier"):
         self.__dict__["clf_head"] = model
@@ -319,6 +326,8 @@ class VitVQVae(CLModel):
                     masked_features,
                     feature_perplexity,
                     class_perplexity,
+                    class_avg_probs,
+                    feature_avg_probs,
                     *_,
                 ) = self.feature_quantization(masked_features)
                 """
@@ -368,6 +377,8 @@ class VitVQVae(CLModel):
             vq_loss=vq_loss,
             feature_perplexity=feature_perplexity,
             class_perplexity=class_perplexity,
+            class_avg_probs=class_avg_probs,
+            feature_avg_probs=feature_avg_probs,
             # classification
             image_emb=image_emb,
             clf_logits=clf_logits,
@@ -394,6 +405,8 @@ class VitVQVae(CLModel):
             + criterion_output.reconstruction_loss
             + criterion_output.cycle_consistency_loss
         )
+
+        self.feature_avg_probs_outputs.append(forward_output.feature_avg_probs)
 
         # LOGGING
         self.log_with_postfix(
@@ -437,6 +450,15 @@ class VitVQVae(CLModel):
             "loss": loss,
             "forward_output": forward_output,
         }
+
+    def on_train_epoch_end(self) -> None:
+        self.log_avg_probs(
+            "test/perplexity_bar", torch.stack(self.feature_avg_probs_outputs).mean()
+        )
+
+        # schedulers
+        sch = self.lr_schedulers()
+        sch.step()
 
     def validation_step(self, batch, batch_idx):
         data, y, *_ = batch
@@ -492,10 +514,6 @@ class VitVQVae(CLModel):
             "forward_output": forward_output,
         }
 
-    def on_train_epoch_end(self):
-        sch = self.lr_schedulers()
-        sch.step()
-
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
             chain(
@@ -533,3 +551,20 @@ class VitVQVae(CLModel):
             *args,
             **kwargs,
         )
+
+    def log_avg_probs(self, name: str, avg_probs: torch.Tensor):
+
+        for logger in self.trainer.loggers:
+            if isinstance(logger, WandbLogger):
+                data = [
+                    [label, val.cpu().item()]
+                    for (label, val) in zip(range(avg_probs.shape[0]), avg_probs)
+                ]
+                table = wandb.Table(data=data, columns=["code_idx", "value"])
+                wandb.log(
+                    {
+                        f"{name}/experience_step_{self.experience_step}": wandb.plot.bar(
+                            table, "code_idx", "value", title="Perplexity bar"
+                        )
+                    }
+                )
