@@ -38,6 +38,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \
+    --patches_perplexity_threshold 100 \
     --quantize_top_k 1 \
     --num_embeddings 256 \
     --num_class_embeddings 4 \

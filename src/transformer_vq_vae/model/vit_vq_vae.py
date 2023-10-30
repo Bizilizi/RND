@@ -453,7 +453,8 @@ class VitVQVae(CLModel):
 
     def on_train_epoch_end(self) -> None:
         self.log_avg_probs(
-            "test/perplexity_bar", torch.stack(self.feature_avg_probs_outputs).mean()
+            "test/perplexity_bar",
+            torch.stack(self.feature_avg_probs_outputs).mean(dim=0),
         )
 
         # schedulers
