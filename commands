@@ -19,7 +19,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --group mae-stable-sampling \
+    --group mae-stable-sampling-inc-codebbok \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
@@ -40,6 +40,6 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --separate_codebooks true \
     --patches_perplexity_threshold 100 \
     --quantize_top_k 1 \
-    --num_embeddings 256 \
-    --num_class_embeddings 4 \
+    --num_embeddings 24 \
+    --num_class_embeddings 2 \
     --precision 16-mixed

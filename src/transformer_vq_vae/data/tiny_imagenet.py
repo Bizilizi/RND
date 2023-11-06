@@ -1,12 +1,13 @@
 import os
-import pickle
+import typing as t
+from PIL import Image
 
-from torch.utils.data import Dataset
+from torchvision.datasets import VisionDataset
 from torchvision.datasets.utils import download_and_extract_archive, check_integrity
 import typing as t
 
 
-class TinyImageNet(Dataset):
+class TinyImageNet(VisionDataset):
     """TinyImageNet <http://vision.stanford.edu/teaching/cs231n/reports/2015/pdfs/yle_project.pdf>`_ Dataset.
 
     Args:
@@ -24,10 +25,14 @@ class TinyImageNet(Dataset):
 
     """
 
-    base_folder = "tiny-imagenet-py"
+    base_folder = "tiny-imagenet-200"
     url = "http://cs231n.stanford.edu/tiny-imagenet-200.zip"
     filename = "tiny-imagenet-200.zip"
     tgz_md5 = "90528d7ca1a48142e341f4ef8d21d0de"
+
+    train_list = ["train"]
+
+    test_list = ["test"]
 
     def __init__(
         self,
@@ -41,6 +46,7 @@ class TinyImageNet(Dataset):
         super().__init__(root, transform=transform, target_transform=target_transform)
 
         self.train = train  # training set or test set
+        self.root = root
 
         if download:
             self.download()
@@ -50,42 +56,29 @@ class TinyImageNet(Dataset):
                 "Dataset not found or corrupted. You can use download=True to download it"
             )
 
-        if self.train:
-            downloaded_list = self.train_list
-        else:
-            downloaded_list = self.test_list
-
         self.data: t.Any = []
         self.targets = []
 
-        # now load the picked numpy arrays
-        for file_name, checksum in downloaded_list:
-            file_path = os.path.join(self.root, self.base_folder, file_name)
-            with open(file_path, "rb") as f:
-                entry = pickle.load(f, encoding="latin1")
-                self.data.append(entry["data"])
-                if "labels" in entry:
-                    self.targets.extend(entry["labels"])
-                else:
-                    self.targets.extend(entry["fine_labels"])
+        # load classes names
+        classes_file = os.path.join(self.root, self.base_folder, "wnids.txt")
+        classes_dict = {}
+        with open(classes_file, "r") as f:
+            lines = f.readlines()
+            for class_name, class_id in zip(lines, range(len(lines))):
+                class_name = class_name.strip().decode()
+                classes_dict[class_name] = class_id
 
-        self.data = np.vstack(self.data).reshape(-1, 3, 32, 32)
-        self.data = self.data.transpose((0, 2, 3, 1))  # convert to HWC
+        # now load images paths
+        file_name = "train" if self.train else "test"
+        classes_dir_path = os.path.join(self.root, self.base_folder, file_name)
 
-        self._load_meta()
+        for class_dir in os.listdir(classes_dir_path):
+            images_path = os.path.join(classes_dir_path, class_dir, "images")
+            for image_name in os.listdir(images_path):
+                self.data.append(os.path.join(images_path, image_name))
+                self.targets.append(classes_dict[class_dir])
 
-    def _load_meta(self) -> None:
-        path = os.path.join(self.root, self.base_folder, self.meta["filename"])
-        if not check_integrity(path, self.meta["md5"]):
-            raise RuntimeError(
-                "Dataset metadata file not found or corrupted. You can use download=True to download it"
-            )
-        with open(path, "rb") as infile:
-            data = pickle.load(infile, encoding="latin1")
-            self.classes = data[self.meta["key"]]
-        self.class_to_idx = {_class: i for i, _class in enumerate(self.classes)}
-
-    def __getitem__(self, index: int) -> Tuple[Any, Any]:
+    def __getitem__(self, index: int) -> t.Tuple[t.Any, t.Any]:
         """
         Args:
             index (int): Index
@@ -97,7 +90,7 @@ class TinyImageNet(Dataset):
 
         # doing this so that it is consistent with all other datasets
         # to return a PIL Image
-        img = Image.fromarray(img)
+        img = Image.open(img)
 
         if self.transform is not None:
             img = self.transform(img)
@@ -111,9 +104,9 @@ class TinyImageNet(Dataset):
         return len(self.data)
 
     def _check_integrity(self) -> bool:
-        for filename, md5 in self.train_list + self.test_list:
+        for filename in self.train_list + self.test_list:
             fpath = os.path.join(self.root, self.base_folder, filename)
-            if not check_integrity(fpath, md5):
+            if not os.path.exists(fpath):
                 return False
         return True
 
