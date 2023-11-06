@@ -460,6 +460,7 @@ class VitVQVae(CLModel):
             "train/perplexity_bar",
             torch.stack(self.feature_avg_probs_outputs).mean(dim=0),
         )
+        self.feature_avg_probs_outputs = []
 
         # schedulers
         sch = self.lr_schedulers()
