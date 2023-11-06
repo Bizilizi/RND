@@ -519,7 +519,6 @@ class VitVQVae(CLModel):
         optimizer = torch.optim.AdamW(
             chain(
                 self.encoder.parameters(),
-                self.feature_quantization.parameters(),
                 self.decoder.parameters(),
             ),
             lr=self._learning_rate * self._batch_size / 256,
