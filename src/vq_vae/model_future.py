@@ -35,7 +35,7 @@ def sample_from_uniform_prior(
     num_rand_samples,
     vq_vae_model: VQVae,
 ):
-    num_emb, emb_dim = vq_vae_model.vq_vae._embedding.weight.shape
+    num_emb, emb_dim = vq_vae_model.vq_vae.embedding.weight.shape
     num_rand_samples = max(num_rand_samples, 256)
 
     images = []
@@ -46,7 +46,7 @@ def sample_from_uniform_prior(
             batch.append(indices[None])
 
         batch = torch.cat(batch)
-        emb = vq_vae_model.vq_vae._embedding(batch)
+        emb = vq_vae_model.vq_vae.embedding(batch)
         emb = rearrange(emb, "b (t1 t2) c -> b c t1 t2", t1=8)
         rec = vq_vae_model.decoder(emb)
 

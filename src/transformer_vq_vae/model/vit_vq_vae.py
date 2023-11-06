@@ -7,19 +7,15 @@ from itertools import chain
 import lpips
 import torch
 import wandb
+from avalanche.benchmarks import CLExperience, NCExperience
 from einops import rearrange
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_metric_learning.distances import CosineSimilarity
-from pytorch_metric_learning.losses import ContrastiveLoss
-from torch import nn
-from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
 
 from src.avalanche.model.cl_model import CLModel
 from src.transformer_vq_vae.model.decoder import MAEDecoder
 from src.transformer_vq_vae.model.encoder import MAEEncoder
 from src.transformer_vq_vae.model.quiantizer import (
-    VectorQuantizerEMA,
     FeatureQuantizer,
 )
 
@@ -178,6 +174,14 @@ class VitVQVae(CLModel):
 
     def reset_clf_head(self):
         self.clf_head = None
+
+    def update_model_experience(
+        self, experience_step: int, experience: t.Union[CLExperience, NCExperience]
+    ) -> None:
+        self.experience_step = experience_step
+        self.experience = experience
+
+        self.feature_quantization.update_model_experience(experience_step)
 
     def get_reconstruction_loss(
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
@@ -453,7 +457,7 @@ class VitVQVae(CLModel):
 
     def on_train_epoch_end(self) -> None:
         self.log_avg_probs(
-            "test/perplexity_bar",
+            "train/perplexity_bar",
             torch.stack(self.feature_avg_probs_outputs).mean(dim=0),
         )
 
@@ -519,7 +523,6 @@ class VitVQVae(CLModel):
         optimizer = torch.optim.AdamW(
             chain(
                 self.encoder.parameters(),
-                self.feature_quantization.parameters(),
                 self.decoder.parameters(),
             ),
             lr=self._learning_rate * self._batch_size / 256,

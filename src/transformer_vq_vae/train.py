@@ -20,6 +20,7 @@ from src.transformer_vq_vae.init_scrips import (
     get_model,
     get_train_plugins,
 )
+from src.transformer_vq_vae.mock_train_loop import mock_train_loop
 from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_all_classes,
@@ -298,7 +299,7 @@ def main(args):
     # Run training process
     print(f"Running training process..")
     try:
-        train_loop(
+        mock_train_loop(
             benchmark=benchmark,
             cl_strategy=cl_strategy,
             is_using_wandb=is_using_wandb,

@@ -43,12 +43,12 @@ def get_latent_embedding(
     image_embeddings.weight.data[
         : config.num_class_embeddings
     ] = (
-        vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
+        vq_vae_model.feature_quantization.class_quantization.embedding.weight.data.clone()
     )
     image_embeddings.weight.data[
         config.num_class_embeddings :
     ] = (
-        vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
+        vq_vae_model.feature_quantization.feature_quantization.embedding.weight.data.clone()
     )
 
     return image_embeddings
@@ -72,9 +72,9 @@ def sample_from_uniform_prior(
     vq_vae_model: VitVQVae,
 ):
     feature_embedding = (
-        vq_vae_model.feature_quantization.feature_quantization._embedding
+        vq_vae_model.feature_quantization.feature_quantization.embedding
     )
-    class_embedding = vq_vae_model.feature_quantization.class_quantization._embedding
+    class_embedding = vq_vae_model.feature_quantization.class_quantization.embedding
 
     num_images = max(num_images, 256)
     decoder = vq_vae_model.decoder
@@ -134,9 +134,9 @@ def sample_image_from_sparse_vector(
     num_images: int = 16,
 ):
     feature_embedding = (
-        vq_vae_model.feature_quantization.feature_quantization._embedding
+        vq_vae_model.feature_quantization.feature_quantization.embedding
     )
-    class_embedding = vq_vae_model.feature_quantization.class_quantization._embedding
+    class_embedding = vq_vae_model.feature_quantization.class_quantization.embedding
 
     num_images = max(num_images, 256)
 

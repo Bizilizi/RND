@@ -123,8 +123,11 @@ class NaivePytorchLightning(Naive):
         self.restore_best_model()
 
     def update_model_experience(self) -> None:
-        self.model.experience_step = self.experience_step
-        self.model.experience = self.experience
+        if hasattr(self.model, "update_model_experience"):
+            self.model.update_model_experience(self.experience_step, self.experience)
+        else:
+            self.model.experience_step = self.experience_step
+            self.model.experience = self.experience
 
     def resume_from_checkpoint(self) -> None:
         if self.experience_step == 0 and self.initial_resume_from:

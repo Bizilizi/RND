@@ -19,7 +19,7 @@ class ImageGPTCausal(pl.LightningModule):
         self.image_gpt = ImageGPTForCausalImageModeling(configuration)
         self.image_gpt.transformer.wte.weight.data[
             :-1
-        ] = vq_vae.vq_vae._embedding.weight.data
+        ] = vq_vae.vq_vae.embedding.weight.data
 
     def forward(self, input_ids):
         return self.image_gpt(input_ids=input_ids)
