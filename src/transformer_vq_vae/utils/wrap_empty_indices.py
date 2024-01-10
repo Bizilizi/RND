@@ -40,7 +40,7 @@ def wrap_dataset_with_empty_indices(
     """
 
     # Derive num patches based on path algorithm from VIT
-    num_patches = config.image_size // (config.patch_size**2)
+    num_patches = (config.image_size // config.patch_size) ** 2
 
     wrapped_dataset = WrappedDataset(dataset, num_neighbours, num_patches)
     return make_classification_dataset(wrapped_dataset, targets=dataset.targets)

@@ -77,7 +77,7 @@ def sample_from_uniform_prior(
     class_embedding = vq_vae_model.feature_quantization.class_quantization.embedding
 
     # Derive num patches based on path algorithm from VIT
-    num_patches = config.image_size // (config.patch_size**2)
+    num_patches = (config.image_size // config.patch_size) ** 2
 
     num_images = max(num_images, 256)
     decoder = vq_vae_model.decoder
@@ -141,7 +141,7 @@ def sample_image_from_sparse_vector(
     class_embedding = vq_vae_model.feature_quantization.class_quantization.embedding
 
     # Derive num patches based on path algorithm from VIT
-    num_patches = config.image_size // (config.patch_size**2)
+    num_patches = (config.image_size // config.patch_size) ** 2
     num_images = max(num_images, 256)
 
     decoder = vq_vae_model.decoder

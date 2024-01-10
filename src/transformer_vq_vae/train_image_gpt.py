@@ -176,7 +176,7 @@ def bootstrap_past_samples(
         vq_vae_model.device
     )
     # Derive num patches based on path algorithm from VIT
-    num_patches = config.image_size // (config.patch_size**2)
+    num_patches = (config.image_size // config.patch_size) ** 2
 
     for _ in trange(num_images // num_images_per_batch):
         images, latent_indices = sample_images(
@@ -231,7 +231,7 @@ def train_igpt(
     vocab_size = config.num_embeddings + 2
 
     # Derive num patches based on path algorithm from VIT
-    num_patches = config.image_size // (config.patch_size**2)
+    num_patches = (config.image_size // config.patch_size) ** 2
 
     configuration = ImageGPTConfig(
         **{
