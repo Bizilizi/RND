@@ -377,7 +377,7 @@ class VQMAE(CLModel):
             # first order
             z_quantized=masked_features,
             z_indices=z_indices,
-            z_distances=masked_quantization.distances,
+            z_distances=full_quantization.distances,
             x_recon=x_recon,
             # seconds order
             z_second_order_distances=z_second_order_distances,
