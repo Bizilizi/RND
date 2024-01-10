@@ -147,9 +147,7 @@ def get_image_embedding(
 
     image_embeddings.weight.data[
         :-1
-    ] = (
-        vq_vae_model.feature_quantization.feature_quantization.embedding.weight.data.clone()
-    )
+    ] = vq_vae_model.feature_quantization.embedding.weight.data.clone()
     image_embeddings.weight.data[
         mask_token
     ] = vq_vae_model.decoder.mask_token.data.clone()
