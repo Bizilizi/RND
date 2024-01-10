@@ -4,7 +4,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 
 import wandb
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
 
 
 class LogCodebookHistogram(Callback):
@@ -29,7 +29,7 @@ class LogCodebookHistogram(Callback):
             return
 
         experience_step = trainer.model.experience_step
-        model: VitVQVae = trainer.model
+        model: VQMAE = trainer.model
         dataset = trainer.datamodule.train_dataset
 
         for logger in trainer.loggers:

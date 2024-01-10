@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader, Subset
 import wandb
 from avalanche.core import SupervisedPlugin
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
 
 
 class ReconstructionVisualizationPlugin(SupervisedPlugin):
@@ -18,7 +18,7 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
     def before_eval(self, strategy: "NaivePytorchLightning", **kwargs):
         """Update the buffer."""
 
-        model: VitVQVae = strategy.model
+        model: VQMAE = strategy.model
         eval_stream = strategy.current_eval_stream
 
         reconstruction_images = []

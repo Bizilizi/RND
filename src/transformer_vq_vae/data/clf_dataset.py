@@ -2,13 +2,13 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
 
 
 class ClassificationDataset(Dataset):
     def __init__(
         self,
-        vq_vae_model: VitVQVae,
+        vq_vae_model: VQMAE,
         dataset: Dataset,
         depth: int = 8,
     ):
@@ -31,7 +31,7 @@ class ClassificationDataset(Dataset):
 
     def _project_dataset(
         self,
-        vq_vae: VitVQVae,
+        vq_vae: VQMAE,
         dataset: Dataset,
     ):
         dataloader = DataLoader(dataset, batch_size=256, shuffle=False, num_workers=0)

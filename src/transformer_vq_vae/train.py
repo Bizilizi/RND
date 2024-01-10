@@ -14,6 +14,7 @@ from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import
     ReconstructionVisualizationPlugin,
 )
 from src.transformer_vq_vae.configuration.config import TrainConfig
+from src.transformer_vq_vae.data.tiny_imagenet import SplitTinyImageNet
 from src.transformer_vq_vae.init_scrips import (
     get_callbacks,
     get_evaluation_plugin,
@@ -243,7 +244,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitCIFAR10(
+    benchmark = SplitTinyImageNet(
         n_experiences=config.num_tasks,
         return_task_id=True,
         shuffle=True,
@@ -251,13 +252,13 @@ def main(args):
         train_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                # transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
         ),
         eval_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                # transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
         ),
     )
@@ -299,7 +300,7 @@ def main(args):
     # Run training process
     print(f"Running training process..")
     try:
-        train_loop(
+        mock_train_loop(
             benchmark=benchmark,
             cl_strategy=cl_strategy,
             is_using_wandb=is_using_wandb,

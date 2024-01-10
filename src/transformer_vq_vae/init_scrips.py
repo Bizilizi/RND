@@ -19,7 +19,7 @@ from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
 )
 from src.transformer_vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
 from src.transformer_vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
 from src.transformer_vq_vae.plugins.mixed_precision_plugin import (
     CustomMixedPrecisionPlugin,
 )
@@ -50,10 +50,11 @@ def get_evaluation_plugin(
     return eval_plugin
 
 
-def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
-    vae = VitVQVae(
+def get_model(config: TrainConfig, device: torch.device) -> VQMAE:
+    vae = VQMAE(
         num_class_embeddings=config.num_class_embeddings,
         num_embeddings=config.num_embeddings,
+        num_embeddings_per_step=config.num_embeddings_per_step,
         embedding_dim=config.embedding_dim,
         commitment_cost=config.commitment_cost,
         decay=config.decay,
@@ -101,7 +102,7 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             experience_step=experience_step,
             log_to_wandb=False,
         ),
-        LogDataset(),
+        # LogDataset(),
         VisualizeTrainingReconstructions(log_every=10, name="rec_img_100"),
         VisualizeTrainingReconstructions(
             log_every=100, num_images=1000, w1=10, name="rec_img_1000"

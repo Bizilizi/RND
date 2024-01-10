@@ -5,11 +5,23 @@ from torch import nn
 import typing as t
 
 
-class QuantizerOutput(t.NamedTuple):
-    ...
+class SeparateQuantizerOutput(t.NamedTuple):
+    loss: torch.Tensor
+    quantized: torch.Tensor
+    class_perplexity: torch.Tensor
+    feature_perplexity: torch.Tensor
+    class_avg_probs: torch.Tensor
+    feature_avg_probs: torch.Tensor
+    encoding_indices: torch.Tensor
+    distances: torch.Tensor
 
 
-class FeatureQuantizer(nn.Module):
+class SeparateCodebooksFeatureQuantizerEMA(nn.Module):
+    """
+    This class combines two codebooks. One for clas token and another for the rest
+    of the tokens.
+    """
+
     def __init__(
         self,
         num_class_embeddings,
@@ -19,13 +31,12 @@ class FeatureQuantizer(nn.Module):
         decay,
         epsilon=1e-5,
         top_k: int = 3,
-        separate_codebooks: bool = True,
         class_perplexity_threshold: float = 0,
         patches_perplexity_threshold: float = 0,
     ):
         super().__init__()
 
-        self.feature_quantization = VectorQuantizerEMA(
+        self.feature_quantization = FeatureQuantizerEMA(
             num_embeddings_per_step=num_embeddings,
             embedding_dim=embedding_dim,
             commitment_cost=commitment_cost,
@@ -34,18 +45,15 @@ class FeatureQuantizer(nn.Module):
             top_k=top_k,
             perplexity_threshold=patches_perplexity_threshold,
         )
-        if separate_codebooks:
-            self.class_quantization = VectorQuantizerEMA(
-                num_embeddings_per_step=num_class_embeddings,
-                embedding_dim=embedding_dim,
-                commitment_cost=commitment_cost,
-                decay=decay,
-                epsilon=epsilon,
-                top_k=top_k,
-                perplexity_threshold=class_perplexity_threshold,
-            )
-        else:
-            self.class_quantization = self.feature_quantization
+        self.class_quantization = FeatureQuantizerEMA(
+            num_embeddings_per_step=num_class_embeddings,
+            embedding_dim=embedding_dim,
+            commitment_cost=commitment_cost,
+            decay=decay,
+            epsilon=epsilon,
+            top_k=top_k,
+            perplexity_threshold=class_perplexity_threshold,
+        )
 
     def update_model_experience(self, experience_step: int) -> None:
         # skip extension if its first experience
@@ -55,7 +63,7 @@ class FeatureQuantizer(nn.Module):
         self.class_quantization.extend_codebook()
         self.feature_quantization.extend_codebook()
 
-    def forward(self, features, return_distances=False):
+    def forward(self, features) -> SeparateQuantizerOutput:
         (
             class_vq_loss,
             quantized_class_emb,
@@ -149,34 +157,33 @@ class FeatureQuantizer(nn.Module):
         quantized_features shape - (T+1) x B x top_k x emb_dim
         """
 
-        if return_distances:
-            return (
-                feature_vq_loss + class_vq_loss,
-                quantized_features,
-                feature_perplexity,
-                class_perplexity,
-                class_avg_probs,
-                feature_avg_probs,
-                encoding_indices,
-                distances,
-            )
-        else:
-            return (
-                feature_vq_loss + class_vq_loss,
-                quantized_features,
-                feature_perplexity,
-                class_perplexity,
-                class_avg_probs,
-                feature_avg_probs,
-                encoding_indices,
-            )
+        return SeparateQuantizerOutput(
+            loss=feature_vq_loss + class_vq_loss,
+            quantized=quantized_features,
+            class_perplexity=class_perplexity,
+            feature_perplexity=feature_perplexity,
+            class_avg_probs=class_avg_probs,
+            feature_avg_probs=feature_avg_probs,
+            encoding_indices=encoding_indices,
+            distances=distances,
+        )
 
 
-class VectorQuantizerEMA(nn.Module):
+class QuantizerOutput(t.NamedTuple):
+    loss: torch.Tensor
+    quantized: torch.Tensor
+    perplexity: torch.Tensor
+    avg_probs: torch.Tensor
+    encoding_indices: torch.Tensor
+    distances: torch.Tensor
+
+
+class FeatureQuantizerEMA(nn.Module):
     experience_step: int
 
     def __init__(
         self,
+        num_embeddings,
         num_embeddings_per_step,
         embedding_dim,
         commitment_cost,
@@ -188,11 +195,10 @@ class VectorQuantizerEMA(nn.Module):
         super().__init__()
 
         self._embedding_dim = embedding_dim
+        self._num_embeddings = num_embeddings
         self._num_embeddings_per_step = num_embeddings_per_step
 
-        self.embedding = nn.Embedding(
-            self._num_embeddings_per_step, self._embedding_dim
-        )
+        self.embedding = nn.Embedding(self._num_embeddings, self._embedding_dim)
         self.embedding.weight.data.normal_()
         self.embedding.weight.requires_grad = False
 
@@ -200,9 +206,9 @@ class VectorQuantizerEMA(nn.Module):
         self._perplexity_threshold = perplexity_threshold
         self._reset_counter = 200 * 400 - 100
 
-        self.register_buffer("_ema_cluster_size", torch.zeros(num_embeddings_per_step))
+        self.register_buffer("_ema_cluster_size", torch.zeros(num_embeddings))
         self._ema_w = nn.Parameter(
-            torch.Tensor(num_embeddings_per_step, self._embedding_dim),
+            torch.Tensor(num_embeddings, self._embedding_dim),
             requires_grad=False,
         )
         self._ema_w.data.normal_()
@@ -212,11 +218,18 @@ class VectorQuantizerEMA(nn.Module):
 
         self._k = top_k
 
+    def update_model_experience(self, experience_step: int) -> None:
+        # skip extension if its first experience
+        if experience_step == 0:
+            return
+
+        self.extend_codebook()
+
     def reset_codebook(self, inputs, encodings):
         # Find embeddings that wasn't used in this batch
         encodings_count = encodings.sum(dim=0)
         # avoid resetting old fixed embeddings
-        encodings_count[: -self._num_embeddings_per_step] = 1
+        encodings_count[: -self._num_embeddings] = 1
 
         num_embeddings_to_reset = (encodings_count == 0).float().sum().long()
 
@@ -234,7 +247,7 @@ class VectorQuantizerEMA(nn.Module):
         num_embedding = embedding_copy.weight.shape[0]
 
         self.embedding = nn.Embedding(
-            num_embedding + self._num_embeddings_per_step,
+            num_embedding + self._num_embeddings,
             self._embedding_dim,
         )
         self.embedding.weight.data[:num_embedding] = embedding_copy.weight.data
@@ -243,9 +256,7 @@ class VectorQuantizerEMA(nn.Module):
         # Extend ema vector
         ema_w_copy = self._ema_w
         self._ema_w = nn.Parameter(
-            torch.Tensor(
-                num_embedding + self._num_embeddings_per_step, self._embedding_dim
-            )
+            torch.Tensor(num_embedding + self._num_embeddings, self._embedding_dim)
         )
         self._ema_w.data.normal_()
         self._ema_w.data[:num_embedding] = ema_w_copy.data
@@ -254,13 +265,11 @@ class VectorQuantizerEMA(nn.Module):
         self._ema_cluster_size = torch.cat(
             [
                 self._ema_cluster_size,
-                torch.zeros(self._num_embeddings_per_step).to(
-                    self._ema_cluster_size.device
-                ),
+                torch.zeros(self._num_embeddings).to(self._ema_cluster_size.device),
             ]
         )
 
-    def forward(self, inputs):
+    def forward(self, inputs) -> QuantizerOutput:
         input_shape = inputs.shape
         num_embeddings = self.embedding.weight.shape[0]
         """T B emb_dim"""
@@ -322,9 +331,9 @@ class VectorQuantizerEMA(nn.Module):
             )
 
             updated_embeddings = self._ema_w / self._ema_cluster_size.unsqueeze(1)
-            self.embedding.weight.data[
-                -self._num_embeddings_per_step :
-            ] = updated_embeddings[-self._num_embeddings_per_step :]
+            self.embedding.weight.data[-self._num_embeddings :] = updated_embeddings[
+                -self._num_embeddings :
+            ]
 
         # Loss
         e_latent_loss = F.mse_loss(quantized.detach(), inputs)
@@ -333,7 +342,7 @@ class VectorQuantizerEMA(nn.Module):
         # Straight Through Estimator
         quantized = inputs + (quantized - inputs).detach()
 
-        avg_probs = torch.mean(encodings, dim=0)
+        avg_probs = torch.mean(encodings, dim=0)  # num_embeddings
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 
         if perplexity < self._perplexity_threshold and self._reset_counter >= 200 * 400:
@@ -341,4 +350,11 @@ class VectorQuantizerEMA(nn.Module):
             self._reset_counter = 0
         self._reset_counter += 1
 
-        return loss, quantized, perplexity, avg_probs, encoding_indices, distances
+        return QuantizerOutput(
+            loss=loss,
+            quantized=quantized,
+            perplexity=perplexity,
+            avg_probs=avg_probs,
+            encoding_indices=encoding_indices,
+            distances=distances,
+        )

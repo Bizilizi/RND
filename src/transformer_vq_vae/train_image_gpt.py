@@ -19,7 +19,7 @@ from avalanche.benchmarks.utils.classification_dataset import ClassificationData
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
 
 
 class BootstrappedDataset(Dataset):
@@ -111,7 +111,7 @@ class BootstrappedDataset(Dataset):
 
 
 def init_token_embeddings(
-    vq_vae_model: VitVQVae,
+    vq_vae_model: VQMAE,
     image_gpt: ImageGPTForCausalImageModeling,
     config: TrainConfig,
     mask_token: int,
@@ -138,7 +138,7 @@ def init_token_embeddings(
 
 
 def get_image_embedding(
-    vq_vae_model: VitVQVae,
+    vq_vae_model: VQMAE,
     config: TrainConfig,
     mask_token: int,
 ) -> torch.nn.Embedding:
@@ -173,7 +173,7 @@ def get_image_embedding(
 @torch.no_grad()
 def bootstrap_past_samples(
     image_gpt: ImageGPTForCausalImageModeling,
-    vq_vae_model: VitVQVae,
+    vq_vae_model: VQMAE,
     num_images: int,
     experience_step: int,
     dataset_path: str,

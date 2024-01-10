@@ -16,7 +16,8 @@ from src.avalanche.model.cl_model import CLModel
 from src.transformer_vq_vae.model.decoder import MAEDecoder
 from src.transformer_vq_vae.model.encoder import MAEEncoder
 from src.transformer_vq_vae.model.quiantizer import (
-    FeatureQuantizer,
+    SeparateCodebooksFeatureQuantizerEMA,
+    FeatureQuantizerEMA,
 )
 
 if t.TYPE_CHECKING:
@@ -25,25 +26,39 @@ if t.TYPE_CHECKING:
 
 @dataclasses.dataclass
 class ForwardOutput:
-    # data input
+    """"""
+
+    """
+    Tensors with past and current images. (original and reconstruction)
+    """
     x_data: torch.Tensor
+    x_recon: torch.Tensor
+
+    """
+    Mask used to cover image patches
+    """
     mask: torch.Tensor
 
-    # first order features
+    """
+    First order features.
+    x -(enc)-> z 
+    """
     z_quantized: torch.Tensor
     z_distances: torch.Tensor
     z_indices: torch.Tensor
-    x_recon: torch.Tensor
 
-    # second order features
+    """
+    Second order features
+    x -(enc)-> z -(dec)-> x' -(enc)-> z'
+    """
     z_second_order_distances: torch.Tensor
 
-    # metrics
+    """
+    Metrics calculated on forward pass
+    """
     vq_loss: torch.Tensor
-    feature_perplexity: torch.Tensor
-    class_perplexity: torch.Tensor
-    class_avg_probs: torch.Tensor
-    feature_avg_probs: torch.Tensor
+    perplexity: torch.Tensor
+    avg_probs: torch.Tensor
 
     # classification
     image_emb: torch.Tensor
@@ -63,16 +78,15 @@ class CriterionOutput:
 
     # quantization loss
     vq_loss: torch.Tensor
-    feature_perplexity: torch.Tensor
-    class_perplexity: torch.Tensor
     perplexity: torch.Tensor
 
 
-class VitVQVae(CLModel):
+class VQMAE(CLModel):
     def __init__(
         self,
         num_embeddings,
         num_class_embeddings,
+        num_embeddings_per_step,
         embedding_dim,
         commitment_cost,
         mask_token_id: int,
@@ -81,7 +95,7 @@ class VitVQVae(CLModel):
         decay=0,
         learning_rate: float = 1e-3,
         weight_decay=0.05,
-        image_size=32,
+        image_size=64,
         patch_size=2,
         encoder_layer=12,
         encoder_head=3,
@@ -143,20 +157,32 @@ class VitVQVae(CLModel):
             encoder_layer,
             encoder_head,
         )
-        self.feature_quantization = FeatureQuantizer(
-            num_class_embeddings,
-            num_embeddings,
-            embedding_dim,
-            commitment_cost,
-            decay,
-            top_k=quantize_top_k,
-            separate_codebooks=separate_codebooks,
-            class_perplexity_threshold=class_perplexity_threshold,
-            patches_perplexity_threshold=patches_perplexity_threshold,
-        )
         self.decoder = MAEDecoder(
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
         )
+
+        self._separate_codebooks = separate_codebooks
+        if separate_codebooks:
+            self.feature_quantization = SeparateCodebooksFeatureQuantizerEMA(
+                num_class_embeddings,
+                num_embeddings,
+                embedding_dim,
+                commitment_cost,
+                decay,
+                top_k=quantize_top_k,
+                class_perplexity_threshold=class_perplexity_threshold,
+                patches_perplexity_threshold=patches_perplexity_threshold,
+            )
+        else:
+            self.feature_quantization = FeatureQuantizerEMA(
+                num_embeddings,
+                num_embeddings_per_step,
+                embedding_dim,
+                commitment_cost,
+                decay,
+                top_k=quantize_top_k,
+                perplexity_threshold=patches_perplexity_threshold,
+            )
 
         self.clf_head = None
         self.experience_step = 0
@@ -231,11 +257,12 @@ class VitVQVae(CLModel):
 
     def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
         # prepare default values
-        clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
+        clf_loss = torch.tensor(0.0, device=self.device)
+        clf_acc = torch.tensor(0.0, device=self.device)
         past_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
         current_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
 
-        # unpack variables from forward output
+        # unpack variables from forward output for readability
         x_recon = forward_output.x_recon
         x_data = forward_output.x_data
         z_indices = forward_output.z_indices
@@ -253,7 +280,7 @@ class VitVQVae(CLModel):
         past_data = y == -1
         current_data = y >= 0
 
-        # Compute reconstruction loss for future and current data
+        # Compute reconstruction loss for past and current data
         reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
 
         # Compute consistency loss for past data
@@ -290,7 +317,6 @@ class VitVQVae(CLModel):
             clf_loss = F.cross_entropy(forward_output.clf_logits, y)
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
 
-        perplexity = forward_output.feature_perplexity + forward_output.class_perplexity
         cycle_consistency_loss = (
             past_cycle_consistency_loss + current_cycle_consistency_loss
         )
@@ -302,18 +328,12 @@ class VitVQVae(CLModel):
             cycle_consistency_loss=cycle_consistency_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
-            feature_perplexity=forward_output.feature_perplexity,
-            class_perplexity=forward_output.class_perplexity,
-            perplexity=perplexity,
+            perplexity=forward_output.perplexity,
         )
 
     def forward(self, x) -> ForwardOutput:
         # prepare default values
-        latent_distances = None
-        second_order_latent_distances = None
-        feature_perplexity = torch.tensor(0.0, device=self.device)
-        class_perplexity = torch.tensor(0.0, device=self.device)
-        vq_loss = torch.tensor(0.0, device=self.device)
+        z_second_order_distances = None
         clf_logits = None
         image_emb = None
 
@@ -323,28 +343,19 @@ class VitVQVae(CLModel):
         )
 
         # Quantize features
-        if self._quantize_features:
-            with torch.autocast(self._accelerator, dtype=torch.float32):
-                (
-                    vq_loss,
-                    masked_features,
-                    feature_perplexity,
-                    class_perplexity,
-                    class_avg_probs,
-                    feature_avg_probs,
-                    *_,
-                ) = self.feature_quantization(masked_features)
-                """
-                masked_features shape - T x B x top_k x emb_dim
-                """
-                masked_features = masked_features.mean(2)
-                """
-                masked_features shape - T x B x emb_dim
-                """
-                (*_, z_indices, latent_distances) = self.feature_quantization(
-                    full_features, return_distances=True
-                )
-                z_indices = rearrange(z_indices, "t b k -> b (t k)")
+        with torch.autocast(self._accelerator, dtype=torch.float32):
+            masked_quantization = self.feature_quantization(masked_features)
+            """
+            masked_features shape - T x B x top_k x emb_dim
+            """
+            masked_features = masked_features.mean(2)
+            """
+            masked_features shape - T x B x emb_dim
+            """
+            full_quantization = self.feature_quantization(
+                full_features, return_distances=True
+            )
+            z_indices = rearrange(full_quantization.z_indices, "t b k -> b (t k)")
 
         # Reconstruct an image from quantized patches' features
         x_recon, mask = self.decoder(masked_features, backward_indexes)
@@ -356,15 +367,17 @@ class VitVQVae(CLModel):
             )
             if self._quantize_features:
                 with torch.autocast(self._accelerator, dtype=torch.float32):
-                    (*_, second_order_latent_distances) = self.feature_quantization(
+                    second_order_quantization = self.feature_quantization(
                         second_order_features, return_distances=True
                     )
+                    z_second_order_distances = second_order_quantization.distances
 
         # If the model has classification head we calculate image embedding
         # based on output of the encoder without masking random patches
         if self.clf_head is not None:
-            image_emb = full_features[0]
-            clf_logits = self.clf_head(image_emb)
+            with torch.no_grad():
+                image_emb = full_features[0]
+                clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
             # data
@@ -373,16 +386,14 @@ class VitVQVae(CLModel):
             # first order
             z_quantized=masked_features,
             z_indices=z_indices,
-            z_distances=latent_distances,
+            z_distances=masked_quantization.distances,
             x_recon=x_recon,
             # seconds order
-            z_second_order_distances=second_order_latent_distances,
+            z_second_order_distances=z_second_order_distances,
             # metrics
-            vq_loss=vq_loss,
-            feature_perplexity=feature_perplexity,
-            class_perplexity=class_perplexity,
-            class_avg_probs=class_avg_probs,
-            feature_avg_probs=feature_avg_probs,
+            vq_loss=masked_quantization.loss,
+            perplexity=masked_quantization.perplexity,
+            avg_probs=masked_quantization.avg_probs,
             # classification
             image_emb=image_emb,
             clf_logits=clf_logits,
@@ -396,9 +407,17 @@ class VitVQVae(CLModel):
 
         forward_output = self.forward(x)
 
-        # The forward_output.z_indices contains indices for latent codes
-        # we overwrite it with data from the batch to make sure
-        # that z_indices now contains target indices for past and current data
+        """ 
+        Because x contains both past and present images.
+        The forward_output.z_indices will contain indices for latent codes
+        computed with respect to the current state of weights in VQ-MAE encoder for 
+        past and present images as well.
+        
+        However it is not true, so we overwrite it with data from the batch, 
+        that contains correct indices from previous state of weights in VQ-MAE, by dataset design.
+        
+        z_indices now contains proper target indices for past and current data
+        """
         if past_data.any():
             forward_output.z_indices[past_data] = data["indices"][past_data]
 
@@ -410,7 +429,7 @@ class VitVQVae(CLModel):
             + criterion_output.cycle_consistency_loss
         )
 
-        self.feature_avg_probs_outputs.append(forward_output.feature_avg_probs)
+        self.feature_avg_probs_outputs.append(forward_output.avg_probs)
 
         # LOGGING
         self.log_with_postfix(
@@ -428,14 +447,6 @@ class VitVQVae(CLModel):
         self.log_with_postfix(
             f"train/perplexity",
             criterion_output.perplexity.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"train/class_perplexity",
-            criterion_output.class_perplexity.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"train/feature_perplexity",
-            criterion_output.feature_perplexity.cpu().item(),
         )
         self.log_with_postfix(
             f"train/current_cycle_consistency_loss",
@@ -501,14 +512,6 @@ class VitVQVae(CLModel):
         self.log_with_postfix(
             f"val/perplexity",
             criterion_output.perplexity.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"val/class_perplexity",
-            criterion_output.class_perplexity.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"val/feature_perplexity",
-            criterion_output.feature_perplexity.cpu().item(),
         )
         self.log_with_postfix(
             f"val/cycle_consistency_loss",

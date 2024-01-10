@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from avalanche.benchmarks.utils import make_classification_dataset
 
 from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
 
 from einops import rearrange
 
@@ -28,7 +28,7 @@ class TensorDataset(Dataset):
 
 
 def get_latent_embedding(
-    vq_vae_model: VitVQVae,
+    vq_vae_model: VQMAE,
     config: TrainConfig,
 ) -> torch.nn.Embedding:
     """
@@ -69,11 +69,9 @@ def sample_random_noise(
 @torch.no_grad()
 def sample_from_uniform_prior(
     num_images,
-    vq_vae_model: VitVQVae,
+    vq_vae_model: VQMAE,
 ):
-    feature_embedding = (
-        vq_vae_model.feature_quantization.feature_quantization.embedding
-    )
+    feature_embedding = vq_vae_model.feature_quantization.feature_quantization.embedding
     class_embedding = vq_vae_model.feature_quantization.class_quantization.embedding
 
     num_images = max(num_images, 256)
@@ -129,13 +127,11 @@ def sample_from_uniform_prior(
 
 @torch.no_grad()
 def sample_image_from_sparse_vector(
-    vq_vae_model: VitVQVae,
+    vq_vae_model: VQMAE,
     ratio: float = 0.2,
     num_images: int = 16,
 ):
-    feature_embedding = (
-        vq_vae_model.feature_quantization.feature_quantization.embedding
-    )
+    feature_embedding = vq_vae_model.feature_quantization.feature_quantization.embedding
     class_embedding = vq_vae_model.feature_quantization.class_quantization.embedding
 
     num_images = max(num_images, 256)
@@ -200,7 +196,7 @@ def sample_image_from_sparse_vector(
 
 @torch.no_grad()
 def model_future_samples(
-    vq_vae_model: VitVQVae,
+    vq_vae_model: VQMAE,
     config: TrainConfig,
     num_images: int = 5_000,
     mode: str = "noise",
