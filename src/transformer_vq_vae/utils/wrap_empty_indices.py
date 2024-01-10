@@ -19,7 +19,7 @@ class WrappedDataset(Dataset):
         data = {
             "images": x,
             "indices": torch.zeros(
-                (self.num_patches * self.num_patches + 1) * self.num_neighbours,
+                (self.num_patches + 1) * self.num_neighbours,
                 dtype=torch.int64,
             ),
         }

@@ -185,7 +185,7 @@ def bootstrap_past_samples(
             embedding=image_embeddings,
             sos_token=sos_token,
             temperature=config.temperature,
-            max_length=(num_patches * num_patches + 1) * config.quantize_top_k + 1,
+            max_length=(num_patches + 1) * config.quantize_top_k + 1,
             num_neighbours=config.quantize_top_k,
         )
 
@@ -244,7 +244,7 @@ def train_igpt(
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
-            "n_positions": (num_patches * num_patches + 1) * config.quantize_top_k + 1,
+            "n_positions": (num_patches + 1) * config.quantize_top_k + 1,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,
@@ -336,7 +336,7 @@ def train_igpt(
     #                 embedding=image_embeddings,
     #                 sos_token=sos_token,
     #                 temperature=config.temperature,
-    #                 max_length=(num_patches * num_patches + 1) * config.quantize_top_k + 1,
+    #                 max_length=(num_patches + 1) * config.quantize_top_k + 1,
     #                 num_neighbours=config.quantize_top_k,
     #             )
     #

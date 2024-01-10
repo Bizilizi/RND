@@ -92,7 +92,7 @@ def sample_from_uniform_prior(
                 torch.arange(
                     feature_embedding.weight.shape[0], device=vq_vae_model.device
                 ).float(),
-                num_patches * num_patches,
+                num_patches,
                 replacement=True,
             )
             class_indices = torch.multinomial(
@@ -151,7 +151,7 @@ def sample_image_from_sparse_vector(
         batch = []
 
         for _ in range(256):
-            num_rand_samples = int(num_patches * num_patches * ratio)
+            num_rand_samples = int(num_patches * ratio)
             feature_indices = torch.multinomial(
                 torch.arange(
                     feature_embedding.weight.shape[0], device=vq_vae_model.device
@@ -169,7 +169,7 @@ def sample_image_from_sparse_vector(
 
             emb_positions = torch.multinomial(
                 torch.arange(
-                    num_patches * num_patches,
+                    num_patches,
                     device=vq_vae_model.device,
                 ).float(),
                 num_rand_samples,
@@ -177,9 +177,7 @@ def sample_image_from_sparse_vector(
             )
             emb_positions += 1
 
-            mask_emb = vq_vae_model.decoder.mask_token[0].repeat(
-                num_patches * num_patches + 1, 1
-            )
+            mask_emb = vq_vae_model.decoder.mask_token[0].repeat(num_patches + 1, 1)
             mask_emb[0] = class_embedding(class_indices)
             mask_emb[emb_positions] = feature_embedding(feature_indices)
 
