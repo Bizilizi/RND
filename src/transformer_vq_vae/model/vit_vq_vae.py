@@ -95,7 +95,7 @@ class VQMAE(CLModel):
         decay=0,
         learning_rate: float = 1e-3,
         weight_decay=0.05,
-        image_size=64,
+        image_size=32,
         patch_size=2,
         encoder_layer=12,
         encoder_head=3,
