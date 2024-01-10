@@ -43,3 +43,33 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --num_embeddings 24 \
     --num_class_embeddings 2 \
     --precision 16-mixed
+
+TIMM_FUSED_ATTN=1 python train.py \
+    --dev True \
+    --config src/transformer_vq_vae/configuration/train.ini \
+    --model transformer-vq-vae \
+    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --group mae-stable-sampling-inc-codebbok \
+    --batch_size 512 \
+    --accumulate_grad_batches 1 \
+    --num_workers 8 \
+    --num_tasks 5 \
+    --max_epochs 3 \
+    --min_epochs 3 \
+    --max_epochs_lin_eval 2 \
+    --num_random_past_samples 10000 \
+    --num_random_past_samples_schedule fixed \
+    --num_random_future_samples 0 \
+    --future_samples_mode noise \
+    --cycle_consistency_loss_weight_for_past 1 \
+    --cycle_consistency_loss_weight_for_current 0 \
+    --cycle_consistency_sigma 200 \
+    --past_samples_loss_weight 0 \
+    --current_samples_loss_weight 1 \
+    --future_samples_loss_weight 1 \
+    --separate_codebooks true \
+    --patches_perplexity_threshold 100 \
+    --quantize_top_k 1 \
+    --num_embeddings 24 \
+    --num_class_embeddings 2 \
+    --precision 32-true

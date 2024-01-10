@@ -245,7 +245,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitTinyImageNet(
+    benchmark = SplitCIFAR10(
         n_experiences=config.num_tasks,
         return_task_id=True,
         shuffle=True,
@@ -253,13 +253,13 @@ def main(args):
         train_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
-                # transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
         ),
         eval_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
-                # transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
         ),
     )
