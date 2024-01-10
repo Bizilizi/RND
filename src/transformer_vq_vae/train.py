@@ -64,8 +64,8 @@ def train_loop(
     """
 
     image_gpt = None
-    sos_token = config.num_class_embeddings + config.num_embeddings + 1
-    mask_token = config.num_class_embeddings + config.num_embeddings
+    sos_token = config.num_embeddings + 1
+    mask_token = config.num_embeddings
 
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
@@ -79,18 +79,19 @@ def train_loop(
         igpt_train_dataset = train_experience.dataset + test_experience.dataset
 
         # Model future at the very first step
-        if cl_strategy.experience_step == 0 and config.num_random_future_samples != 0:
-            print(f"Model future samples..")
-            future_dataset = model_future_samples(
-                vq_vae_model=cl_strategy.model,
-                num_images=(
-                    config.num_random_future_samples * (4 - cl_strategy.experience_step)
-                ),
-                mode=config.future_samples_mode,
-                config=config,
-            )
+        # if cl_strategy.experience_step == 0 and config.num_random_future_samples != 0:
+        #     print(f"Model future samples..")
+        #     future_dataset = model_future_samples(
+        #         vq_vae_model=cl_strategy.model,
+        #         num_images=(
+        #             config.num_random_future_samples * (4 - cl_strategy.experience_step)
+        #         ),
+        #         mode=config.future_samples_mode,
+        #         config=config,
+        #     )
+        #
+        #     train_experience.dataset = train_experience.dataset + future_dataset
 
-            train_experience.dataset = train_experience.dataset + future_dataset
         # Bootstrap old data and modeled future samples
         if cl_strategy.experience_step != 0 and image_gpt is not None:
             image_gpt.to(device)
@@ -131,9 +132,6 @@ def train_loop(
                 train_experience.dataset = train_experience.dataset + future_dataset
 
         # Train VQ-VAE
-        # if cl_strategy.experience_step != 0:
-        #     cl_strategy.device = torch.device("cpu")
-
         cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
@@ -191,8 +189,8 @@ def main(args):
     overwrite_config_with_args(args, config)
 
     # Fix num_class_embeddings in case of non-separated codebook
-    if not config.separate_codebooks:
-        config.num_class_embeddings = config.num_embeddings
+    # if not config.separate_codebooks:
+    #     config.num_class_embeddings = config.num_embeddings
 
     # Construct wandb params if necessary
     is_using_wandb = (
@@ -201,6 +199,9 @@ def main(args):
         or args.run_id
     )
     if is_using_wandb:
+        if args.dev:
+            os.environ["WANDB_MODE"] = "offline"
+
         wandb_params = get_wandb_params(args, config)
 
         wandb.run.name = args.experiment_name or (

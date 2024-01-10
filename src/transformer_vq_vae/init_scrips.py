@@ -66,7 +66,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VQMAE:
         ),
         weight_decay=config.weight_decay,
         mask_ratio=config.mask_ratio,
-        mask_token_id=config.num_class_embeddings + config.num_embeddings,
+        mask_token_id=config.num_embeddings,
         use_lpips=config.use_lpips,
         precision=config.precision,
         accelerator=config.accelerator,

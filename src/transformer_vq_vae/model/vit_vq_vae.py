@@ -162,27 +162,15 @@ class VQMAE(CLModel):
         )
 
         self._separate_codebooks = separate_codebooks
-        if separate_codebooks:
-            self.feature_quantization = SeparateCodebooksFeatureQuantizerEMA(
-                num_class_embeddings,
-                num_embeddings,
-                embedding_dim,
-                commitment_cost,
-                decay,
-                top_k=quantize_top_k,
-                class_perplexity_threshold=class_perplexity_threshold,
-                patches_perplexity_threshold=patches_perplexity_threshold,
-            )
-        else:
-            self.feature_quantization = FeatureQuantizerEMA(
-                num_embeddings,
-                num_embeddings_per_step,
-                embedding_dim,
-                commitment_cost,
-                decay,
-                top_k=quantize_top_k,
-                perplexity_threshold=patches_perplexity_threshold,
-            )
+        self.feature_quantization = FeatureQuantizerEMA(
+            num_embeddings,
+            num_embeddings_per_step,
+            embedding_dim,
+            commitment_cost,
+            decay,
+            top_k=quantize_top_k,
+            perplexity_threshold=patches_perplexity_threshold,
+        )
 
         self.clf_head = None
         self.experience_step = 0
@@ -343,19 +331,20 @@ class VQMAE(CLModel):
         )
 
         # Quantize features
-        with torch.autocast(self._accelerator, dtype=torch.float32):
-            masked_quantization = self.feature_quantization(masked_features)
-            """
-            masked_features shape - T x B x top_k x emb_dim
-            """
-            masked_features = masked_features.mean(2)
-            """
-            masked_features shape - T x B x emb_dim
-            """
-            full_quantization = self.feature_quantization(
-                full_features, return_distances=True
-            )
-            z_indices = rearrange(full_quantization.z_indices, "t b k -> b (t k)")
+        # with torch.autocast(self._accelerator, dtype=torch.float32):
+        masked_quantization = self.feature_quantization(masked_features)
+
+        masked_features = masked_quantization.quantized
+        """
+        masked_features shape - T x B x top_k x emb_dim
+        """
+
+        masked_features = masked_features.mean(2)
+        """
+        masked_features shape - T x B x emb_dim
+        """
+        full_quantization = self.feature_quantization(full_features)
+        z_indices = rearrange(full_quantization.encoding_indices, "t b k -> b (t k)")
 
         # Reconstruct an image from quantized patches' features
         x_recon, mask = self.decoder(masked_features, backward_indexes)
@@ -366,11 +355,11 @@ class VQMAE(CLModel):
                 x_recon, return_full_features=True
             )
             if self._quantize_features:
-                with torch.autocast(self._accelerator, dtype=torch.float32):
-                    second_order_quantization = self.feature_quantization(
-                        second_order_features, return_distances=True
-                    )
-                    z_second_order_distances = second_order_quantization.distances
+                # with torch.autocast(self._accelerator, dtype=torch.float32):
+                second_order_quantization = self.feature_quantization(
+                    second_order_features
+                )
+                z_second_order_distances = second_order_quantization.distances
 
         # If the model has classification head we calculate image embedding
         # based on output of the encoder without masking random patches

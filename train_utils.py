@@ -86,6 +86,13 @@ def add_arguments(parser):
         help="wandb sweep id",
         default=None,
     )
+    parser.add_argument(
+        "--dev",
+        nargs="?",
+        type=bool,
+        help="local wandb development",
+        default=None,
+    )
 
     return parser
 

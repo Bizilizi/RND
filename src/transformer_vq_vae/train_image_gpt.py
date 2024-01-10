@@ -118,20 +118,12 @@ def init_token_embeddings(
 ) -> None:
     """
     Initialize image gpt token embeddings with vq_vae embeddings.
-    We copy data for the first config.num_class_embeddings + config.num_embeddings from
+    We copy data for the first config.num_embeddings from
     VQ-Vae model, and the rest of two, corresponds to mask_token and sos_token
     """
     image_gpt.transformer.wte.weight.data[
-        : config.num_class_embeddings
-    ] = (
-        vq_vae_model.feature_quantization.class_quantization.embedding.weight.data.clone()
-    )
-
-    image_gpt.transformer.wte.weight.data[
-        config.num_class_embeddings : -2
-    ] = (
-        vq_vae_model.feature_quantization.feature_quantization.embedding.weight.data.clone()
-    )
+        :-2
+    ] = vq_vae_model.feature_quantization.embedding.weight.data.clone()
     image_gpt.transformer.wte.weight.data[
         mask_token
     ] = vq_vae_model.decoder.mask_token.data.clone()
@@ -150,16 +142,11 @@ def get_image_embedding(
     """
 
     image_embeddings = torch.nn.Embedding(
-        config.num_class_embeddings + config.num_embeddings + 1, config.embedding_dim
+        config.num_embeddings + 1, config.embedding_dim
     ).to(vq_vae_model.device)
 
     image_embeddings.weight.data[
-        : config.num_class_embeddings
-    ] = (
-        vq_vae_model.feature_quantization.class_quantization.embedding.weight.data.clone()
-    )
-    image_embeddings.weight.data[
-        config.num_class_embeddings : -1
+        :-1
     ] = (
         vq_vae_model.feature_quantization.feature_quantization.embedding.weight.data.clone()
     )
@@ -241,7 +228,7 @@ def train_igpt(
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = config.num_class_embeddings + config.num_embeddings + 2
+    vocab_size = config.num_embeddings + 2
 
     configuration = ImageGPTConfig(
         **{

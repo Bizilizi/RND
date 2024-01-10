@@ -37,6 +37,7 @@ class SeparateCodebooksFeatureQuantizerEMA(nn.Module):
         super().__init__()
 
         self.feature_quantization = FeatureQuantizerEMA(
+            num_embeddings=num_embeddings,
             num_embeddings_per_step=num_embeddings,
             embedding_dim=embedding_dim,
             commitment_cost=commitment_cost,
@@ -46,6 +47,7 @@ class SeparateCodebooksFeatureQuantizerEMA(nn.Module):
             perplexity_threshold=patches_perplexity_threshold,
         )
         self.class_quantization = FeatureQuantizerEMA(
+            num_embeddings=num_embeddings,
             num_embeddings_per_step=num_class_embeddings,
             embedding_dim=embedding_dim,
             commitment_cost=commitment_cost,
@@ -344,6 +346,10 @@ class FeatureQuantizerEMA(nn.Module):
 
         avg_probs = torch.mean(encodings, dim=0)  # num_embeddings
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
+
+        # reshape
+        encoding_indices = encoding_indices.reshape(quantized.shape[:3])
+        distances = distances.reshape(*quantized.shape[:2], -1)
 
         if perplexity < self._perplexity_threshold and self._reset_counter >= 200 * 400:
             self.reset_codebook(inputs, encodings)
