@@ -51,10 +51,12 @@ def mock_train_loop(
         benchmark.train_stream, benchmark.test_stream
     ):
         train_experience.dataset = wrap_dataset_with_empty_indices(
-            train_experience.dataset, num_neighbours=config.quantize_top_k
+            train_experience.dataset,
+            num_neighbours=config.quantize_top_k,
+            config=config,
         )
         test_experience.dataset = wrap_dataset_with_empty_indices(
-            test_experience.dataset, num_neighbours=config.quantize_top_k
+            test_experience.dataset, num_neighbours=config.quantize_top_k, config=config
         )
         igpt_train_dataset = train_experience.dataset + test_experience.dataset
 

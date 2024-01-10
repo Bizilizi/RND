@@ -331,22 +331,20 @@ class VQMAE(CLModel):
         )
 
         # Quantize features
-        with torch.autocast(self._accelerator, dtype=torch.float32):
-            masked_quantization = self.feature_quantization(masked_features)
+        # with torch.autocast(self._accelerator, dtype=torch.float32):
+        masked_quantization = self.feature_quantization(masked_features)
 
-            masked_features = masked_quantization.quantized
-            """
-            masked_features shape - T x B x top_k x emb_dim
-            """
+        masked_features = masked_quantization.quantized
+        """
+        masked_features shape - T x B x top_k x emb_dim
+        """
 
-            masked_features = masked_features.mean(2)
-            """
-            masked_features shape - T x B x emb_dim
-            """
-            full_quantization = self.feature_quantization(full_features)
-            z_indices = rearrange(
-                full_quantization.encoding_indices, "t b k -> b (t k)"
-            )
+        masked_features = masked_features.mean(2)
+        """
+        masked_features shape - T x B x emb_dim
+        """
+        full_quantization = self.feature_quantization(full_features)
+        z_indices = rearrange(full_quantization.encoding_indices, "t b k -> b (t k)")
 
         # Reconstruct an image from quantized patches' features
         x_recon, mask = self.decoder(masked_features, backward_indexes)
@@ -357,11 +355,11 @@ class VQMAE(CLModel):
                 x_recon, return_full_features=True
             )
             if self._quantize_features:
-                with torch.autocast(self._accelerator, dtype=torch.float32):
-                    second_order_quantization = self.feature_quantization(
-                        second_order_features
-                    )
-                    z_second_order_distances = second_order_quantization.distances
+                # with torch.autocast(self._accelerator, dtype=torch.float32):
+                second_order_quantization = self.feature_quantization(
+                    second_order_features
+                )
+                z_second_order_distances = second_order_quantization.distances
 
         # If the model has classification head we calculate image embedding
         # based on output of the encoder without masking random patches

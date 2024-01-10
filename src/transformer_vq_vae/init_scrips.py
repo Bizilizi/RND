@@ -52,6 +52,8 @@ def get_evaluation_plugin(
 
 def get_model(config: TrainConfig, device: torch.device) -> VQMAE:
     vae = VQMAE(
+        image_size=config.image_size,
+        patch_size=config.patch_size,
         num_class_embeddings=config.num_class_embeddings,
         num_embeddings=config.num_embeddings,
         num_embeddings_per_step=config.num_embeddings_per_step,

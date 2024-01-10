@@ -17,6 +17,9 @@ class TrainConfig(BaseTrainConfig):
     separate_codebooks: bool
     bootstrapped_dataset_path: str
 
+    image_size: int
+    patch_size: int
+
     use_lpips: bool
     mask_ratio: float
     weight_decay: float

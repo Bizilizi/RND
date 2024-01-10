@@ -57,10 +57,11 @@ def get_latent_embedding(
 @torch.no_grad()
 def sample_random_noise(
     num_images,
+    config: TrainConfig,
     mu: float = 0.0,
     sigma: float = 1.0,
 ):
-    noise = torch.randn(num_images, 3, 32, 32)
+    noise = torch.randn(num_images, 3, config.image_size, config.image_size)
 
     noise = mu + noise * sigma
     return noise
@@ -70,9 +71,13 @@ def sample_random_noise(
 def sample_from_uniform_prior(
     num_images,
     vq_vae_model: VQMAE,
+    config: TrainConfig,
 ):
     feature_embedding = vq_vae_model.feature_quantization.feature_quantization.embedding
     class_embedding = vq_vae_model.feature_quantization.class_quantization.embedding
+
+    # Derive num patches based on path algorithm from VIT
+    num_patches = config.image_size // (config.patch_size**2)
 
     num_images = max(num_images, 256)
     decoder = vq_vae_model.decoder
@@ -87,7 +92,7 @@ def sample_from_uniform_prior(
                 torch.arange(
                     feature_embedding.weight.shape[0], device=vq_vae_model.device
                 ).float(),
-                16 * 16,
+                num_patches * num_patches,
                 replacement=True,
             )
             class_indices = torch.multinomial(
@@ -128,12 +133,15 @@ def sample_from_uniform_prior(
 @torch.no_grad()
 def sample_image_from_sparse_vector(
     vq_vae_model: VQMAE,
+    config: TrainConfig,
     ratio: float = 0.2,
     num_images: int = 16,
 ):
     feature_embedding = vq_vae_model.feature_quantization.feature_quantization.embedding
     class_embedding = vq_vae_model.feature_quantization.class_quantization.embedding
 
+    # Derive num patches based on path algorithm from VIT
+    num_patches = config.image_size // (config.patch_size**2)
     num_images = max(num_images, 256)
 
     decoder = vq_vae_model.decoder
@@ -143,7 +151,7 @@ def sample_image_from_sparse_vector(
         batch = []
 
         for _ in range(256):
-            num_rand_samples = int(16 * 16 * ratio)
+            num_rand_samples = int(num_patches * num_patches * ratio)
             feature_indices = torch.multinomial(
                 torch.arange(
                     feature_embedding.weight.shape[0], device=vq_vae_model.device
@@ -161,7 +169,7 @@ def sample_image_from_sparse_vector(
 
             emb_positions = torch.multinomial(
                 torch.arange(
-                    16 * 16,
+                    num_patches * num_patches,
                     device=vq_vae_model.device,
                 ).float(),
                 num_rand_samples,
@@ -169,7 +177,9 @@ def sample_image_from_sparse_vector(
             )
             emb_positions += 1
 
-            mask_emb = vq_vae_model.decoder.mask_token[0].repeat(16 * 16 + 1, 1)
+            mask_emb = vq_vae_model.decoder.mask_token[0].repeat(
+                num_patches * num_patches + 1, 1
+            )
             mask_emb[0] = class_embedding(class_indices)
             mask_emb[emb_positions] = feature_embedding(feature_indices)
 
@@ -202,7 +212,7 @@ def model_future_samples(
     mode: str = "noise",
 ):
     if mode == "noise":
-        generated_images = sample_random_noise(num_images=num_images)
+        generated_images = sample_random_noise(num_images=num_images, config=config)
     elif mode == "noise_out":
         generated_images = sample_random_noise(
             num_images=num_images,
@@ -222,7 +232,9 @@ def model_future_samples(
 
     targets = [-2] * generated_images.shape[0]
     tensor_dataset = wrap_dataset_with_empty_indices(
-        TensorDataset(generated_images, targets), num_neighbours=config.quantize_top_k
+        TensorDataset(generated_images, targets),
+        num_neighbours=config.quantize_top_k,
+        config=config,
     )
 
     return tensor_dataset

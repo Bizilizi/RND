@@ -175,6 +175,8 @@ def bootstrap_past_samples(
     image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
         vq_vae_model.device
     )
+    # Derive num patches based on path algorithm from VIT
+    num_patches = config.image_size // (config.patch_size**2)
 
     for _ in trange(num_images // num_images_per_batch):
         images, latent_indices = sample_images(
@@ -183,7 +185,7 @@ def bootstrap_past_samples(
             embedding=image_embeddings,
             sos_token=sos_token,
             temperature=config.temperature,
-            max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
+            max_length=(num_patches * num_patches + 1) * config.quantize_top_k + 1,
             num_neighbours=config.quantize_top_k,
         )
 
@@ -228,6 +230,9 @@ def train_igpt(
     logger = strategy.train_logger
     vocab_size = config.num_embeddings + 2
 
+    # Derive num patches based on path algorithm from VIT
+    num_patches = config.image_size // (config.patch_size**2)
+
     configuration = ImageGPTConfig(
         **{
             "activation_function": "quick_gelu",
@@ -239,7 +244,7 @@ def train_igpt(
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
-            "n_positions": (16 * 16 + 1) * config.quantize_top_k + 1,
+            "n_positions": (num_patches * num_patches + 1) * config.quantize_top_k + 1,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,
@@ -331,7 +336,7 @@ def train_igpt(
     #                 embedding=image_embeddings,
     #                 sos_token=sos_token,
     #                 temperature=config.temperature,
-    #                 max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
+    #                 max_length=(num_patches * num_patches + 1) * config.quantize_top_k + 1,
     #                 num_neighbours=config.quantize_top_k,
     #             )
     #
