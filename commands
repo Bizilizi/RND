@@ -52,7 +52,7 @@ TIMM_FUSED_ATTN=1 python train.py \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --group mae-stable-sampling-inc-codebbok \
-    --batch_size 128 \
+    --batch_size 64 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
     --num_tasks 5 \
@@ -74,4 +74,4 @@ TIMM_FUSED_ATTN=1 python train.py \
     --quantize_top_k 1 \
     --num_embeddings 128 \
     --num_class_embeddings 2 \
-    --precision 16-mixed
+    --precision 16-mixedna
