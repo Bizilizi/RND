@@ -86,7 +86,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VQMAE:
         patches_perplexity_threshold=config.patches_perplexity_threshold,
         class_perplexity_threshold=config.class_perplexity_threshold,
     )
-    vae = torch.compile(vae)
+    # vae = torch.compile(vae)
 
     return vae
 
