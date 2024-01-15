@@ -158,12 +158,12 @@ class VQMAE(CLModel):
             encoder_layer,
             encoder_head,
         )
-        self.encoder = torch.compile(self.encoder, backend="aot_eager")
+        # self.encoder = torch.compile(self.encoder, backend="aot_eager")
 
         self.decoder = MAEDecoder(
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
         )
-        self.decoder = torch.compile(self.decoder, backend="aot_eager")
+        # self.decoder = torch.compile(self.decoder, backend="aot_eager")
 
         self._separate_codebooks = separate_codebooks
         self.feature_quantization = FeatureQuantizerEMA(
