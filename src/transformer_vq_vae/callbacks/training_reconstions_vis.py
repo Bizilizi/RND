@@ -7,7 +7,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torchvision.utils import make_grid
 
 import wandb
-from src.transformer_vq_vae.model.vit_vq_vae import ForwardOutput, VQMAE
+from src.transformer_vq_vae.model.vit_vq_mae import ForwardOutput, VQMAE
 
 
 def chunks(lst, n):

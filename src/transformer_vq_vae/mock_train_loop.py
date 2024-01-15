@@ -47,6 +47,10 @@ def mock_train_loop(
     :return:
     """
 
+    image_gpt = None
+    sos_token = config.num_embeddings + 1
+    mask_token = config.num_embeddings
+
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
@@ -61,9 +65,20 @@ def mock_train_loop(
         igpt_train_dataset = train_experience.dataset + test_experience.dataset
 
         # Train VQ-VAE
-        cl_strategy.train(train_experience, [test_experience])
+        # cl_strategy.train(train_experience, [test_experience])
+        # cl_strategy.experience_step += 1
 
-        cl_strategy.experience_step += 1
+        print(f"Train igpt..")
+        image_gpt = train_igpt(
+            strategy=cl_strategy,
+            config=config,
+            train_dataset=igpt_train_dataset,
+            device=device,
+            sos_token=sos_token,
+            mask_token=mask_token,
+            n_layer=config.num_gpt_layers,
+            image_gpt=image_gpt if config.reuse_igpt else None,
+        )
 
     if is_using_wandb:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)

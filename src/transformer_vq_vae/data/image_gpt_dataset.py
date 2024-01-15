@@ -65,13 +65,9 @@ class ImageGPTDataset(Dataset):
                 features = encoder.layer_norm(encoder.transformer(patches))
                 features = rearrange(features, "b t c -> t b c")
 
-                # quantize features
-                (
-                    _,
-                    quantized_features,
-                    *_,
-                    input_ids,
-                ) = vq_vae_model.feature_quantization(features)
+                quantized_output = vq_vae_model.feature_quantization(features)
+                input_ids = quantized_output.encoding_indices
+
                 """
                 input_ids shape - T x B x top_k
                 """

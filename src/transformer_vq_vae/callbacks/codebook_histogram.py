@@ -4,7 +4,7 @@ from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import DataLoader
 
 import wandb
-from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
+from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
 
 
 class LogCodebookHistogram(Callback):
@@ -43,12 +43,14 @@ class LogCodebookHistogram(Callback):
                 class_indices = []
                 patch_indices = []
 
-                with torch.no_grad():
+                with (torch.no_grad()):
                     for x, y, *_ in dataloader:
                         x = x["images"].to(model.device)
 
                         _, full_features, _ = model.encoder(x)
-                        *_, input_ids = model.feature_quantization(full_features)
+
+                        quantized_output = model.feature_quantization(full_features)
+                        input_ids = quantized_output.encoding_indices
 
                         class_input_ids = input_ids.reshape(-1, x.shape[0])[0].cpu()
                         patch_input_ids = input_ids.reshape(-1, x.shape[0])[1:].cpu()

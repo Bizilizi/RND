@@ -19,7 +19,7 @@ from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
 )
 from src.transformer_vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
 from src.transformer_vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
-from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
+from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
 from src.transformer_vq_vae.plugins.mixed_precision_plugin import (
     CustomMixedPrecisionPlugin,
 )

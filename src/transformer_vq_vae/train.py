@@ -129,14 +129,14 @@ def train_loop(
 
         # Train classifier
         print(f"Train classifier..")
-        all_clf_head = train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-
-        cl_strategy.model.set_clf_head(all_clf_head)
+        # all_clf_head = train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        # train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        #
+        # cl_strategy.model.set_clf_head(all_clf_head)
 
         # Train new image gpt model
         print(f"Train igpt..")

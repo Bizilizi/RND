@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from avalanche.benchmarks.utils import make_classification_dataset
 
 from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
+from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
 
 from einops import rearrange
 

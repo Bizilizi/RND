@@ -19,7 +19,7 @@ from avalanche.benchmarks.utils.classification_dataset import ClassificationData
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
-from src.transformer_vq_vae.model.vit_vq_vae import VQMAE
+from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
 
 
 class BootstrappedDataset(Dataset):
