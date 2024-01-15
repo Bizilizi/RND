@@ -42,6 +42,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --quantize_top_k 1 \
     --num_embeddings 24 \
     --num_class_embeddings 2 \
+    --use_lpips False \
     --precision 16-mixed
 
 TIMM_FUSED_ATTN=1 python train.py \
@@ -74,4 +75,5 @@ TIMM_FUSED_ATTN=1 python train.py \
     --quantize_top_k 1 \
     --num_embeddings 128 \
     --num_class_embeddings 2 \
-    --precision 16-mixedna
+    --use_lpips False \
+    --precision 16-mixed
