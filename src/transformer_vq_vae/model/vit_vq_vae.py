@@ -2,6 +2,7 @@ import dataclasses
 
 import math
 import typing as t
+from contextlib import contextmanager
 from itertools import chain
 
 import lpips
@@ -22,6 +23,22 @@ from src.transformer_vq_vae.model.quiantizer import (
 
 if t.TYPE_CHECKING:
     from src.transformer_vq_vae.model.classification_head import EmbClassifier
+
+
+def safe_autocast(device):
+    """autocast doesn't work on cpu and mps"""
+
+    @contextmanager
+    def none():
+        try:
+            yield None
+        finally:
+            ...
+
+    if device in [torch.device("cpu"), torch.device("mps")]:
+        return none()
+    else:
+        torch.autocast(device, dtype=torch.float32)
 
 
 @dataclasses.dataclass
@@ -135,7 +152,7 @@ class VQMAE(CLModel):
         else:
             self._precision_dtype = torch.float32
 
-        self._accelerator = accelerator
+        self._accelerator = torch.device(accelerator)
         self._num_epochs = num_epochs
         self._batch_size = batch_size
 
@@ -181,7 +198,8 @@ class VQMAE(CLModel):
             self._lpips = lpips.LPIPS(net="vgg")
 
         # codebook probs
-        self.feature_avg_probs_outputs = []
+        self.feature_avg_probs_outputs = None
+        self.feature_avg_probs_outputs_count = 0
 
     def set_clf_head(self, model: "EmbClassifier"):
         self.__dict__["clf_head"] = model
@@ -331,7 +349,7 @@ class VQMAE(CLModel):
         )
 
         # Quantize features
-        with torch.autocast(self._accelerator, dtype=torch.float32):
+        with safe_autocast(self._accelerator):
             masked_quantization = self.feature_quantization(masked_features)
 
             masked_features = masked_quantization.quantized
@@ -357,7 +375,7 @@ class VQMAE(CLModel):
                 x_recon, return_full_features=True
             )
             if self._quantize_features:
-                with torch.autocast(self._accelerator, dtype=torch.float32):
+                with safe_autocast(self._accelerator):
                     second_order_quantization = self.feature_quantization(
                         second_order_features
                     )
@@ -420,7 +438,11 @@ class VQMAE(CLModel):
             + criterion_output.cycle_consistency_loss
         )
 
-        self.feature_avg_probs_outputs.append(forward_output.avg_probs)
+        if self.feature_avg_probs_outputs is None:
+            self.feature_avg_probs_outputs = forward_output.avg_probs
+        else:
+            self.feature_avg_probs_outputs += forward_output.avg_probs
+        self.feature_avg_probs_outputs_count += 1
 
         # LOGGING
         self.log_with_postfix(
@@ -460,9 +482,10 @@ class VQMAE(CLModel):
     def on_train_epoch_end(self) -> None:
         self.log_avg_probs(
             "train/perplexity_bar",
-            torch.stack(self.feature_avg_probs_outputs).mean(dim=0),
+            self.feature_avg_probs_outputs / self.feature_avg_probs_outputs_count,
         )
-        self.feature_avg_probs_outputs = []
+        self.feature_avg_probs_outputs = None
+        self.feature_avg_probs_outputs_count = 0
 
         # schedulers
         sch = self.lr_schedulers()

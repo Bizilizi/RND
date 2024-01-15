@@ -80,20 +80,6 @@ def train_loop(
         )
         igpt_train_dataset = train_experience.dataset + test_experience.dataset
 
-        # Model future at the very first step
-        # if cl_strategy.experience_step == 0 and config.num_random_future_samples != 0:
-        #     print(f"Model future samples..")
-        #     future_dataset = model_future_samples(
-        #         vq_vae_model=cl_strategy.model,
-        #         num_images=(
-        #             config.num_random_future_samples * (4 - cl_strategy.experience_step)
-        #         ),
-        #         mode=config.future_samples_mode,
-        #         config=config,
-        #     )
-        #
-        #     train_experience.dataset = train_experience.dataset + future_dataset
-
         # Bootstrap old data and modeled future samples
         if cl_strategy.experience_step != 0 and image_gpt is not None:
             image_gpt.to(device)
