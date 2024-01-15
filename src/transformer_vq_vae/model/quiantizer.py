@@ -5,6 +5,22 @@ from torch import nn
 import typing as t
 
 
+def safe_autocast(func):
+    """
+    Forward operation for quantization requires an autocast to 32.
+    However, this operation is not supported by mps and cpu devices.
+    """
+
+    def decorator(self, inputs):
+        if inputs.device.type in ["cpu", "mps"]:
+            return func(self, inputs)
+        else:
+            with torch.autocast(inputs.device.type, dtype=torch.float32):
+                return func(self, inputs)
+
+    return decorator
+
+
 class SeparateQuantizerOutput(t.NamedTuple):
     loss: torch.Tensor
     quantized: torch.Tensor
@@ -65,6 +81,7 @@ class SeparateCodebooksFeatureQuantizerEMA(nn.Module):
         self.class_quantization.extend_codebook()
         self.feature_quantization.extend_codebook()
 
+    @safe_autocast
     def forward(self, features) -> SeparateQuantizerOutput:
         (
             class_vq_loss,
@@ -271,6 +288,7 @@ class FeatureQuantizerEMA(nn.Module):
             ]
         )
 
+    @safe_autocast
     def forward(self, inputs) -> QuantizerOutput:
         input_shape = inputs.shape
         num_embeddings = self.embedding.weight.shape[0]

@@ -25,22 +25,6 @@ if t.TYPE_CHECKING:
     from src.transformer_vq_vae.model.classification_head import EmbClassifier
 
 
-def safe_autocast(device):
-    """autocast doesn't work on cpu and mps"""
-
-    @contextmanager
-    def none():
-        try:
-            yield None
-        finally:
-            ...
-
-    if device in [torch.device("cpu"), torch.device("mps")]:
-        return none()
-    else:
-        torch.autocast(device, dtype=torch.float32)
-
-
 @dataclasses.dataclass
 class ForwardOutput:
     """"""
@@ -152,7 +136,7 @@ class VQMAE(CLModel):
         else:
             self._precision_dtype = torch.float32
 
-        self._accelerator = torch.device(accelerator)
+        self._accelerator = accelerator
         self._num_epochs = num_epochs
         self._batch_size = batch_size
 
@@ -349,25 +333,22 @@ class VQMAE(CLModel):
         )
 
         # Quantize features
-        with safe_autocast(self._accelerator):
-            masked_quantization = self.feature_quantization(masked_features)
+        masked_quantization = self.feature_quantization(masked_features)
 
-            masked_features = masked_quantization.quantized
-            """
-            masked_features shape - T x B x top_k x emb_dim
-            """
+        masked_features = masked_quantization.quantized
+        """
+        masked_features shape - T x B x top_k x emb_dim
+        """
 
-            masked_features = masked_features.mean(2)
-            """
-            masked_features shape - T x B x emb_dim
-            """
-            full_quantization = self.feature_quantization(full_features)
-            z_indices = rearrange(
-                full_quantization.encoding_indices, "t b k -> b (t k)"
-            )
+        masked_features = masked_features.mean(2)
+        """
+        masked_features shape - T x B x emb_dim
+        """
+        full_quantization = self.feature_quantization(full_features)
+        z_indices = rearrange(full_quantization.encoding_indices, "t b k -> b (t k)")
 
-            # Reconstruct an image from quantized patches' features
-            x_recon, mask = self.decoder(masked_features, backward_indexes)
+        # Reconstruct an image from quantized patches' features
+        x_recon, mask = self.decoder(masked_features, backward_indexes)
 
         # To compute cycle consistency loss we apply encoder/quant again
         if self._current_cycle_consistency_weight != 0:
@@ -375,11 +356,10 @@ class VQMAE(CLModel):
                 x_recon, return_full_features=True
             )
             if self._quantize_features:
-                with safe_autocast(self._accelerator):
-                    second_order_quantization = self.feature_quantization(
-                        second_order_features
-                    )
-                    z_second_order_distances = second_order_quantization.distances
+                second_order_quantization = self.feature_quantization(
+                    second_order_features
+                )
+                z_second_order_distances = second_order_quantization.distances
 
         # If the model has classification head we calculate image embedding
         # based on output of the encoder without masking random patches
