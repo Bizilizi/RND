@@ -8,7 +8,7 @@ import torch
 from torchvision import transforms
 
 import wandb
-from avalanche.benchmarks import SplitCIFAR10
+from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
@@ -128,14 +128,14 @@ def train_loop(
         cl_strategy.model.freeze()
 
         # Train classifier
-        # print(f"Train classifier..")
-        # all_clf_head = train_classifier_on_all_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # ).to(device)
-        # train_classifier_on_observed_only_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # ).to(device)
-        #
+        print(f"Train classifier..")
+        all_clf_head = train_classifier_on_all_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+        train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+
         # cl_strategy.model.set_clf_head(all_clf_head)
 
         # Train new image gpt model
@@ -233,7 +233,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitCIFAR10(
+    benchmark = SplitCIFAR100(
         n_experiences=config.num_tasks,
         return_task_id=True,
         shuffle=True,
