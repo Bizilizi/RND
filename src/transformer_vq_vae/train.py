@@ -128,7 +128,7 @@ def train_loop(
         cl_strategy.model.freeze()
 
         # Train classifier
-        print(f"Train classifier..")
+        # print(f"Train classifier..")
         # all_clf_head = train_classifier_on_all_classes(
         #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
         # ).to(device)
@@ -152,12 +152,12 @@ def train_loop(
         )
 
         # Evaluate VQ-VAE and linear classifier
-        cl_strategy.eval(benchmark.test_stream)
+        # cl_strategy.eval(benchmark.test_stream)
 
         # Reset linear classifier and unfreeze params
-        cl_strategy.model.reset_clf_head()
-        cl_strategy.model.unfreeze()
+        # cl_strategy.model.reset_clf_head()
 
+        cl_strategy.model.unfreeze()
         cl_strategy.experience_step += 1
 
     if is_using_wandb:
@@ -282,7 +282,7 @@ def main(args):
         max_epochs=config.max_epochs,
         min_epochs=config.min_epochs,
         best_model_path_prefix=config.best_model_prefix,
-        plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
+        # plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
         train_plugins=get_train_plugins(config),
     )
 

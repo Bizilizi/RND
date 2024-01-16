@@ -40,7 +40,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --separate_codebooks true \
     --patches_perplexity_threshold 100 \
     --quantize_top_k 1 \
-    --num_embeddings 24 \
+    --num_embeddings 128 \
     --num_class_embeddings 2 \
     --use_lpips False \
     --precision 16-mixed
