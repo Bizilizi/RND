@@ -44,6 +44,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --num_class_embeddings 2 \
     --use_lpips False \
     --dataset cifar10 \
+    --patch_size 4 \
     --precision 16-mixed
 
 TIMM_FUSED_ATTN=1 python train.py \
@@ -78,4 +79,5 @@ TIMM_FUSED_ATTN=1 python train.py \
     --num_class_embeddings 2 \
     --use_lpips False \
     --dataset cifar10 \
+    --patch_size 4 \
     --precision 16-mixed
