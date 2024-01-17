@@ -182,7 +182,7 @@ def bootstrap_past_samples(
     # Derive num patches based on path algorithm from VIT
     num_patches = (config.image_size // config.patch_size) ** 2
 
-    for _ in trange(num_images // num_images_per_batch, desc="Sampling images:"):
+    for _ in range(num_images // num_images_per_batch):
         start = time.time()
         images, latent_indices = sample_images(
             image_gpt=image_gpt,
@@ -204,6 +204,7 @@ def bootstrap_past_samples(
         )
         end = time.time()
         print(f"Saving time: {end - start}")
+        print(_)
 
     dataset = make_classification_dataset(
         bootstrapped_dataset, targets=bootstrapped_dataset.targets
