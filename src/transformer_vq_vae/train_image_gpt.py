@@ -396,7 +396,7 @@ def sample_images(
     image_gpt_copy = copy.deepcopy(image_gpt)
     image_gpt_copy = torch.compile(image_gpt_copy)
     image_gpt_copy.eval()
-    image_gpt_copy.half()
+    # image_gpt_copy.half()
 
     vq_vae_model.eval()
 
@@ -407,14 +407,17 @@ def sample_images(
         (num_images, 1), sos_token, device=device
     )  # initialize with SOS token
 
-    igpt_output = image_gpt_copy.generate(
-        input_ids=context,
-        max_length=max_length,
-        temperature=temperature,
-        do_sample=True,
-        top_k=45,
-        top_p=0.9,
-    )
+    with torch.backends.cuda.sdp_kernel(
+        enable_flash=True, enable_math=False, enable_mem_efficient=False
+    ):
+        igpt_output = image_gpt_copy.generate(
+            input_ids=context,
+            max_length=max_length,
+            temperature=temperature,
+            do_sample=True,
+            top_k=45,
+            top_p=0.9,
+        )
 
     igpt_output = igpt_output[:, 1:]
     igpt_output[igpt_output == sos_token] = 0
