@@ -237,7 +237,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitCIFAR100(
+    benchmark = SplitCIFAR10(
         n_experiences=config.num_tasks,
         return_task_id=True,
         shuffle=True,
