@@ -395,7 +395,7 @@ def sample_images(
 ):
     image_gpt_copy = copy.deepcopy(image_gpt)
     image_gpt_copy.eval()
-    image_gpt_copy.half()
+    # image_gpt_copy.half()
 
     vq_vae_model.eval()
 

@@ -165,6 +165,10 @@ def train_loop(
 
 
 def main(args):
+    # turn on multiplication speed up in ampere series
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
+
     # Reading configuration from ini file
     assert (
         args.config
