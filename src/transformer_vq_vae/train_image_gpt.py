@@ -45,12 +45,12 @@ class BootstrappedDataset(Dataset):
         if self.images is None:
             self.images = images
             self.indices = latent_indices
-            self.targets = torch.full(images.shape[0], -1)
+            self.targets = torch.full((images.shape[0],), -1)
         else:
             self.images = torch.cat([self.images, images], dim=0)
             self.indices = torch.cat([self.indices, latent_indices], dim=0)
             self.targets = torch.cat(
-                [self.targets, torch.full(images.shape[0], -1)], dim=0
+                [self.targets, torch.full((images.shape[0],), -1)], dim=0
             )
 
     @staticmethod
