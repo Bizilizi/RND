@@ -38,6 +38,67 @@ from train_utils import get_device, get_loggers, get_wandb_params
 from pathlib import Path
 
 
+def get_benchmark(config: TrainConfig, target_dataset_dir):
+    if config.dataset == "cifar10":
+        config.image_size = 32
+        return SplitCIFAR10(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+            train_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                ]
+            ),
+            eval_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                ]
+            ),
+        )
+    elif config.dataset == "cifar100":
+        config.image_size = 32
+        return SplitCIFAR100(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+            train_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                ]
+            ),
+            eval_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                ]
+            ),
+        )
+    elif config.dataset == "tiny-imagenet":
+        config.image_size = 64
+        return SplitTinyImageNet(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+            train_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                ]
+            ),
+            eval_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                ]
+            ),
+        )
+
+
 def get_num_random_past_samples(
     config: TrainConfig, cl_strategy: NaivePytorchLightning
 ):
@@ -237,24 +298,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitTinyImageNet(
-        n_experiences=config.num_tasks,
-        return_task_id=True,
-        shuffle=True,
-        dataset_root=target_dataset_dir,
-        train_transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                # transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-            ]
-        ),
-        eval_transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                # transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-            ]
-        ),
-    )
+    benchmark = get_benchmark(config, target_dataset_dir)
 
     device = get_device(config)
     model = get_model(config, device)

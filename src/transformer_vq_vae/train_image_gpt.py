@@ -35,71 +35,38 @@ class BootstrappedDataset(Dataset):
         self.experience_step = experience_step
         self.transform = transform
 
-        self.images = []
-        self.indices = []
-        self.targets = []
+        self.images = None
+        self.indices = None
+        self.targets = None
 
     def add_data(self, images, latent_indices):
-        total_img = len(self.images)
-        for i, (image, indices) in enumerate(zip(images, latent_indices)):
-            experience_folder = pathlib.Path(
-                f"{self.dataset_path}/exp_{self.experience_step}"
+        images = self._rescale_image(images)
+
+        if self.images is None:
+            self.images = images
+            self.indices = latent_indices
+            self.targets = torch.full(images.shape[0], -1)
+        else:
+            self.images = torch.cat([self.images, images], dim=0)
+            self.indices = torch.cat([self.indices, latent_indices], dim=0)
+            self.targets = torch.cat(
+                [self.targets, torch.full(images.shape[0], -1)], dim=0
             )
-            experience_folder.mkdir(parents=True, exist_ok=True)
-
-            tmp = os.environ.get("TMPDIR", "/tmp")
-            run_id, dataset_prefix = self.dataset_path.split("/")[-2:]
-            tmp_experience_folder = (
-                pathlib.Path(tmp)
-                / run_id
-                / dataset_prefix
-                / f"exp_{self.experience_step}"
-            )
-            tmp_experience_folder.mkdir(parents=True, exist_ok=True)
-
-            # Prepare image path
-            image_path = (
-                f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.png"
-            )
-            tmp_image_path = f"{tmp_experience_folder}/{total_img + i}.png"
-
-            image = self._rescale_image(image)
-            im = Image.fromarray(image)
-
-            # Save image both to tmp and target dir
-            im.save(image_path)
-            im.save(tmp_image_path)
-
-            # Save indices
-            indices_path = (
-                f"{self.dataset_path}/exp_{self.experience_step}/{total_img + i}.pt"
-            )
-            tmp_indices_path = f"{tmp_experience_folder}/{total_img + i}.pt"
-
-            torch.save(indices, indices_path)
-            torch.save(indices, tmp_indices_path)
-
-            # Store paths for later access
-            self.images.append(tmp_image_path)
-            self.indices.append(tmp_indices_path)
-            self.targets.append(-1)
 
     @staticmethod
     def _rescale_image(image):
         image = (image + 0.5) * 255
         image = torch.clamp(image, 0, 255)
-        image = image.permute(1, 2, 0).to("cpu", torch.uint8)
-        image = image.numpy()
 
         return image
 
     def __getitem__(self, item):
-        image = read_image(self.images[item])
+        image = self.images[item]
         image = image / 255
         if self.transform is not None:
             image = self.transform(image)
 
-        indices = torch.load(self.indices[item]).long()
+        indices = self.indices[item]
 
         data = {
             "images": image,

@@ -17,8 +17,9 @@ class TrainConfig(BaseTrainConfig):
     separate_codebooks: bool
     bootstrapped_dataset_path: str
 
-    image_size: int
-    patch_size: int
+    dataset: str = "cifar10"
+    image_size: int = 32
+    patch_size: int = 4
 
     use_lpips: bool
     mask_ratio: float

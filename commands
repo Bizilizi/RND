@@ -23,7 +23,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
-    --num_tasks 5 \
+    --num_tasks 20 \
     --max_epochs 600 \
     --min_epochs 600 \
     --max_epochs_lin_eval 100 \
