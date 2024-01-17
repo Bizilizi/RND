@@ -59,7 +59,7 @@ def get_num_random_past_samples(
 
     if config.num_random_past_samples_schedule == "schedule":
         schedule = torch.linspace(0, config.num_random_past_samples, config.num_tasks)
-        return schedule[int(cl_strategy.experience_step)]
+        return int(schedule[int(cl_strategy.experience_step)])
 
 
 def mock_train_igpt(
