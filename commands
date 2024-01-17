@@ -62,7 +62,7 @@ TIMM_FUSED_ATTN=1 python train.py \
     --min_epochs 3 \
     --max_epochs_lin_eval 2 \
     --num_random_past_samples 10000 \
-    --num_random_past_samples_schedule fixed \
+    --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
