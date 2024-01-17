@@ -169,6 +169,7 @@ def bootstrap_past_samples(
 ) -> ClassificationDataset:
     num_images_per_batch = min(128, num_images)
 
+    print("Constructing bootstraped dataset")
     bootstrapped_dataset = BootstrappedDataset(
         dataset_path=dataset_path, experience_step=experience_step, transform=transform
     )
@@ -178,7 +179,7 @@ def bootstrap_past_samples(
     # Derive num patches based on path algorithm from VIT
     num_patches = (config.image_size // config.patch_size) ** 2
 
-    for _ in trange(num_images // num_images_per_batch):
+    for _ in trange(num_images // num_images_per_batch, desc="Sampling images:"):
         images, latent_indices = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
@@ -187,6 +188,7 @@ def bootstrap_past_samples(
             temperature=config.temperature,
             max_length=(num_patches + 1) * config.quantize_top_k + 1,
             num_neighbours=config.quantize_top_k,
+            num_images=num_images_per_batch,
         )
 
         bootstrapped_dataset.add_data(
