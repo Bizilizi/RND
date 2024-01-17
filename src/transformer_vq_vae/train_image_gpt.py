@@ -394,6 +394,7 @@ def sample_images(
     num_images=8 * 4 * 10,
 ):
     image_gpt_copy = copy.deepcopy(image_gpt)
+    image_gpt_copy = torch.compile(image_gpt_copy)
     image_gpt_copy.eval()
     # image_gpt_copy.half()
 
