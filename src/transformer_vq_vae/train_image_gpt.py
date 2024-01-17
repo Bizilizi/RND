@@ -40,8 +40,6 @@ class BootstrappedDataset(Dataset):
         self.targets = None
 
     def add_data(self, images, latent_indices):
-        images = self._rescale_image(images)
-
         if self.images is None:
             self.images = images
             self.indices = latent_indices
@@ -53,16 +51,9 @@ class BootstrappedDataset(Dataset):
                 [self.targets, torch.full((images.shape[0],), -1)], dim=0
             )
 
-    @staticmethod
-    def _rescale_image(image):
-        image = (image + 0.5) * 255
-        image = torch.clamp(image, 0, 255)
-
-        return image
-
     def __getitem__(self, item):
         image = self.images[item]
-        image = image / 255
+
         if self.transform is not None:
             image = self.transform(image)
 

@@ -157,7 +157,6 @@ def train_loop(
                     sos_token=sos_token,
                     experience_step=cl_strategy.experience_step,
                     mask_token=mask_token,
-                    transform=transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
                 )
 
                 train_experience.dataset = (
