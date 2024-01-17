@@ -1,7 +1,9 @@
+import copy
 import os
 
 import math
 import pathlib
+import time
 import typing as t
 import torch
 from einops import rearrange
@@ -180,6 +182,7 @@ def bootstrap_past_samples(
     num_patches = (config.image_size // config.patch_size) ** 2
 
     for _ in trange(num_images // num_images_per_batch, desc="Sampling images:"):
+        start = time.time()
         images, latent_indices = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
@@ -190,11 +193,16 @@ def bootstrap_past_samples(
             num_neighbours=config.quantize_top_k,
             num_images=num_images_per_batch,
         )
+        end = time.time()
+        print(f"Sampling time: {end - start}")
 
+        start = time.time()
         bootstrapped_dataset.add_data(
             images=images.cpu(),
             latent_indices=latent_indices.cpu(),
         )
+        end = time.time()
+        print(f"Saving time: {end - start}")
 
     dataset = make_classification_dataset(
         bootstrapped_dataset, targets=bootstrapped_dataset.targets
@@ -384,7 +392,10 @@ def sample_images(
     temperature=1.23,
     num_images=8 * 4 * 10,
 ):
-    image_gpt.eval()
+    image_gpt_copy = copy.deepcopy(image_gpt)
+    image_gpt_copy.eval()
+    image_gpt_copy.half()
+
     vq_vae_model.eval()
 
     device = vq_vae_model.device
@@ -393,14 +404,19 @@ def sample_images(
     context = torch.full(
         (num_images, 1), sos_token, device=device
     )  # initialize with SOS token
-    igpt_output = image_gpt.generate(
-        input_ids=context,
-        max_length=max_length,
-        temperature=temperature,
-        do_sample=True,
-        top_k=45,
-        top_p=0.9,
-    )
+
+    with torch.backends.cuda.sdp_kernel(
+        enable_flash=True, enable_math=False, enable_mem_efficient=False
+    ):
+        igpt_output = image_gpt_copy.generate(
+            input_ids=context,
+            max_length=max_length,
+            temperature=temperature,
+            do_sample=True,
+            top_k=45,
+            top_p=0.9,
+        )
+
     igpt_output = igpt_output[:, 1:]
     igpt_output[igpt_output == sos_token] = 0
 
