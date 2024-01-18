@@ -37,17 +37,17 @@ class BootstrappedDataset(Dataset):
 
         self.images = None
         self.indices = None
-        self.targets = None
+        self.targets = []
 
     def add_data(self, images, latent_indices):
         if self.images is None:
             self.images = images
             self.indices = latent_indices
-            self.targets = [-1] * images.shape[0]
         else:
             self.images = torch.cat([self.images, images], dim=0)
             self.indices = torch.cat([self.indices, latent_indices], dim=0)
-            self.targets = self.targets.extend([-1] * images.shape[0])
+
+        self.targets.extend([-1] * images.shape[0])
 
     def __getitem__(self, item):
         image = self.images[item]
