@@ -208,7 +208,6 @@ def train_loop(
             sos_token=sos_token,
             mask_token=mask_token,
             n_layer=config.num_gpt_layers,
-            image_gpt=image_gpt if config.reuse_igpt else None,
         )
 
         # Evaluate VQ-VAE and linear classifier
