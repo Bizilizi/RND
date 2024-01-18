@@ -101,7 +101,8 @@ def get_image_embedding(
     """
 
     image_embeddings = torch.nn.Embedding(
-        config.num_embeddings + 1, config.embedding_dim
+        vq_vae_model.feature_quantization.embedding.num_embeddings + 1,
+        config.embedding_dim,
     ).to(vq_vae_model.device)
 
     image_embeddings.weight.data[
