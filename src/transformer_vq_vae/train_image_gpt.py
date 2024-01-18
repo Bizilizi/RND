@@ -188,7 +188,7 @@ def train_igpt(
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = config.num_embeddings + 2
+    vocab_size = vq_vae_model.feature_quantization.embedding.num_embeddings + 2
 
     # Derive num patches based on path algorithm from VIT
     num_patches = (config.image_size // config.patch_size) ** 2
@@ -201,7 +201,7 @@ def train_igpt(
             "initializer_range": 0.02,
             "layer_norm_epsilon": 1e-05,
             "model_type": "imagegpt",
-            "n_embd": vq_vae_model.feature_quantization.embedding.num_embeddings,
+            "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
             "n_positions": (num_patches + 1) * config.quantize_top_k + 1,
