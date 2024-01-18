@@ -201,7 +201,7 @@ def train_igpt(
             "initializer_range": 0.02,
             "layer_norm_epsilon": 1e-05,
             "model_type": "imagegpt",
-            "n_embd": config.embedding_dim,
+            "n_embd": vq_vae_model.feature_quantization.embedding.num_embeddings,
             "n_head": 8,
             "n_layer": n_layer,
             "n_positions": (num_patches + 1) * config.quantize_top_k + 1,
