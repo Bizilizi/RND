@@ -43,8 +43,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --num_embeddings 48 \
     --num_class_embeddings 2 \
     --use_lpips False \
-    --dataset cifar10 \
-    --patch_size 4 \
+    --dataset tiny-imagenet \
+    --patch_size 8 \
     --precision 16-mixed
 
 TIMM_FUSED_ATTN=1 python train.py \
