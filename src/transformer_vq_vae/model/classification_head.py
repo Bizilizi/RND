@@ -70,6 +70,25 @@ class EmbClassifier(pl.LightningModule):
         return loss
 
     def configure_optimizers(self):
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=self._learning_rate)
+        optimizer = torch.optim.AdamW(
+            self.model.parameters(),
+            lr=self._learning_rate * self._batch_size / 256,
+            betas=(0.9, 0.999),
+            weight_decay=0.05,
+        )
+        lr_func = lambda epoch: min(
+            (epoch + 1) / (5 + 1e-8),
+            0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
+        )
+        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer, lr_lambda=lr_func, verbose=True
+        )
 
-        return optimizer
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": lr_scheduler,
+                "interval": "epoch",
+                "frequency": 1,
+            },
+        }

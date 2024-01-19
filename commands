@@ -23,7 +23,6 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
-    --num_tasks 20 \
     --max_epochs 600 \
     --min_epochs 600 \
     --max_epochs_lin_eval 100 \
@@ -40,11 +39,12 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --separate_codebooks true \
     --patches_perplexity_threshold 30 \
     --quantize_top_k 1 \
-    --num_embeddings 48 \
-    --num_class_embeddings 2 \
     --use_lpips False \
-    --dataset tiny-imagenet \
-    --patch_size 8 \
+    --dataset cifar100 \
+    --patch_size 2 \
+    --num_embeddings 128 \
+    --num_embeddings_per_step 5\
+    --num_tasks 5 \
     --precision 16-mixed
 
 TIMM_FUSED_ATTN=1 python train.py \
