@@ -14,6 +14,9 @@ class LogDataset(Callback):
     dataset for current CL step
     """
 
+    def __init__(self, mean: float):
+        self.mean = mean
+
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
@@ -78,9 +81,8 @@ class LogDataset(Callback):
 
         yield row
 
-    @staticmethod
-    def _rescale_image(image):
-        image = torch.clone(image) + 0.5
+    def _rescale_image(self, image):
+        image = torch.clone(image) + self.mean
         image = torch.clamp(image, 0) * 255
 
         return image.permute(1, 2, 0).int()

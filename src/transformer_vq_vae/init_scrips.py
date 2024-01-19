@@ -91,6 +91,8 @@ def get_model(config: TrainConfig, device: torch.device) -> VQMAE:
 
 
 def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
+    dataset_mean = 0 if config.dataset == "tiny-imagenet" else 0.5
+
     return lambda experience_step: [
         #     EarlyStopping(
         #         monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
@@ -103,18 +105,18 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             experience_step=experience_step,
             log_to_wandb=False,
         ),
-        # LogDataset(),
+        LogDataset(mean=dataset_mean),
         VisualizeTrainingReconstructions(
             log_every=10,
             name="rec_img_100",
-            mean=0 if config.dataset == "tiny-imagenet" else 0.5,
+            mean=dataset_mean,
         ),
         VisualizeTrainingReconstructions(
             log_every=100,
             num_images=1000,
             w1=10,
             name="rec_img_1000",
-            mean=0 if config.dataset == "tiny-imagenet" else 0.5,
+            mean=dataset_mean,
         ),
     ]
 
