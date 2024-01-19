@@ -23,10 +23,10 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
-    --num_tasks 5 \
-    --max_epochs 2 \
-    --min_epochs 2 \
-    --max_epochs_lin_eval 2 \
+    --num_tasks 20 \
+    --max_epochs 600 \
+    --min_epochs 600 \
+    --max_epochs_lin_eval 100 \
     --num_random_past_samples 10000 \
     --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
@@ -38,7 +38,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \
-    --patches_perplexity_threshold 100 \
+    --patches_perplexity_threshold 30 \
     --quantize_top_k 1 \
     --num_embeddings 48 \
     --num_class_embeddings 2 \
