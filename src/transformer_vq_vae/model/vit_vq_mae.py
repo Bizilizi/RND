@@ -429,33 +429,44 @@ class VQMAE(CLModel):
             + criterion_output.cycle_consistency_loss
         )
 
+        if self._supervised:
+            loss += criterion_output.clf_loss
+            self.log_with_postfix(
+                "train/classification_loss",
+                criterion_output.clf_loss.cpu().item(),
+            )
+            self.log_with_postfix(
+                "train/classification_accuracy",
+                criterion_output.clf_acc.cpu().item(),
+            )
+
         # LOGGING
         self.log_with_postfix(
-            f"train/loss",
+            "train/loss",
             loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/vq_loss",
+            "train/vq_loss",
             criterion_output.vq_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/reconstruction_loss",
+            "train/reconstruction_loss",
             criterion_output.reconstruction_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/perplexity",
+            "train/perplexity",
             criterion_output.perplexity.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/current_cycle_consistency_loss",
+            "train/current_cycle_consistency_loss",
             criterion_output.current_cycle_consistency_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/past_cycle_consistency_loss",
+            "train/past_cycle_consistency_loss",
             criterion_output.past_cycle_consistency_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/cycle_consistency_loss",
+            "train/cycle_consistency_loss",
             criterion_output.cycle_consistency_loss.cpu().item(),
         )
 
@@ -489,25 +500,36 @@ class VQMAE(CLModel):
             + criterion_output.cycle_consistency_loss
         )
 
+        if self._supervised:
+            loss += criterion_output.clf_loss
+            self.log_with_postfix(
+                "val/classification_loss",
+                criterion_output.clf_loss.cpu().item(),
+            )
+            self.log_with_postfix(
+                "val/classification_accuracy",
+                criterion_output.clf_acc.cpu().item(),
+            )
+
         # LOGGING
         self.log_with_postfix(
-            f"val/loss",
+            "val/loss",
             loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/vq_loss",
+            "val/vq_loss",
             criterion_output.vq_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/reconstruction_loss",
+            "val/reconstruction_loss",
             criterion_output.reconstruction_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/perplexity",
+            "val/perplexity",
             criterion_output.perplexity.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/cycle_consistency_loss",
+            "val/cycle_consistency_loss",
             criterion_output.cycle_consistency_loss.cpu().item(),
         )
 

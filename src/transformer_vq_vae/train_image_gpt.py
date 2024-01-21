@@ -99,7 +99,7 @@ def bootstrap_past_samples(
     )
 
     for _ in trange(num_images // num_images_per_batch, desc="Sample images:"):
-        images, latent_indices = sample_images(
+        images, latent_indices, labels = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
             embedding=image_embeddings,
@@ -111,8 +111,7 @@ def bootstrap_past_samples(
             supervised=config.supervised,
         )
         bootstrapped_dataset.add_data(
-            images=images.cpu(),
-            latent_indices=latent_indices.cpu(),
+            images=images.cpu(), latent_indices=latent_indices.cpu(), labels=labels
         )
 
     dataset = make_classification_dataset(
@@ -268,7 +267,7 @@ def train_igpt(
 
             if step % 500 == 0:
 
-                images, _ = sample_images(
+                images, *_ = sample_images(
                     image_gpt=image_gpt,
                     vq_vae_model=vq_vae_model,
                     embedding=image_embeddings,
@@ -331,15 +330,16 @@ def sample_images(
 
     device = vq_vae_model.device
     decoder = vq_vae_model.decoder
+    labels = None
 
     if supervised:
-        classes = torch.tensor(random.choices(classes_seen_so_far, k=num_images))
+        labels = torch.tensor(random.choices(classes_seen_so_far, k=num_images))
         sos_tokens = torch.full((num_images,), sos_token, device=device)
 
         context = torch.cat(
             [
                 rearrange(sos_tokens, "n -> n 1"),
-                rearrange(classes, "n -> n 1"),
+                rearrange(labels, "n -> n 1"),
             ],
             dim=1,
         )
@@ -387,4 +387,4 @@ def sample_images(
     patches = decoder.head(features)
     x_recon = decoder.patch2img(patches)
 
-    return x_recon, igpt_output
+    return x_recon, igpt_output, labels
