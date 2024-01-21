@@ -146,7 +146,7 @@ class ImageGPTDataset(Dataset):
                         classes_ids,
                         "b -> 1 b k",
                         k=self.top_k,
-                    )
+                    ).to(device)
 
                     masked_input_ids = torch.cat([classes_ids, masked_input_ids], dim=0)
                     input_ids = torch.cat([classes_ids, input_ids], dim=0)
