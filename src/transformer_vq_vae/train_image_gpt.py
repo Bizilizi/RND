@@ -113,7 +113,9 @@ def bootstrap_past_samples(
             classes_seen_so_far=classes_seen_so_far,
         )
         bootstrapped_dataset.add_data(
-            images=images.cpu(), latent_indices=latent_indices.cpu(), labels=labels
+            images=images.cpu(),
+            latent_indices=latent_indices.cpu(),
+            labels=labels.cpu(),
         )
 
     dataset = make_classification_dataset(
