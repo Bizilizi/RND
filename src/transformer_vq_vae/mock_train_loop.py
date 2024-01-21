@@ -274,6 +274,11 @@ def mock_train_loop(
 
             if config.num_random_past_samples != 0:
                 print(f"Bootstrap vae model..")
+                previous_classes = list(
+                    set(train_experience.classes_seen_so_far).difference(
+                        train_experience.classes_in_this_experience
+                    )
+                )
                 bootstrapped_dataset = bootstrap_past_samples(
                     image_gpt=image_gpt,
                     vq_vae_model=cl_strategy.model,
@@ -281,7 +286,7 @@ def mock_train_loop(
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
                     experience_step=cl_strategy.experience_step,
-                    classes_seen_so_far=train_experience.classes_seen_so_far,
+                    classes_seen_so_far=previous_classes,
                 )
 
                 train_experience.dataset = (
