@@ -44,7 +44,7 @@ class BootstrappedDataset(Dataset):
             "indices": indices,
         }
         targets = {
-            "class": self.targets[item],
+            "class": self.targets[item].item(),
             "time_tag": -1,
         }
 
