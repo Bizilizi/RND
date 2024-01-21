@@ -342,7 +342,7 @@ def main(args):
     # Run training process
     print(f"Running training process..")
     try:
-        mock_train_loop(
+        train_loop(
             benchmark=benchmark,
             cl_strategy=cl_strategy,
             is_using_wandb=is_using_wandb,
