@@ -335,7 +335,9 @@ def sample_images(
     labels = None
 
     if supervised:
-        labels = torch.tensor(random.choices(classes_seen_so_far, k=num_images))
+        labels = torch.tensor(
+            random.choices(classes_seen_so_far, k=num_images), device=device
+        )
         sos_tokens = torch.full((num_images,), sos_token, device=device)
 
         context = torch.cat(
