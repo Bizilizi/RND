@@ -338,12 +338,16 @@ def sample_images(
         labels = torch.tensor(
             random.choices(classes_seen_so_far, k=num_images), device=device
         )
+
+        labels_tokens = (
+            vq_vae_model.feature_quantization.embedding.num_embeddings + 2 + labels
+        )
         sos_tokens = torch.full((num_images,), sos_token, device=device)
 
         context = torch.cat(
             [
                 rearrange(sos_tokens, "n -> n 1"),
-                rearrange(labels, "n -> n 1"),
+                rearrange(labels_tokens, "n -> n 1"),
             ],
             dim=1,
         )
