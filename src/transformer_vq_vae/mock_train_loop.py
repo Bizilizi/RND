@@ -39,7 +39,7 @@ from src.transformer_vq_vae.train_image_gpt import (
     learning_rate_schedule,
 )
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
-    wrap_dataset_with_empty_indices,
+    convert_avalanche_dataset_to_vq_mae_dataset,
 )
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
@@ -235,13 +235,17 @@ def mock_train_loop(
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
-        train_experience.dataset = wrap_dataset_with_empty_indices(
+        train_experience.dataset = convert_avalanche_dataset_to_vq_mae_dataset(
             train_experience.dataset,
             num_neighbours=config.quantize_top_k,
             config=config,
+            time_tag=0,
         )
-        test_experience.dataset = wrap_dataset_with_empty_indices(
-            test_experience.dataset, num_neighbours=config.quantize_top_k, config=config
+        test_experience.dataset = convert_avalanche_dataset_to_vq_mae_dataset(
+            test_experience.dataset,
+            num_neighbours=config.quantize_top_k,
+            config=config,
+            time_tag=0,
         )
         igpt_train_dataset = train_experience.dataset + test_experience.dataset
 

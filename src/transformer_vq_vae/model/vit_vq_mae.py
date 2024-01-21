@@ -205,17 +205,17 @@ class VQMAE(CLModel):
         self.feature_quantization.update_model_experience(experience_step)
 
     def get_reconstruction_loss(
-        self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
+        self,
+        x: torch.Tensor,
+        x_rec: torch.Tensor,
+        past_data: torch.Tensor,
+        current_data: torch.Tensor,
     ):
-        past_data = y == -1
-        current_data = y >= 0
-        future_data = y == -2
 
         # Create weight vector to shift gradient towards current dataset
-        weight_tensor = torch.ones(y.shape[0], device=self.device)
+        weight_tensor = torch.ones(past_data.shape[0], device=self.device)
         weight_tensor[past_data] = self._past_samples_loss_weight
         weight_tensor[current_data] = self._current_samples_loss_weight
-        weight_tensor[future_data] = self._future_samples_loss_weight
 
         if self.use_lpips:
             lpips_loss = (self._lpips(x, x_rec) * weight_tensor).mean()
@@ -272,11 +272,14 @@ class VQMAE(CLModel):
                 z_second_order_distances, "t b c -> b t c"
             )
 
-        past_data = y == -1
-        current_data = y >= 0
+        past_data = y["time_tag"] == -1
+        current_data = y["time_tag"] == 0
+        target_class = y["class"]
 
         # Compute reconstruction loss for past and current data
-        reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
+        reconstruction_loss = self.get_reconstruction_loss(
+            x_recon, x_data, past_data, current_data
+        )
 
         # Compute consistency loss for past data
         if (
@@ -309,8 +312,12 @@ class VQMAE(CLModel):
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:
-            clf_loss = F.cross_entropy(forward_output.clf_logits, y)
-            clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
+            clf_loss = F.cross_entropy(forward_output.clf_logits, target_class)
+            clf_acc = (
+                (forward_output.clf_logits.argmax(dim=-1) == target_class)
+                .float()
+                .mean()
+            )
 
         cycle_consistency_loss = (
             past_cycle_consistency_loss + current_cycle_consistency_loss
@@ -396,7 +403,7 @@ class VQMAE(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
-        past_data = y == -1
+        past_data = y["time_tag"] == -1
 
         forward_output = self.forward(x)
 
@@ -467,7 +474,7 @@ class VQMAE(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
-        past_data = y == -1
+        past_data = y["time_tag"] == -1
 
         forward_output = self.forward(x)
 

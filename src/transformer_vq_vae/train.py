@@ -8,7 +8,7 @@ import torch
 from torchvision import transforms
 
 import wandb
-from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
+from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100, NCExperience
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
@@ -29,7 +29,7 @@ from src.transformer_vq_vae.train_classifier import (
 )
 from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
-    wrap_dataset_with_empty_indices,
+    convert_avalanche_dataset_to_vq_mae_dataset,
 )
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
@@ -125,19 +125,22 @@ def train_loop(
     """
 
     image_gpt = None
-    sos_token = config.num_embeddings + 1
-    mask_token = config.num_embeddings
 
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
-        train_experience.dataset = wrap_dataset_with_empty_indices(
+
+        train_experience.dataset = convert_avalanche_dataset_to_vq_mae_dataset(
             train_experience.dataset,
             num_neighbours=config.quantize_top_k,
             config=config,
+            time_tag=0,
         )
-        test_experience.dataset = wrap_dataset_with_empty_indices(
-            test_experience.dataset, num_neighbours=config.quantize_top_k, config=config
+        test_experience.dataset = convert_avalanche_dataset_to_vq_mae_dataset(
+            test_experience.dataset,
+            num_neighbours=config.quantize_top_k,
+            config=config,
+            time_tag=0,
         )
         igpt_train_dataset = train_experience.dataset + test_experience.dataset
 
@@ -154,9 +157,7 @@ def train_loop(
                     num_images=get_num_random_past_samples(config, cl_strategy),
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
-                    sos_token=sos_token,
                     experience_step=cl_strategy.experience_step,
-                    mask_token=mask_token,
                 )
 
                 train_experience.dataset = (
@@ -205,9 +206,8 @@ def train_loop(
             config=config,
             train_dataset=igpt_train_dataset,
             device=device,
-            sos_token=sos_token,
-            mask_token=mask_token,
             n_layer=config.num_gpt_layers,
+            classes_seen_so_far=train_experience.classes_seen_so_far,
         )
 
         # Evaluate VQ-VAE and linear classifier

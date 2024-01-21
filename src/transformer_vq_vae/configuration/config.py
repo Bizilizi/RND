@@ -20,6 +20,7 @@ class TrainConfig(BaseTrainConfig):
     dataset: str = "cifar10"
     image_size: int = 32
     patch_size: int = 4
+    supervised: bool = False
 
     use_lpips: bool
     mask_ratio: float

@@ -9,7 +9,7 @@ from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
 from einops import rearrange
 
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
-    wrap_dataset_with_empty_indices,
+    convert_avalanche_dataset_to_vq_mae_dataset,
 )
 
 
@@ -228,11 +228,12 @@ def model_future_samples(
     else:
         assert False, "wrong future mode"
 
-    targets = [-2] * generated_images.shape[0]
-    tensor_dataset = wrap_dataset_with_empty_indices(
+    targets = [-1] * generated_images.shape[0]
+    tensor_dataset = convert_avalanche_dataset_to_vq_mae_dataset(
         TensorDataset(generated_images, targets),
         num_neighbours=config.quantize_top_k,
         config=config,
+        time_tag=1,
     )
 
     return tensor_dataset

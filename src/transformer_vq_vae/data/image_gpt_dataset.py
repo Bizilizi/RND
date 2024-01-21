@@ -8,7 +8,15 @@ from src.transformer_vq_vae.model.encoder import take_indexes
 
 class ImageGPTDataset(Dataset):
     def __init__(
-        self, vq_vae_model, dataset, sos_token, mask_token, ratio, top_k, num_workers=4
+        self,
+        vq_vae_model,
+        dataset,
+        sos_token,
+        mask_token,
+        ratio,
+        top_k,
+        supervised,
+        num_workers=4,
     ):
         super().__init__()
 
@@ -17,6 +25,7 @@ class ImageGPTDataset(Dataset):
         self.ratio = ratio
         self.num_workers = num_workers
         self.top_k = top_k
+        self.supervised = supervised
 
         self.input_ids_values = []
         self.masked_input_ids_values = []
@@ -45,8 +54,9 @@ class ImageGPTDataset(Dataset):
         device = vq_vae_model.device
 
         for batch in tqdm(dataloader, leave=False):
-            data, y, *_ = batch
+            data, labels, *_ = batch
 
+            y = labels["class"]
             x = data["images"]
             x = x.to(device)
 
@@ -67,16 +77,19 @@ class ImageGPTDataset(Dataset):
 
                 quantized_output = vq_vae_model.feature_quantization(features)
                 input_ids = quantized_output.encoding_indices
-
                 """
                 input_ids shape - T x B x top_k
                 """
 
                 # shuffle quantized features
                 sos_emb_id = rearrange(input_ids[0], "b k -> 1 b k")
+                """
+                VQ-MAE sos token
+                sos_emb_id shape - 1 x B x top_k
+                """
+
                 rest_ids = input_ids[1:]
                 """
-                sos_emb_id shape - 1 x B x top_k
                 rest_ids shape   - T x B x top_k
                 """
 
@@ -118,6 +131,25 @@ class ImageGPTDataset(Dataset):
                     dim=0,
                 )
                 masked_input_ids = take_indexes(masked_input_ids, backward_indexes)
+
+                if self.supervised:
+                    classes_ids = (
+                        vq_vae_model.feature_quantization.embedding.num_embeddings
+                        + 2
+                        + y
+                    )
+                    """
+                    Shift classes ids with (num_embeddings + mask_token + sos_token)
+                    to get classes ids.
+                    """
+                    classes_ids = rearrange(
+                        classes_ids,
+                        "b -> 1 b k",
+                        k=self.top_k,
+                    )
+
+                    masked_input_ids = torch.cat([classes_ids, masked_input_ids], dim=0)
+                    input_ids = torch.cat([classes_ids, input_ids], dim=0)
 
                 # Transform to batch
                 masked_input_ids = rearrange(masked_input_ids, "t b k-> b (t k)")

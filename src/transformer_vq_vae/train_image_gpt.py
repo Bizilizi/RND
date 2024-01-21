@@ -3,6 +3,7 @@ import copy
 import math
 import typing as t
 import torch
+import random
 from einops import rearrange
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.utils.data import DataLoader, Dataset
@@ -15,52 +16,9 @@ from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
+from src.transformer_vq_vae.data.bootstrapped_dataset import BootstrappedDataset
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
-
-
-class BootstrappedDataset(Dataset):
-    def __init__(
-        self, dataset_path: str, experience_step: int, transform: t.Optional[t.Any]
-    ):
-        super().__init__()
-
-        self.dataset_path = dataset_path
-        self.experience_step = experience_step
-        self.transform = transform
-
-        self.images = None
-        self.indices = None
-        self.targets = []
-
-    def add_data(self, images, latent_indices):
-        if self.images is None:
-            self.images = images
-            self.indices = latent_indices
-        else:
-            self.images = torch.cat([self.images, images], dim=0)
-            self.indices = torch.cat([self.indices, latent_indices], dim=0)
-
-        self.targets.extend([-1] * images.shape[0])
-
-    def __getitem__(self, item):
-        image = self.images[item]
-
-        if self.transform is not None:
-            image = self.transform(image)
-
-        indices = self.indices[item]
-
-        data = {
-            "images": image,
-            "indices": indices,
-        }
-        targets = self.targets[item]
-
-        return data, targets
-
-    def __len__(self):
-        return len(self.images)
 
 
 def init_token_embeddings(
@@ -74,11 +32,15 @@ def init_token_embeddings(
     We copy data for the first config.num_embeddings from
     VQ-Vae model, and the rest of two, corresponds to mask_token and sos_token
     """
+    num_embeddings = vq_vae_model.feature_quantization.embedding.num_embeddings
+    mask_token_id = num_embeddings
+
     image_gpt.transformer.wte.weight.data[
-        :-2
+        : vq_vae_model.feature_quantization.embedding.num_embeddings
     ] = vq_vae_model.feature_quantization.embedding.weight.data.clone()
+
     image_gpt.transformer.wte.weight.data[
-        mask_token
+        mask_token_id
     ] = vq_vae_model.decoder.mask_token.data.clone()
 
 
@@ -93,9 +55,11 @@ def get_image_embedding(
 
     Be careful, id of mask_token have to match with index of image_embeddings.weight.data[-1]
     """
+    num_embeddings = vq_vae_model.feature_quantization.embedding.num_embeddings
+    mask_token_id = num_embeddings
 
     image_embeddings = torch.nn.Embedding(
-        vq_vae_model.feature_quantization.embedding.num_embeddings + 1,
+        num_embeddings + 1,
         config.embedding_dim,
     ).to(vq_vae_model.device)
 
@@ -117,11 +81,14 @@ def bootstrap_past_samples(
     experience_step: int,
     dataset_path: str,
     config: TrainConfig,
-    sos_token: int,
-    mask_token: int,
     transform: t.Optional[t.Any] = None,
 ) -> ClassificationDataset:
     num_images_per_batch = min(128, num_images)
+    mask_token = vq_vae_model.feature_quantization.embedding.num_embeddings
+    sos_token = vq_vae_model.feature_quantization.embedding.num_embeddings + 1
+
+    # Derive num patches based on path algorithm from VIT
+    num_patches = (config.image_size // config.patch_size) ** 2
 
     print("Constructing bootstraped dataset")
     bootstrapped_dataset = BootstrappedDataset(
@@ -130,8 +97,6 @@ def bootstrap_past_samples(
     image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
         vq_vae_model.device
     )
-    # Derive num patches based on path algorithm from VIT
-    num_patches = (config.image_size // config.patch_size) ** 2
 
     for _ in trange(num_images // num_images_per_batch, desc="Sample images:"):
         images, latent_indices = sample_images(
@@ -143,6 +108,7 @@ def bootstrap_past_samples(
             max_length=(num_patches + 1) * config.quantize_top_k + 1,
             num_neighbours=config.quantize_top_k,
             num_images=num_images_per_batch,
+            supervised=config.supervised,
         )
         bootstrapped_dataset.add_data(
             images=images.cpu(),
@@ -176,14 +142,29 @@ def train_igpt(
     config: TrainConfig,
     train_dataset: Dataset,
     device: torch.device,
-    sos_token: int,
-    mask_token: int,
+    classes_seen_so_far: t.List[int],
     n_layer: int = 12,
     image_gpt: ImageGPTForCausalImageModeling = None,
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = vq_vae_model.feature_quantization.embedding.num_embeddings + 2
+
+    vocab_size = (
+        vq_vae_model.feature_quantization.embedding.num_embeddings
+        + 2
+        + len(classes_seen_so_far)
+    )
+    """
+    number of embeddings in codebook 
+    +
+    mask_token 
+    + 
+    sos_token
+    +
+    num observed classes 
+    """
+    mask_token = vq_vae_model.feature_quantization.embedding.num_embeddings
+    sos_token = vq_vae_model.feature_quantization.embedding.num_embeddings + 1
 
     # Derive num patches based on path algorithm from VIT
     num_patches = (config.image_size // config.patch_size) ** 2
@@ -199,7 +180,7 @@ def train_igpt(
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
-            "n_positions": (num_patches + 1) * config.quantize_top_k + 1,
+            "n_positions": (num_patches + 1) * config.quantize_top_k + 2,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,
@@ -228,6 +209,7 @@ def train_igpt(
         ratio=config.igpt_mask_ratio,
         num_workers=config.num_workers,
         top_k=config.quantize_top_k,
+        supervised=config.supervised,
     )
     data_loader = DataLoader(
         train_dataset,
@@ -285,6 +267,7 @@ def train_igpt(
             )
 
             if step % 500 == 0:
+
                 images, _ = sample_images(
                     image_gpt=image_gpt,
                     vq_vae_model=vq_vae_model,
@@ -293,6 +276,7 @@ def train_igpt(
                     temperature=config.temperature,
                     max_length=(num_patches + 1) * config.quantize_top_k + 1,
                     num_neighbours=config.quantize_top_k,
+                    supervised=config.supervised,
                 )
 
                 sample = make_grid(images.cpu().data)
@@ -334,6 +318,8 @@ def sample_images(
     sos_token,
     max_length,
     num_neighbours,
+    supervised,
+    classes_seen_so_far,
     temperature=1.23,
     num_images=8 * 4 * 10,
 ):
@@ -346,20 +332,45 @@ def sample_images(
     device = vq_vae_model.device
     decoder = vq_vae_model.decoder
 
-    context = torch.full(
-        (num_images, 1), sos_token, device=device
-    )  # initialize with SOS token
+    if supervised:
+        classes = torch.tensor(random.choices(classes_seen_so_far, k=num_images))
+        sos_tokens = torch.full((num_images,), sos_token, device=device)
 
-    igpt_output = image_gpt_copy.generate(
-        input_ids=context,
-        max_length=max_length,
-        temperature=temperature,
-        do_sample=True,
-        top_k=45,
-        top_p=0.9,
-    )
+        context = torch.cat(
+            [
+                rearrange(sos_tokens, "n -> n 1"),
+                rearrange(classes, "n -> n 1"),
+            ],
+            dim=1,
+        )
 
-    igpt_output = igpt_output[:, 1:]
+        igpt_output = image_gpt_copy.generate(
+            input_ids=context,
+            max_length=max_length + 1,
+            temperature=temperature,
+            do_sample=True,
+            top_k=45,
+            top_p=0.9,
+        )
+
+        igpt_output = igpt_output[:, 2:]
+    else:
+
+        context = torch.full(
+            (num_images, 1), sos_token, device=device
+        )  # initialize with SOS token
+
+        igpt_output = image_gpt_copy.generate(
+            input_ids=context,
+            max_length=max_length,
+            temperature=temperature,
+            do_sample=True,
+            top_k=45,
+            top_p=0.9,
+        )
+
+        igpt_output = igpt_output[:, 1:]
+
     igpt_output[igpt_output == sos_token] = 0
 
     quantized = rearrange(

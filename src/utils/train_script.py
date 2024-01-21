@@ -5,7 +5,7 @@ def overwrite_config_with_args(cli_args, config):
         if hasattr(config, k):
             attr_type = type(getattr(config, k))
             if attr_type is bool:
-                bool_v = str(v).lower() in ['1', 'on', 't', 'true', 'y', 'yes']
+                bool_v = str(v).lower() in ["1", "on", "t", "true", "y", "yes"]
                 setattr(config, k, bool_v)
             else:
                 setattr(config, k, attr_type(v))

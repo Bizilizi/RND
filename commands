@@ -40,11 +40,11 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --patches_perplexity_threshold 30 \
     --quantize_top_k 1 \
     --use_lpips False \
-    --dataset cifar10 \
+    --dataset cifar100 \
     --patch_size 2 \
     --num_embeddings 256 \
     --num_embeddings_per_step 5\
-    --num_tasks 5 \
+    --num_tasks 20 \
     --precision 16-mixed
 
 TIMM_FUSED_ATTN=1 python train.py \
