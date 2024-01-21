@@ -111,15 +111,16 @@ def mock_train_igpt(
     image_gpt.to(device)
     image_embeddings.to(device)
 
-    # train_dataset = ImageGPTDataset(
-    #     vq_vae_model=vq_vae_model,
-    #     dataset=train_dataset,
-    #     sos_token=sos_token,
-    #     mask_token=mask_token,
-    #     ratio=config.igpt_mask_ratio,
-    #     num_workers=config.num_workers,
-    #     top_k=config.quantize_top_k,
-    # )
+    train_dataset = ImageGPTDataset(
+        vq_vae_model=vq_vae_model,
+        dataset=train_dataset,
+        sos_token=sos_token,
+        mask_token=mask_token,
+        ratio=config.igpt_mask_ratio,
+        num_workers=config.num_workers,
+        top_k=config.quantize_top_k,
+        supervised=config.supervised,
+    )
     # data_loader = DataLoader(
     #     train_dataset,
     #     batch_size=config.igpt_batch_size,

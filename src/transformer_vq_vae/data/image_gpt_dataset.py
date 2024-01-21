@@ -1,5 +1,5 @@
 import torch
-from einops import rearrange
+from einops import rearrange, repeat
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from tqdm.auto import tqdm
 
@@ -142,7 +142,7 @@ class ImageGPTDataset(Dataset):
                     Shift classes ids with (num_embeddings + mask_token + sos_token)
                     to get classes ids.
                     """
-                    classes_ids = rearrange(
+                    classes_ids = repeat(
                         classes_ids,
                         "b -> 1 b k",
                         k=self.top_k,
