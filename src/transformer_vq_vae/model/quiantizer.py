@@ -266,7 +266,7 @@ class FeatureQuantizerEMA(nn.Module):
         num_embedding = embedding_copy.weight.shape[0]
 
         self.embedding = nn.Embedding(
-            num_embedding + self._num_embeddings,
+            num_embedding + self._num_embeddings_per_step,
             self._embedding_dim,
         )
         self.embedding.weight.data[:num_embedding] = embedding_copy.weight.data
@@ -275,7 +275,9 @@ class FeatureQuantizerEMA(nn.Module):
         # Extend ema vector
         ema_w_copy = self._ema_w
         self._ema_w = nn.Parameter(
-            torch.Tensor(num_embedding + self._num_embeddings, self._embedding_dim)
+            torch.Tensor(
+                num_embedding + self._num_embeddings_per_step, self._embedding_dim
+            )
         )
         self._ema_w.data.normal_()
         self._ema_w.data[:num_embedding] = ema_w_copy.data
@@ -284,7 +286,9 @@ class FeatureQuantizerEMA(nn.Module):
         self._ema_cluster_size = torch.cat(
             [
                 self._ema_cluster_size,
-                torch.zeros(self._num_embeddings).to(self._ema_cluster_size.device),
+                torch.zeros(self._num_embeddings_per_step).to(
+                    self._ema_cluster_size.device
+                ),
             ]
         )
 
