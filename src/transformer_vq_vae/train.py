@@ -142,7 +142,7 @@ def train_loop(
             config=config,
             time_tag=0,
         )
-        igpt_train_dataset = train_experience.dataset + test_experience.dataset
+        igpt_train_dataset = train_experience.dataset
 
         # Bootstrap old data and modeled future samples
         if cl_strategy.experience_step != 0 and image_gpt is not None:
@@ -151,6 +151,11 @@ def train_loop(
 
             if config.num_random_past_samples != 0:
                 print(f"Bootstrap vae model..")
+                previous_classes = list(
+                    set(train_experience.classes_seen_so_far).difference(
+                        train_experience.classes_in_this_experience
+                    )
+                )
                 bootstrapped_dataset = bootstrap_past_samples(
                     image_gpt=image_gpt,
                     vq_vae_model=cl_strategy.model,
@@ -158,7 +163,7 @@ def train_loop(
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
                     experience_step=cl_strategy.experience_step,
-                    classes_seen_so_far=train_experience.classes_seen_so_far,
+                    classes_seen_so_far=previous_classes,
                 )
 
                 train_experience.dataset = (
