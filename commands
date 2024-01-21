@@ -51,7 +51,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
 TIMM_FUSED_ATTN=1 python train.py \
     --dev True \
     --accelerator cuda \
-    --devices 2, \
+    --devices 1, \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
@@ -81,5 +81,5 @@ TIMM_FUSED_ATTN=1 python train.py \
     --num_embeddings 256 \
     --num_embeddings_per_step 5\
     --num_tasks 5 \
-    --supervised False \
+    --supervised True \
     --precision 16-mixed

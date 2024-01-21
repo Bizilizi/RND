@@ -18,6 +18,10 @@ class BootstrappedDataset(Dataset):
         self.targets = []
 
     def add_data(self, images, latent_indices, labels):
+        if labels is None:
+            """when model is unsupervised"""
+            labels = [-1] * images.shape[0]
+
         if self.images is None:
             self.images = images
             self.indices = latent_indices
