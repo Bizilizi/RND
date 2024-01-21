@@ -3,9 +3,10 @@ import os
 import pathlib
 import shutil
 from configparser import ConfigParser
-
+import typing as t
 import torch
-from torch.utils.data import DataLoader
+from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
+from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
 
 import wandb
@@ -65,16 +66,30 @@ def get_num_random_past_samples(
 def mock_train_igpt(
     strategy: NaivePytorchLightning,
     config: TrainConfig,
-    train_dataset,
+    train_dataset: Dataset,
     device: torch.device,
-    sos_token: int,
-    mask_token: int,
+    classes_seen_so_far: t.List[int],
+    num_all_classes: int,
     n_layer: int = 12,
-    image_gpt=None,
+    image_gpt: ImageGPTForCausalImageModeling = None,
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = config.num_embeddings + 2
+
+    vocab_size = (
+        vq_vae_model.feature_quantization.embedding.num_embeddings + 2 + num_all_classes
+    )
+    """
+    number of embeddings in codebook 
+    +
+    mask_token 
+    + 
+    sos_token
+    +
+    num of all classes 
+    """
+    mask_token = vq_vae_model.feature_quantization.embedding.num_embeddings
+    sos_token = vq_vae_model.feature_quantization.embedding.num_embeddings + 1
 
     # Derive num patches based on path algorithm from VIT
     num_patches = (config.image_size // config.patch_size) ** 2
@@ -90,7 +105,7 @@ def mock_train_igpt(
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
-            "n_positions": (num_patches + 1) * config.quantize_top_k + 1,
+            "n_positions": (num_patches + 1) * config.quantize_top_k + 2,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,
@@ -121,99 +136,102 @@ def mock_train_igpt(
         top_k=config.quantize_top_k,
         supervised=config.supervised,
     )
-    # data_loader = DataLoader(
-    #     train_dataset,
-    #     batch_size=config.igpt_batch_size,
-    #     shuffle=True,
-    # )
-    #
-    # if strategy.experience_step < 2:
-    #     epoch_num = 10
-    # elif strategy.experience_step < 3:
-    #     epoch_num = 7
-    # else:
-    #     epoch_num = 5
+    data_loader = DataLoader(
+        train_dataset,
+        batch_size=config.igpt_batch_size,
+        shuffle=True,
+    )
 
-    # grad_scaler = torch.cuda.amp.GradScaler()
-    # optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
-    # exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-    #     optimizer,
-    #     learning_rate_schedule(
-    #         500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
-    #     ),
-    # )
+    if strategy.experience_step < 2:
+        epoch_num = 1
+    elif strategy.experience_step < 3:
+        epoch_num = 1
+    else:
+        epoch_num = 1
 
-    # loss_fn = torch.nn.CrossEntropyLoss().to(device)
+    grad_scaler = torch.cuda.amp.GradScaler()
+    optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
+    exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer,
+        learning_rate_schedule(
+            500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
+        ),
+    )
 
-    # step = 0
-    # for i in trange(0, epoch_num):
-    #     counter = i
-    #     logger.log_metrics({"igpt_epoch": counter}, step=step)
-    #
-    #     for batch in tqdm(data_loader):
-    #         step += 1
-    #
-    #         input_ids = batch["masked_input_ids"].to(device)
-    #         with torch.autocast(device_type=config.accelerator):
-    #             output = image_gpt(input_ids=input_ids)
-    #             loss = loss_fn(
-    #                 output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
-    #                 input_ids[..., 1:].reshape(-1),
-    #             )
-    #             grad_scaler.scale(loss).backward()
-    #
-    #         if step % config.igpt_accumulate_grad_batches == 0:
-    #             grad_scaler.step(optimizer)
-    #             grad_scaler.update()
-    #             optimizer.zero_grad(set_to_none=True)
-    #             exp_lr_scheduler.step()
-    #
-    #         logger.log_metrics(
-    #             {
-    #                 f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
-    #                 "epoch": i,
-    #             },
-    #             step=i,
-    #         )
-    #
-    #         if step % 500 == 0:
-    #             images, _ = sample_images(
-    #                 image_gpt=image_gpt,
-    #                 vq_vae_model=vq_vae_model,
-    #                 embedding=image_embeddings,
-    #                 sos_token=sos_token,
-    #                 temperature=config.temperature,
-    #                 max_length=(num_patches + 1) * config.quantize_top_k + 1,
-    #                 num_neighbours=config.quantize_top_k,
-    #             )
-    #
-    #             sample = make_grid(images.cpu().data)
-    #             sample = (sample + 0.5) * 255
-    #             sample = sample.clip(0, 255)
-    #
-    #             if isinstance(logger, WandbLogger):
-    #                 logger.log_metrics(
-    #                     {
-    #                         f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
-    #                             sample.permute(1, 2, 0).numpy()
-    #                         ),
-    #                         "step": step,
-    #                     }
-    #                 )
-    #             if isinstance(logger, TensorBoardLogger):
-    #                 logger.experiment.add_image(
-    #                     f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
-    #                     sample / 255,
-    #                     step,
-    #                 )
-    #
-    #         if step % 100 == 0:
-    #             model_ckpt_path = f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
-    #             state_dict = image_gpt.state_dict()
-    #             for k, v in state_dict.items():
-    #                 state_dict[k] = v.cpu()
-    #
-    #             torch.save(state_dict, model_ckpt_path)
+    loss_fn = torch.nn.CrossEntropyLoss().to(device)
+
+    step = 0
+    for i in trange(0, epoch_num):
+        counter = i
+        logger.log_metrics({"igpt_epoch": counter}, step=step)
+
+        for batch in tqdm(data_loader):
+            step += 1
+
+            input_ids = batch["masked_input_ids"].to(device)
+            with torch.autocast(device_type=config.accelerator):
+                output = image_gpt(input_ids=input_ids)
+                loss = loss_fn(
+                    output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
+                    input_ids[..., 1:].reshape(-1),
+                )
+                grad_scaler.scale(loss).backward()
+
+            if step % config.igpt_accumulate_grad_batches == 0:
+                grad_scaler.step(optimizer)
+                grad_scaler.update()
+                optimizer.zero_grad(set_to_none=True)
+                exp_lr_scheduler.step()
+
+            logger.log_metrics(
+                {
+                    f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
+                    "epoch": i,
+                },
+                step=i,
+            )
+
+            if step % 500 == 0:
+
+                images, *_ = sample_images(
+                    image_gpt=image_gpt,
+                    vq_vae_model=vq_vae_model,
+                    embedding=image_embeddings,
+                    sos_token=sos_token,
+                    temperature=config.temperature,
+                    max_length=(num_patches + 1) * config.quantize_top_k + 1,
+                    num_neighbours=config.quantize_top_k,
+                    supervised=config.supervised,
+                    classes_seen_so_far=classes_seen_so_far,
+                )
+
+                sample = make_grid(images.cpu().data)
+                sample = (sample + 0.5) * 255
+                sample = sample.clip(0, 255)
+
+                if isinstance(logger, WandbLogger):
+                    logger.log_metrics(
+                        {
+                            f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
+                                sample.permute(1, 2, 0).numpy()
+                            ),
+                            "step": step,
+                        }
+                    )
+                if isinstance(logger, TensorBoardLogger):
+                    logger.experiment.add_image(
+                        f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
+                        sample / 255,
+                        step,
+                    )
+
+            if step % 100 == 0:
+                model_ckpt_path = f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
+                state_dict = image_gpt.state_dict()
+                for k, v in state_dict.items():
+                    state_dict[k] = v.cpu()
+
+                torch.save(state_dict, model_ckpt_path)
 
     return image_gpt
 
@@ -307,7 +325,7 @@ def mock_train_loop(
 
         # Train new image gpt model
         print(f"Train igpt..")
-        image_gpt = train_igpt(
+        image_gpt = mock_train_igpt(
             strategy=cl_strategy,
             config=config,
             train_dataset=igpt_train_dataset,
