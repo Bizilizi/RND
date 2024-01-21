@@ -11,6 +11,7 @@ from torchvision import transforms
 
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
+from torchvision.utils import make_grid
 from tqdm import trange, tqdm
 from transformers import ImageGPTConfig
 
@@ -38,6 +39,7 @@ from src.transformer_vq_vae.train_image_gpt import (
     init_token_embeddings,
     get_image_embedding,
     learning_rate_schedule,
+    sample_images,
 )
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
     convert_avalanche_dataset_to_vq_mae_dataset,
