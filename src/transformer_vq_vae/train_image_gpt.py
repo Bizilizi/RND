@@ -1,19 +1,14 @@
 import copy
-import os
 
 import math
-import pathlib
-import time
 import typing as t
 import torch
 from einops import rearrange
-from PIL import Image
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.utils.data import DataLoader, Dataset
-from torchvision.io import read_image
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm, trange
-from transformers import ImageGPTConfig
+from transformers import ImageGPTConfig, ImageGPTForCausalImageModeling
 
 import wandb
 from avalanche.benchmarks.utils import make_classification_dataset
@@ -346,7 +341,6 @@ def sample_images(
     image_gpt_copy = copy.deepcopy(image_gpt)
     image_gpt_copy = torch.compile(image_gpt_copy)
     image_gpt_copy.eval()
-    # image_gpt_copy.half()
 
     vq_vae_model.eval()
 

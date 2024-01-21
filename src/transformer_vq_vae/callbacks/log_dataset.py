@@ -33,7 +33,7 @@ class LogDataset(Callback):
 
         for logger in trainer.loggers:
             if isinstance(logger, WandbLogger):
-                random_idx = torch.randperm(len(dataset))[:500]
+                random_idx = torch.randperm(len(dataset))[:100]
 
                 images = [
                     wandb.Image(

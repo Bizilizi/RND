@@ -107,7 +107,7 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
         ),
         LogDataset(mean=dataset_mean),
         VisualizeTrainingReconstructions(
-            log_every=10,
+            log_every=100,
             name="rec_img_100",
             mean=dataset_mean,
         ),
@@ -118,6 +118,7 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
             name="rec_img_1000",
             mean=dataset_mean,
         ),
+        LogCodebookHistogram(log_every=50),
     ]
 
 
