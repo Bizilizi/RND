@@ -244,17 +244,17 @@ def train_igpt(
             step += 1
 
             input_ids = batch["masked_input_ids"].to(device)
-            with torch.autocast(device_type=config.accelerator):
-                output = image_gpt(input_ids=input_ids)
-                loss = loss_fn(
-                    output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
-                    input_ids[..., 1:].reshape(-1),
-                )
-                grad_scaler.scale(loss).backward()
+            # with torch.autocast(device_type=config.accelerator):
+            output = image_gpt(input_ids=input_ids)
+            loss = loss_fn(
+                output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
+                input_ids[..., 1:].reshape(-1),
+            )
+            # grad_scaler.scale(loss).backward()
 
             if step % config.igpt_accumulate_grad_batches == 0:
-                grad_scaler.step(optimizer)
-                grad_scaler.update()
+                # grad_scaler.step(optimizer)
+                # grad_scaler.update()
                 optimizer.zero_grad(set_to_none=True)
                 exp_lr_scheduler.step()
 
