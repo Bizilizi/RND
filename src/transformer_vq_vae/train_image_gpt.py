@@ -224,7 +224,7 @@ def train_igpt(
     )
 
     if strategy.experience_step < 2:
-        epoch_num = 1
+        epoch_num = 10
     elif strategy.experience_step < 3:
         epoch_num = 10
     else:
