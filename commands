@@ -59,9 +59,9 @@ TIMM_FUSED_ATTN=1 python train.py \
     --batch_size 64 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
-    --max_epochs 2 \
-    --min_epochs 2 \
-    --max_epochs_lin_eval 2 \
+    --max_epochs 1 \
+    --min_epochs 1 \
+    --max_epochs_lin_eval 1 \
     --num_random_past_samples 10000 \
     --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
