@@ -230,12 +230,11 @@ def mock_train_loop(
     """
 
     image_gpt = None
-    sos_token = config.num_embeddings + 1
-    mask_token = config.num_embeddings
 
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
+
         train_experience.dataset = convert_avalanche_dataset_to_vq_mae_dataset(
             train_experience.dataset,
             num_neighbours=config.quantize_top_k,
@@ -263,10 +262,8 @@ def mock_train_loop(
                     num_images=get_num_random_past_samples(config, cl_strategy),
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
-                    sos_token=sos_token,
                     experience_step=cl_strategy.experience_step,
-                    mask_token=mask_token,
-                    transform=transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
+                    classes_seen_so_far=train_experience.classes_seen_so_far,
                 )
 
                 train_experience.dataset = (
@@ -275,21 +272,56 @@ def mock_train_loop(
 
                 igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
 
+            if config.num_random_future_samples != 0:
+                print(f"Model future samples..")
+                future_dataset = model_future_samples(
+                    vq_vae_model=cl_strategy.model,
+                    num_images=(
+                        config.num_random_future_samples
+                        * (4 - cl_strategy.experience_step)
+                    ),
+                    mode=config.future_samples_mode,
+                    config=config,
+                )
+
+                train_experience.dataset = train_experience.dataset + future_dataset
+
         # Train VQ-VAE
         # cl_strategy.train(train_experience, [test_experience])
-        # cl_strategy.experience_step += 1
 
+        # Train linear classifier, but before we freeze model params
+        # We train two classifiers. One to predict all classes,
+        # another to predict only observed so far classes.
+        # cl_strategy.model.freeze()
+
+        # Train classifier
+        # print(f"Train classifier..")
+        # all_clf_head = train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        # train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+
+        # cl_strategy.model.set_clf_head(all_clf_head)
+
+        # Train new image gpt model
         print(f"Train igpt..")
-        image_gpt = mock_train_igpt(
+        image_gpt = train_igpt(
             strategy=cl_strategy,
             config=config,
             train_dataset=igpt_train_dataset,
             device=device,
-            sos_token=sos_token,
-            mask_token=mask_token,
             n_layer=config.num_gpt_layers,
-            image_gpt=image_gpt if config.reuse_igpt else None,
+            classes_seen_so_far=train_experience.classes_seen_so_far,
+            num_all_classes=benchmark.n_classes,
         )
+
+        # Evaluate VQ-VAE and linear classifier
+        # cl_strategy.eval(benchmark.test_stream)
+
+        # Reset linear classifier and unfreeze params
+        # cl_strategy.model.reset_clf_head()
 
         cl_strategy.model.unfreeze()
         cl_strategy.experience_step += 1

@@ -81,6 +81,7 @@ def bootstrap_past_samples(
     experience_step: int,
     dataset_path: str,
     config: TrainConfig,
+    classes_seen_so_far: t.List[int],
     transform: t.Optional[t.Any] = None,
 ) -> ClassificationDataset:
     num_images_per_batch = min(128, num_images)
@@ -109,6 +110,7 @@ def bootstrap_past_samples(
             num_neighbours=config.quantize_top_k,
             num_images=num_images_per_batch,
             supervised=config.supervised,
+            classes_seen_so_far=classes_seen_so_far,
         )
         bootstrapped_dataset.add_data(
             images=images.cpu(), latent_indices=latent_indices.cpu(), labels=labels
@@ -142,6 +144,7 @@ def train_igpt(
     train_dataset: Dataset,
     device: torch.device,
     classes_seen_so_far: t.List[int],
+    num_all_classes: int,
     n_layer: int = 12,
     image_gpt: ImageGPTForCausalImageModeling = None,
 ):
@@ -149,9 +152,7 @@ def train_igpt(
     logger = strategy.train_logger
 
     vocab_size = (
-        vq_vae_model.feature_quantization.embedding.num_embeddings
-        + 2
-        + len(classes_seen_so_far)
+        vq_vae_model.feature_quantization.embedding.num_embeddings + 2 + num_all_classes
     )
     """
     number of embeddings in codebook 
@@ -160,7 +161,7 @@ def train_igpt(
     + 
     sos_token
     +
-    num observed classes 
+    num of all classes 
     """
     mask_token = vq_vae_model.feature_quantization.embedding.num_embeddings
     sos_token = vq_vae_model.feature_quantization.embedding.num_embeddings + 1
@@ -276,6 +277,7 @@ def train_igpt(
                     max_length=(num_patches + 1) * config.quantize_top_k + 1,
                     num_neighbours=config.quantize_top_k,
                     supervised=config.supervised,
+                    classes_seen_so_far=classes_seen_so_far,
                 )
 
                 sample = make_grid(images.cpu().data)

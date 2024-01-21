@@ -158,6 +158,7 @@ def train_loop(
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
                     experience_step=cl_strategy.experience_step,
+                    classes_seen_so_far=train_experience.classes_seen_so_far,
                 )
 
                 train_experience.dataset = (
@@ -208,6 +209,7 @@ def train_loop(
             device=device,
             n_layer=config.num_gpt_layers,
             classes_seen_so_far=train_experience.classes_seen_so_far,
+            num_all_classes=benchmark.n_classes,
         )
 
         # Evaluate VQ-VAE and linear classifier
