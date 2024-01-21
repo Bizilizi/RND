@@ -379,7 +379,7 @@ def sample_images(
 
         igpt_output = igpt_output[:, 1:]
 
-    igpt_output[igpt_output == sos_token] = 0
+    igpt_output[igpt_output >= sos_token] = 0
 
     quantized = rearrange(
         embedding(igpt_output), "b (t k) c -> t k b c", k=num_neighbours
