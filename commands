@@ -50,7 +50,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
 
 TIMM_FUSED_ATTN=1 python train.py \
     --dev True \
-    --accelerator cpu \
+    --accelerator cuda \
     --devices 1, \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \

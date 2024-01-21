@@ -20,7 +20,7 @@ class BootstrappedDataset(Dataset):
     def add_data(self, images, latent_indices, labels):
         if labels is None:
             """when model is unsupervised"""
-            labels = [-1] * images.shape[0]
+            labels = torch.tensor([-1] * images.shape[0])
 
         if self.images is None:
             self.images = images
@@ -29,7 +29,7 @@ class BootstrappedDataset(Dataset):
         else:
             self.images = torch.cat([self.images, images], dim=0)
             self.indices = torch.cat([self.indices, latent_indices], dim=0)
-            self.targets.extend(labels)
+            self.targets = torch.cat([self.targets, labels], dim=0)
 
     def __getitem__(self, item):
         image = self.images[item]

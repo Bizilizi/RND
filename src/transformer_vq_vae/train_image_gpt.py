@@ -266,40 +266,6 @@ def train_igpt(
                 step=i,
             )
 
-            if step % 500 == 0:
-
-                images, *_ = sample_images(
-                    image_gpt=image_gpt,
-                    vq_vae_model=vq_vae_model,
-                    embedding=image_embeddings,
-                    sos_token=sos_token,
-                    temperature=config.temperature,
-                    max_length=(num_patches + 1) * config.quantize_top_k + 1,
-                    num_neighbours=config.quantize_top_k,
-                    supervised=config.supervised,
-                    classes_seen_so_far=classes_seen_so_far,
-                )
-
-                sample = make_grid(images.cpu().data)
-                sample = (sample + 0.5) * 255
-                sample = sample.clip(0, 255)
-
-                if isinstance(logger, WandbLogger):
-                    logger.log_metrics(
-                        {
-                            f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
-                                sample.permute(1, 2, 0).numpy()
-                            ),
-                            "step": step,
-                        }
-                    )
-                if isinstance(logger, TensorBoardLogger):
-                    logger.experiment.add_image(
-                        f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
-                        sample / 255,
-                        step,
-                    )
-
             if step % 100 == 0:
                 model_ckpt_path = f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
                 state_dict = image_gpt.state_dict()
@@ -307,6 +273,39 @@ def train_igpt(
                     state_dict[k] = v.cpu()
 
                 torch.save(state_dict, model_ckpt_path)
+
+        # LOG SAMPELS
+        images, *_ = sample_images(
+            image_gpt=image_gpt,
+            vq_vae_model=vq_vae_model,
+            embedding=image_embeddings,
+            sos_token=sos_token,
+            temperature=config.temperature,
+            max_length=(num_patches + 1) * config.quantize_top_k + 1,
+            num_neighbours=config.quantize_top_k,
+            supervised=config.supervised,
+            classes_seen_so_far=classes_seen_so_far,
+        )
+
+        sample = make_grid(images.cpu().data)
+        sample = (sample + 0.5) * 255
+        sample = sample.clip(0, 255)
+
+        if isinstance(logger, WandbLogger):
+            logger.log_metrics(
+                {
+                    f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
+                        sample.permute(1, 2, 0).numpy()
+                    ),
+                    "step": step,
+                }
+            )
+        if isinstance(logger, TensorBoardLogger):
+            logger.experiment.add_image(
+                f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
+                sample / 255,
+                step,
+            )
 
     return image_gpt
 
