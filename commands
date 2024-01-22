@@ -20,12 +20,12 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --group mae-stable-sampling-inc-codebbok \
-    --batch_size 512 \
-    --accumulate_grad_batches 1 \
+    --batch_size 256 \
+    --accumulate_grad_batches 2 \
     --num_workers 8 \
-    --max_epochs 2 \
-    --min_epochs 2 \
-    --max_epochs_lin_eval 2 \
+    --max_epochs 600 \
+    --min_epochs 600 \
+    --max_epochs_lin_eval 100 \
     --num_random_past_samples 10000 \
     --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
@@ -59,9 +59,9 @@ TIMM_FUSED_ATTN=1 python train.py \
     --batch_size 64 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
-    --max_epochs 1 \
-    --min_epochs 1 \
-    --max_epochs_lin_eval 1 \
+    --max_epochs 2 \
+    --min_epochs 2 \
+    --max_epochs_lin_eval 2 \
     --num_random_past_samples 10000 \
     --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
