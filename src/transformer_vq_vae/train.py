@@ -346,7 +346,7 @@ def main(args):
     benchmark = get_benchmark(config, target_dataset_dir)
 
     device = get_device(config)
-    model = get_model(config, device)
+    model = get_model(config, device, benchmark)
 
     # Create evaluation plugin and train/val loggers
     cl_strategy_logger, eval_plugin_loggers = get_loggers(config, model, wandb_params)

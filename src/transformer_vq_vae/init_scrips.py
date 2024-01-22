@@ -50,7 +50,7 @@ def get_evaluation_plugin(
     return eval_plugin
 
 
-def get_model(config: TrainConfig, device: torch.device) -> VQMAE:
+def get_model(config: TrainConfig, device: torch.device, benchmark) -> VQMAE:
     vae = VQMAE(
         image_size=config.image_size,
         patch_size=config.patch_size,
@@ -86,6 +86,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VQMAE:
         patches_perplexity_threshold=config.patches_perplexity_threshold,
         class_perplexity_threshold=config.class_perplexity_threshold,
         supervised=config.supervised,
+        num_classes=benchmark.n_classes,
     )
 
     return vae
