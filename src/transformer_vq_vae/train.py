@@ -8,11 +8,8 @@ import torch
 from torchvision import transforms
 
 import wandb
-from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100, NCExperience
+from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100, SplitImageNet
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
-    ReconstructionVisualizationPlugin,
-)
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.tiny_imagenet import SplitTinyImageNet
 from src.transformer_vq_vae.init_scrips import (
@@ -21,7 +18,6 @@ from src.transformer_vq_vae.init_scrips import (
     get_model,
     get_train_plugins,
 )
-from src.transformer_vq_vae.mock_train_loop import mock_train_loop
 from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_all_classes,
@@ -36,6 +32,53 @@ from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_loggers, get_wandb_params
 
 from pathlib import Path
+
+
+def copy_dataset_to_tmp(config: TrainConfig, target_dataset_dir):
+    datasets_dir = pathlib.Path(config.dataset_path)
+
+    if config.dataset == "cifar10":
+        zip_path = datasets_dir / "cifar-10-python.tar.gz"
+        dataset_path = datasets_dir / "cifar-10-batches-py"
+
+        target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
+        target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
+
+        if zip_path.exists() and not target_zip_path.exists():
+            shutil.copy(str(zip_path), str(target_zip_path))
+
+        if dataset_path.exists() and not target_dataset_path.exists():
+            shutil.copytree(str(dataset_path), str(target_dataset_path))
+
+    if config.dataset == "cifar100":
+        zip_path = datasets_dir / "cifar-100-python.tar.gz"
+        target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
+
+        if zip_path.exists() and not target_zip_path.exists():
+            shutil.copy(str(zip_path), str(target_zip_path))
+
+    elif config.dataset == "tiny-imagenet":
+        zip_path = datasets_dir / "tiny-imagenet-200.zip"
+        target_zip_path = target_dataset_dir / "tiny-imagenet-200.zip"
+
+        if zip_path.exists() and not target_zip_path.exists():
+            shutil.copy(str(zip_path), str(target_zip_path))
+
+    elif config.dataset == "imagenet":
+        zip_path = datasets_dir / "ILSVRC2012_devkit_t12.tar.gz"
+        target_zip_path = target_dataset_dir / "ILSVRC2012_devkit_t12.tar.gz"
+
+        if zip_path.exists() and not target_zip_path.exists():
+            shutil.copy(str(zip_path), str(target_zip_path))
+
+        os.symlink(
+            "/scratch/shared/beegfs/shared-datasets/ImageNet/ILSVRC12/train",
+            f"{target_dataset_dir}/train",
+        )
+        os.symlink(
+            "/scratch/shared/beegfs/shared-datasets/ImageNet/ILSVRC12/val",
+            f"{target_dataset_dir}/val",
+        )
 
 
 def get_benchmark(config: TrainConfig, target_dataset_dir):
@@ -96,6 +139,14 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
                     transforms.ToTensor(),
                 ]
             ),
+        )
+    elif config.dataset == "imagenet":
+        config.image_size = 224
+        return SplitImageNet(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
         )
 
 
@@ -285,22 +336,11 @@ def main(args):
     Path(config.bootstrapped_dataset_path).mkdir(parents=True, exist_ok=True)
 
     # Moving dataset to tmp
-    datasets_dir = pathlib.Path(config.dataset_path)
     tmp = os.environ.get("TMPDIR", "/tmp")
-    target_dataset_dir = pathlib.Path(f"{tmp}/dzverev_data/")
-    target_dataset_dir.mkdir(exist_ok=True)
+    target_dataset_dir = pathlib.Path(f"{tmp}/dzverev_data/{config.dataset}")
+    target_dataset_dir.mkdir(exist_ok=True, parents=True)
 
-    zip_path = datasets_dir / "cifar-10-python.tar.gz"
-    dataset_path = datasets_dir / "cifar-10-batches-py"
-
-    target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
-    target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
-
-    if zip_path.exists() and not target_zip_path.exists():
-        shutil.copy(str(zip_path), str(target_zip_path))
-
-    if dataset_path.exists() and not target_dataset_path.exists():
-        shutil.copytree(str(dataset_path), str(target_dataset_path))
+    copy_dataset_to_tmp(config, target_dataset_dir)
 
     # Create benchmark
     benchmark = get_benchmark(config, target_dataset_dir)

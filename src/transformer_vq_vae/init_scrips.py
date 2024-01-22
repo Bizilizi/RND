@@ -85,6 +85,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VQMAE:
         separate_codebooks=config.separate_codebooks,
         patches_perplexity_threshold=config.patches_perplexity_threshold,
         class_perplexity_threshold=config.class_perplexity_threshold,
+        supervised=config.supervised,
     )
 
     return vae

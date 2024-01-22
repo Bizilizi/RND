@@ -1,7 +1,7 @@
 sbatch submit.sh python train.py \
     --config src/vq_vae/configuration/train.ini \
     --model vq-vae \
-    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --wandb_dir /tmp/dzverev_data/ \
     --max_epochs 220 \
     --max_epochs_igpt 300 \
     --max_epochs_lin_eval 250 \
@@ -18,15 +18,15 @@ sbatch submit.sh python train.py \
 TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
-    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --wandb_dir /tmp/dzverev_data/ \
     --group mae-stable-sampling-inc-codebbok \
     --batch_size 256 \
     --accumulate_grad_batches 2 \
     --num_workers 8 \
-    --max_epochs 600 \
-    --min_epochs 600 \
+    --max_epochs 1000 \
+    --min_epochs 1000 \
     --max_epochs_lin_eval 100 \
-    --num_random_past_samples 10000 \
+    --num_random_past_samples 30000 \
     --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
@@ -39,13 +39,13 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --separate_codebooks true \
     --patches_perplexity_threshold 30 \
     --quantize_top_k 1 \
-    --use_lpips False \
+    --use_lpips True \
     --dataset cifar100 \
     --patch_size 2 \
-    --num_embeddings 256 \
-    --num_embeddings_per_step 5\
+    --num_embeddings 512 \
+    --num_embeddings_per_step 10\
     --num_tasks 20 \
-    --supervised True \
+    --supervised False \
     --precision 16-mixed
 
 TIMM_FUSED_ATTN=1 python train.py \
@@ -54,7 +54,7 @@ TIMM_FUSED_ATTN=1 python train.py \
     --devices 2, \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
-    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --wandb_dir /tmp/dzverev_data/ \
     --group mae-stable-sampling-inc-codebbok \
     --batch_size 64 \
     --accumulate_grad_batches 1 \
