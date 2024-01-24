@@ -3,16 +3,22 @@ import os
 import pathlib
 import shutil
 from configparser import ConfigParser
+from pathlib import Path
 
 import torch
-from torchvision import transforms
 
 import wandb
-from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100, SplitImageNet
+from avalanche.benchmarks import SplitCIFAR10
+from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.data.tiny_imagenet import SplitTinyImageNet
+from src.transformer_vq_vae.data.transformations import (
+    cifar10_to_tensor_and_normalization,
+    cifar100_to_tensor_and_normalization,
+    imagenet_to_tensor_and_normalization,
+)
 from src.transformer_vq_vae.init_scrips import (
+    get_benchmark,
     get_callbacks,
     get_evaluation_plugin,
     get_model,
@@ -24,130 +30,13 @@ from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_observed_only_classes,
 )
 from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.transformer_vq_vae.utils.copy_dataset_to_tmp import copy_dataset_to_tmp
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
     convert_avalanche_dataset_to_vq_mae_dataset,
 )
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_loggers, get_wandb_params
-
-from pathlib import Path
-
-
-def copy_dataset_to_tmp(config: TrainConfig, target_dataset_dir):
-    datasets_dir = pathlib.Path(config.dataset_path)
-
-    if config.dataset == "cifar10":
-        zip_path = datasets_dir / "cifar-10-python.tar.gz"
-        dataset_path = datasets_dir / "cifar-10-batches-py"
-
-        target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
-        target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
-
-        if zip_path.exists() and not target_zip_path.exists():
-            shutil.copy(str(zip_path), str(target_zip_path))
-
-        if dataset_path.exists() and not target_dataset_path.exists():
-            shutil.copytree(str(dataset_path), str(target_dataset_path))
-
-    if config.dataset == "cifar100":
-        zip_path = datasets_dir / "cifar-100-python.tar.gz"
-        target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
-
-        if zip_path.exists() and not target_zip_path.exists():
-            shutil.copy(str(zip_path), str(target_zip_path))
-
-    elif config.dataset == "tiny-imagenet":
-        zip_path = datasets_dir / "tiny-imagenet-200.zip"
-        target_zip_path = target_dataset_dir / "tiny-imagenet-200.zip"
-
-        if zip_path.exists() and not target_zip_path.exists():
-            shutil.copy(str(zip_path), str(target_zip_path))
-
-    elif config.dataset == "imagenet":
-        zip_path = datasets_dir / "ILSVRC2012_devkit_t12.tar.gz"
-        target_zip_path = target_dataset_dir / "ILSVRC2012_devkit_t12.tar.gz"
-
-        if zip_path.exists() and not target_zip_path.exists():
-            shutil.copy(str(zip_path), str(target_zip_path))
-
-        os.symlink(
-            "/scratch/shared/beegfs/shared-datasets/ImageNet/ILSVRC12/train",
-            f"{target_dataset_dir}/train",
-        )
-        os.symlink(
-            "/scratch/shared/beegfs/shared-datasets/ImageNet/ILSVRC12/val",
-            f"{target_dataset_dir}/val",
-        )
-
-
-def get_benchmark(config: TrainConfig, target_dataset_dir):
-    if config.dataset == "cifar10":
-        config.image_size = 32
-        return SplitCIFAR10(
-            n_experiences=config.num_tasks,
-            return_task_id=True,
-            shuffle=True,
-            dataset_root=target_dataset_dir,
-            train_transform=transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-                ]
-            ),
-            eval_transform=transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-                ]
-            ),
-        )
-    elif config.dataset == "cifar100":
-        config.image_size = 32
-        return SplitCIFAR100(
-            n_experiences=config.num_tasks,
-            return_task_id=True,
-            shuffle=True,
-            dataset_root=target_dataset_dir,
-            train_transform=transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-                ]
-            ),
-            eval_transform=transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-                ]
-            ),
-        )
-    elif config.dataset == "tiny-imagenet":
-        config.image_size = 64
-        return SplitTinyImageNet(
-            n_experiences=config.num_tasks,
-            return_task_id=True,
-            shuffle=True,
-            dataset_root=target_dataset_dir,
-            train_transform=transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                ]
-            ),
-            eval_transform=transforms.Compose(
-                [
-                    transforms.ToTensor(),
-                ]
-            ),
-        )
-    elif config.dataset == "imagenet":
-        config.image_size = 224
-        return SplitImageNet(
-            n_experiences=config.num_tasks,
-            return_task_id=True,
-            shuffle=True,
-            dataset_root=target_dataset_dir,
-        )
 
 
 def get_num_random_past_samples(
@@ -162,6 +51,21 @@ def get_num_random_past_samples(
     if config.num_random_past_samples_schedule == "schedule":
         schedule = torch.linspace(0, config.num_random_past_samples, config.num_tasks)
         return int(schedule[int(cl_strategy.experience_step)])
+
+
+def reset_transformations_for_igpt(config: TrainConfig, dataset: ClassificationDataset):
+    if config.dataset == "cifar10":
+        return dataset.replace_current_transform_group(
+            cifar10_to_tensor_and_normalization
+        )
+    elif config.dataset == "cifar100":
+        return dataset.replace_current_transform_group(
+            cifar100_to_tensor_and_normalization
+        )
+    elif config.dataset in ["tiny-imagenet", "imagenet"]:
+        return dataset.replace_current_transform_group(
+            imagenet_to_tensor_and_normalization
+        )
 
 
 def train_loop(
@@ -193,7 +97,10 @@ def train_loop(
             config=config,
             time_tag=0,
         )
-        igpt_train_dataset = train_experience.dataset
+
+        igpt_train_dataset = reset_transformations_for_igpt(
+            config, train_experience.dataset
+        )
 
         # Bootstrap old data and modeled future samples
         if cl_strategy.experience_step != 0 and image_gpt is not None:
@@ -221,7 +128,10 @@ def train_loop(
                     train_experience.dataset + bootstrapped_dataset
                 )
 
-                igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
+                igpt_train_dataset = (
+                    igpt_train_dataset
+                    + reset_transformations_for_igpt(config, bootstrapped_dataset)
+                )
 
             if config.num_random_future_samples != 0:
                 print(f"Model future samples..")
@@ -247,14 +157,12 @@ def train_loop(
 
         # Train classifier
         print(f"Train classifier..")
-        all_clf_head = train_classifier_on_all_classes(
+        train_classifier_on_all_classes(
             strategy=cl_strategy, config=config, benchmark=benchmark, device=device
         ).to(device)
         train_classifier_on_observed_only_classes(
             strategy=cl_strategy, config=config, benchmark=benchmark, device=device
         ).to(device)
-
-        # cl_strategy.model.set_clf_head(all_clf_head)
 
         # Train new image gpt model
         print(f"Train igpt..")
@@ -267,12 +175,6 @@ def train_loop(
             classes_seen_so_far=train_experience.classes_seen_so_far,
             num_all_classes=benchmark.n_classes,
         )
-
-        # Evaluate VQ-VAE and linear classifier
-        # cl_strategy.eval(benchmark.test_stream)
-
-        # Reset linear classifier and unfreeze params
-        # cl_strategy.model.reset_clf_head()
 
         cl_strategy.model.unfreeze()
         cl_strategy.experience_step += 1

@@ -36,6 +36,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --past_samples_loss_weight 0 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
+    --data_variance 0.071093 \
     --perplexity_threshold 30 \
     --quantize_top_k 1 \
     --use_lpips True \

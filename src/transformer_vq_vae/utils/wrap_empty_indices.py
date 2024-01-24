@@ -1,8 +1,8 @@
 import torch
-from avalanche.benchmarks.utils.dataset_definitions import ClassificationDataset
 from torch.utils.data import Dataset
-from avalanche.benchmarks.utils import make_classification_dataset
 
+from avalanche.benchmarks.utils import make_classification_dataset
+from avalanche.benchmarks.utils.dataset_definitions import ClassificationDataset
 from src.transformer_vq_vae.configuration.config import TrainConfig
 
 

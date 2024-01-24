@@ -1,6 +1,6 @@
+import math
 import typing as t
 
-import math
 import pytorch_lightning as pl
 import torch
 from torch import nn

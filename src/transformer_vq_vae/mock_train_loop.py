@@ -2,19 +2,20 @@ import datetime
 import os
 import pathlib
 import shutil
-from configparser import ConfigParser
 import typing as t
+from configparser import ConfigParser
+from pathlib import Path
+
 import torch
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.utils.data import DataLoader, Dataset
 from torchvision import transforms
+from torchvision.utils import make_grid
+from tqdm import tqdm, trange
+from transformers import ImageGPTConfig
 
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
-from torchvision.utils import make_grid
-from tqdm import trange, tqdm
-from transformers import ImageGPTConfig
-
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
@@ -35,11 +36,11 @@ from src.transformer_vq_vae.train_classifier import (
 )
 from src.transformer_vq_vae.train_image_gpt import (
     bootstrap_past_samples,
-    train_igpt,
-    init_token_embeddings,
     get_image_embedding,
+    init_token_embeddings,
     learning_rate_schedule,
     sample_images,
+    train_igpt,
 )
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
     convert_avalanche_dataset_to_vq_mae_dataset,
@@ -47,8 +48,6 @@ from src.transformer_vq_vae.utils.wrap_empty_indices import (
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_loggers, get_wandb_params
-
-from pathlib import Path
 
 
 def get_num_random_past_samples(

@@ -4,6 +4,7 @@ import typing as t
 import torch
 from pytorch_lightning import Callback, Trainer
 from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.plugins import PrecisionPlugin
 from pytorch_lightning.profilers import AdvancedProfiler
 
 from avalanche.benchmarks import CLExperience
@@ -14,7 +15,6 @@ from src.avalanche.callbacks.lightning_training_to_avalanche import (
 )
 from src.avalanche.callbacks.restore_best_model import RestoreBestPerformingModel
 from src.rnd.callbacks.log_generated_images import LogSampledImagesCallback
-from pytorch_lightning.plugins import PrecisionPlugin
 
 if t.TYPE_CHECKING:
     from pytorch_lightning.loggers import Logger

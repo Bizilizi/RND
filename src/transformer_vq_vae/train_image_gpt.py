@@ -1,9 +1,9 @@
 import copy
-
 import math
-import typing as t
-import torch
 import random
+import typing as t
+
+import torch
 from einops import rearrange
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.utils.data import DataLoader, Dataset

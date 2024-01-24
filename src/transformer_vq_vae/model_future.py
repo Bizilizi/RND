@@ -1,13 +1,10 @@
 import torch
+from einops import rearrange
 from torch.utils.data import Dataset
 
 from avalanche.benchmarks.utils import make_classification_dataset
-
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
-
-from einops import rearrange
-
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
     convert_avalanche_dataset_to_vq_mae_dataset,
 )

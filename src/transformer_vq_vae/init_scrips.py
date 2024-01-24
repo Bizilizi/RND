@@ -4,7 +4,9 @@ import typing as t
 import torch
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import EarlyStopping
+from torchvision import transforms
 
+from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100, SplitImageNet
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
 from src.rnd.callbacks.log_model import LogModelWightsCallback
@@ -14,15 +16,68 @@ from src.transformer_vq_vae.callbacks.training_reconstions_vis import (
     VisualizeTrainingReconstructions,
 )
 from src.transformer_vq_vae.configuration.config import TrainConfig
+from src.transformer_vq_vae.data.tiny_imagenet import SplitTinyImageNet
+from src.transformer_vq_vae.data.transformations import (
+    default_cifar10_eval_transform,
+    default_cifar10_train_transform,
+    default_cifar100_eval_transform,
+    default_cifar100_train_transform,
+)
 from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
     vq_vae_confusion_matrix_metrics,
 )
 from src.transformer_vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
 from src.transformer_vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
 from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
-from src.transformer_vq_vae.plugins.mixed_precision_plugin import (
-    CustomMixedPrecisionPlugin,
-)
+
+
+def get_benchmark(config: TrainConfig, target_dataset_dir):
+    if config.dataset == "cifar10":
+        config.image_size = 32
+        return SplitCIFAR10(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+            train_transform=default_cifar10_train_transform,
+            eval_transform=default_cifar10_eval_transform,
+        )
+    elif config.dataset == "cifar100":
+        config.image_size = 32
+        return SplitCIFAR100(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+            train_transform=default_cifar100_train_transform,
+            eval_transform=default_cifar100_eval_transform,
+        )
+    elif config.dataset == "tiny-imagenet":
+        config.image_size = 64
+        return SplitTinyImageNet(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+            train_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                ]
+            ),
+            eval_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                ]
+            ),
+        )
+    elif config.dataset == "imagenet":
+        config.image_size = 224
+        return SplitImageNet(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+        )
 
 
 def get_evaluation_plugin(

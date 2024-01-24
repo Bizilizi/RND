@@ -1,8 +1,9 @@
+import typing as t
+
 import torch
 import torch.nn.functional as F
 from einops import rearrange, repeat
 from torch import nn
-import typing as t
 
 
 def safe_autocast(func):

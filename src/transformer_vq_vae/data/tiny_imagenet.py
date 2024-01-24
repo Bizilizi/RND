@@ -3,12 +3,11 @@ import typing as t
 from pathlib import Path
 
 from PIL import Image
-from avalanche.benchmarks import NCScenario, nc_benchmark
 from torchvision import transforms
-
 from torchvision.datasets import VisionDataset
-from torchvision.datasets.utils import download_and_extract_archive, check_integrity
-import typing as t
+from torchvision.datasets.utils import check_integrity, download_and_extract_archive
+
+from avalanche.benchmarks import NCScenario, nc_benchmark
 
 _default_cifar10_train_transform = transforms.Compose(
     [

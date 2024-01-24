@@ -1,24 +1,23 @@
 import dataclasses
-
 import math
 import typing as t
 from itertools import chain
-from torch import nn
 
 import lpips
 import torch
-import wandb
-from avalanche.benchmarks import CLExperience, NCExperience
 from einops import rearrange
 from pytorch_lightning.loggers import WandbLogger
+from torch import nn
 from torch.nn import functional as F
 
+import wandb
+from avalanche.benchmarks import CLExperience, NCExperience
 from src.avalanche.model.cl_model import CLModel
 from src.transformer_vq_vae.model.decoder import MAEDecoder
 from src.transformer_vq_vae.model.encoder import MAEEncoder
 from src.transformer_vq_vae.model.quiantizer import (
-    SeparateCodebooksFeatureQuantizerEMA,
     FeatureQuantizerEMA,
+    SeparateCodebooksFeatureQuantizerEMA,
 )
 
 if t.TYPE_CHECKING:

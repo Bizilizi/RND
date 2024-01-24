@@ -1,11 +1,11 @@
 import typing as t
 
 from avalanche.evaluation import PluginMetric
-from avalanche.evaluation.metric_results import MetricValue, MetricResult
+from avalanche.evaluation.metric_results import MetricResult, MetricValue
 from avalanche.evaluation.metric_utils import (
+    get_metric_name,
     phase_and_task,
     stream_type,
-    get_metric_name,
 )
 from avalanche.evaluation.metrics import (
     GenericExperienceForgetting,
