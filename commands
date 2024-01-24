@@ -99,7 +99,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --group mae-imagenet \
     --batch_size 64 \
     --accumulate_grad_batches 1 \
-    --num_workers 8 \
+    --num_workers 64 \
     --max_epochs 400 \
     --min_epochs 400 \
     --max_epochs_lin_eval 100 \
@@ -113,18 +113,22 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --past_samples_loss_weight 0 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
-    --data_variance 0.06328692405746414 \
+    --data_variance 1 \
     --perplexity_threshold 30 \
     --quantize_top_k 1 \
     --encoder_layer 12 \
     --encoder_head 12 \
     --decoder_layer 8 \
-    --decoder_head 12 \
+    --decoder_head 8 \
     --embedding_dim 768 \
-    --decoder_embedding_dim 512 \
+    --decoder_embedding_dim 768 \
     --use_lpips True \
     --dataset imagenet \
+    --image_size 224 \
     --patch_size 16 \
+    --learning_rate 0.0001 \
+    --weight_decay 0.3 \
+    --warmup 20 \
     --num_embeddings 1024 \
     --num_embeddings_per_step 64\
     --num_tasks 5 \

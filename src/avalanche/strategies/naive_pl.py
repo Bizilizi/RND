@@ -61,22 +61,9 @@ class NaivePytorchLightning(Naive):
         self.max_epochs = max_epochs
         self.best_model_path_prefix = best_model_path_prefix
         self.train_plugins = train_plugins
-        # Modify callback to
-        self.callbacks_factory = callbacks
-        self.strategy_callbacks = [
-            PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)
-        ]
 
+        self.callbacks_factory = callbacks
         self.restore_best_model_callback = None
-        if self.best_model_path_prefix:
-            self.restore_best_model_callback = RestoreBestPerformingModel(
-                path_prefix=self.best_model_path_prefix,
-                monitor="val/reconstruction_loss",
-                mode="min",
-                every_n_epochs=self.validate_every_n,
-                verbose=False,
-            )
-            self.strategy_callbacks.append(self.restore_best_model_callback)
 
         super().__init__(*args, **kwargs)
 
@@ -98,6 +85,17 @@ class NaivePytorchLightning(Naive):
             val_dataset=eval_streams[0].dataset if eval_streams else None,
         )
 
+        callbacks = [PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)]
+        if self.best_model_path_prefix:
+            self.restore_best_model_callback = RestoreBestPerformingModel(
+                path_prefix=self.best_model_path_prefix,
+                monitor="val/reconstruction_loss",
+                mode="min",
+                every_n_epochs=self.validate_every_n,
+                verbose=False,
+            )
+            callbacks = callbacks + [self.restore_best_model_callback]
+
         # Training
         self.trainer = Trainer(
             check_val_every_n_epoch=self.validate_every_n,
@@ -106,9 +104,7 @@ class NaivePytorchLightning(Naive):
             logger=self.train_logger,
             max_epochs=self.max_epochs,
             min_epochs=self.min_epochs,
-            callbacks=(
-                self.callbacks_factory(self.experience_step) + self.strategy_callbacks
-            ),
+            callbacks=(self.callbacks_factory(self.experience_step) + callbacks),
             plugins=self.train_plugins,
             precision=self.precision,
             accumulate_grad_batches=self.accumulate_grad_batches,
@@ -138,4 +134,4 @@ class NaivePytorchLightning(Naive):
                 "state_dict"
             ]
             self.model.load_state_dict(state_dict)
-            os.remove(self.restore_best_model_callback.best_model_path)
+            # os.remove(self.restore_best_model_callback.best_model_path)

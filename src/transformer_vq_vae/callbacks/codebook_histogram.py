@@ -51,7 +51,7 @@ class LogCodebookHistogram(Callback):
         for logger in trainer.loggers:
             if (
                 isinstance(logger, WandbLogger)
-                and trainer.current_epoch % self.log_every != 0
+                and trainer.current_epoch % self.log_every == 0
             ):
                 self.log_avg_probs(
                     model,
