@@ -287,6 +287,7 @@ def main(args):
         precision=config.precision,
         accelerator=config.accelerator,
         devices=config.devices,
+        strategy=config.strategy,
         validate_every_n=config.validate_every_n,
         accumulate_grad_batches=config.accumulate_grad_batches,
         train_logger=cl_strategy_logger,
