@@ -18,8 +18,6 @@ class VQVaeStrategy(NaivePytorchLightning):
         **kwargs,
     ) -> None:
         self.update_model_experience()
-        self.resume_from_checkpoint()
-
         # Create DataModule
         datamodule = PLDataModule(
             batch_size=self.train_mb_size,
@@ -43,5 +41,9 @@ class VQVaeStrategy(NaivePytorchLightning):
             log_every_n_steps=2,
         )
 
-        self.trainer.fit(self.model, datamodule=datamodule)
+        self.trainer.fit(
+            self.model, datamodule=datamodule, ckpt_path=self.initial_resume_from
+        )
+        self.initial_resume_from = None
+
         self.restore_best_model()

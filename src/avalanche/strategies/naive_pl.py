@@ -89,7 +89,6 @@ class NaivePytorchLightning(Naive):
         **kwargs,
     ) -> None:
         self.update_model_experience()
-        self.resume_from_checkpoint()
 
         # Create DataModule
         datamodule = PLDataModule(
@@ -113,13 +112,17 @@ class NaivePytorchLightning(Naive):
             plugins=self.train_plugins,
             precision=self.precision,
             accumulate_grad_batches=self.accumulate_grad_batches,
-            log_every_n_steps=2
+            log_every_n_steps=2,
             # profiler=AdvancedProfiler(
             #     dirpath="/Users/ewriji/Desktop/work/RND/", filename="profiler.logs"
             # ),
         )
 
-        self.trainer.fit(self.model, datamodule=datamodule)
+        self.trainer.fit(
+            self.model, datamodule=datamodule, ckpt_path=self.initial_resume_from
+        )
+        self.initial_resume_from = None  # easy trick to avoid restoring twice
+
         self.restore_best_model()
 
     def update_model_experience(self) -> None:
@@ -128,11 +131,6 @@ class NaivePytorchLightning(Naive):
         else:
             self.model.experience_step = self.experience_step
             self.model.experience = self.experience
-
-    def resume_from_checkpoint(self) -> None:
-        if self.experience_step == 0 and self.initial_resume_from:
-            state_dict = torch.load(self.initial_resume_from)["state_dict"]
-            self.model.load_state_dict(state_dict)
 
     def restore_best_model(self) -> None:
         if self.experience_step > 0 and self.restore_best_model_callback:
