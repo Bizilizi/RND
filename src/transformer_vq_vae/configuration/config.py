@@ -11,20 +11,21 @@ class TrainConfig(BaseTrainConfig):
     embedding_dim: int
     commitment_cost: float
     decay: float
-    quantize_features: bool
-    num_tasks: int
-    quantize_top_k: int
-    separate_codebooks: bool
     bootstrapped_dataset_path: str
 
-    dataset: str = "cifar10"
-    image_size: int = 32
+    encoder_layer: int
+    encoder_head: int
+    decoder_layer: int
+    decoder_head: int
+
     patch_size: int = 4
     supervised: bool = False
 
     use_lpips: bool
     mask_ratio: float
     weight_decay: float
+
+    # loss coefficients
     cycle_consistency_loss_weight_for_past: float
     cycle_consistency_loss_weight_for_current: float
     cycle_consistency_sigma: float
@@ -32,9 +33,12 @@ class TrainConfig(BaseTrainConfig):
     past_samples_loss_weight: float
     current_samples_loss_weight: float
     future_samples_loss_weight: float
+    data_variance: float
 
-    class_perplexity_threshold: float
-    patches_perplexity_threshold: float
+    # quantization params
+    quantize_features: bool
+    quantize_top_k: int
+    perplexity_threshold: float
 
     # sampling
     num_random_future_samples: int
@@ -51,9 +55,15 @@ class TrainConfig(BaseTrainConfig):
     igpt_accumulate_grad_batches: int
     igpt_mask_token_weight: float
 
-    # training
+    # training (the rest in the BaseTrainConfig class)
+    dataset: str = "cifar10"
+    num_tasks: int
+    image_size: int = 32
+
     max_epochs_lin_eval: int
     min_epochs_lin_eval: int
+
+    warmup: float
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":

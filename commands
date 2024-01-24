@@ -14,17 +14,17 @@ sbatch submit.sh python train.py \
     --num_workers 12 \
     --future_samples_mode noiseg
 
-
+# CIFAR 100
 TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
-    --group mae-stable-sampling-inc-codebbok \
+    --group mae-cifar100 \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
-    --max_epochs 800 \
-    --min_epochs 800 \
+    --max_epochs 5000 \
+    --min_epochs 5000 \
     --max_epochs_lin_eval 100 \
     --num_random_past_samples 30000 \
     --num_random_past_samples_schedule schedule \
@@ -36,9 +36,46 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --past_samples_loss_weight 0 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
-    --separate_codebooks true \
-    --patches_perplexity_threshold 30 \
+    --perplexity_threshold 30 \
     --quantize_top_k 1 \
+    --use_lpips True \
+    --dataset cifar100 \
+    --patch_size 2 \
+    --num_embeddings 512 \
+    --num_embeddings_per_step 64\
+    --num_tasks 1 \
+    --supervised True \
+    --precision 16-mixed
+
+# CIFAR 10
+TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
+    --config src/transformer_vq_vae/configuration/train.ini \
+    --model transformer-vq-vae \
+    --wandb_dir /tmp/dzverev_data/ \
+    --group mae-cifar10 \
+    --batch_size 512 \
+    --accumulate_grad_batches 1 \
+    --num_workers 8 \
+    --max_epochs 600 \
+    --min_epochs 600 \
+    --max_epochs_lin_eval 100 \
+    --num_random_past_samples 20000 \
+    --num_random_past_samples_schedule schedule \
+    --num_random_future_samples 0 \
+    --future_samples_mode noise \
+    --cycle_consistency_loss_weight_for_past 1 \
+    --cycle_consistency_loss_weight_for_current 0 \
+    --cycle_consistency_sigma 200 \
+    --past_samples_loss_weight 0 \
+    --current_samples_loss_weight 1 \
+    --future_samples_loss_weight 1 \
+    --data_variance 0.06328692405746414 \
+    --perplexity_threshold 30 \
+    --quantize_top_k 1 \
+    --encoder_layer 12 \
+    --encoder_head 3 \
+    --decoder_layer 4 \
+    --decoder_head 3 \
     --use_lpips True \
     --dataset cifar10 \
     --patch_size 2 \
@@ -48,6 +85,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --supervised True \
     --precision 16-mixed
 
+# LOCAL
 TIMM_FUSED_ATTN=1 python train.py \
     --dev True \
     --accelerator cuda \

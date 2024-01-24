@@ -85,18 +85,14 @@ class CriterionOutput:
 class VQMAE(CLModel):
     def __init__(
         self,
+        *,
+        # Mmodel parameters
         num_embeddings,
-        num_class_embeddings,
         num_embeddings_per_step,
         embedding_dim,
         commitment_cost,
         mask_token_id: int,
-        num_epochs: int,
-        batch_size: int,
-        supervised: bool = False,
-        num_classes: int = 0,
         decay=0,
-        learning_rate: float = 1e-3,
         weight_decay=0.05,
         image_size=32,
         patch_size=2,
@@ -106,43 +102,48 @@ class VQMAE(CLModel):
         decoder_head=3,
         mask_ratio=0.75,
         use_lpips: bool = True,
+        # training coefficients
+        num_epochs: int,
+        batch_size: int,
+        learning_rate: float = 1e-3,
+        warmup: float = 200,
+        # supervision
+        supervised: bool = False,
+        num_classes: int = 0,
+        # loss coefficients
         cycle_consistency_sigma: float = 1,
         past_cycle_consistency_weight=1,
         current_cycle_consistency_weight=1,
         past_samples_loss_weight=1,
         current_samples_loss_weight=1,
         future_samples_loss_weight=1,
-        precision: str = "32-true",
-        accelerator: str = "cuda",
+        data_variance=0.06328692405746414,
+        # quantization params
         quantize_features: bool = True,
         quantize_top_k: int = 3,
-        separate_codebooks: bool = True,
-        class_perplexity_threshold: float = 0,
-        patches_perplexity_threshold: float = 0,
+        perplexity_threshold: float = 0,
     ) -> None:
         super().__init__()
 
+        # Model parameters
         self._num_embeddings = num_embeddings
-        self._num_class_embeddings = num_class_embeddings
-        self._learning_rate = learning_rate
         self._weight_decay = weight_decay
         self._embedding_dim = embedding_dim
         self._latent_sos_token = num_embeddings + 1
         self._mask_ratio = mask_ratio
         self._mask_token_id = mask_token_id
         self._supervised = supervised
+        self._use_lpips = use_lpips
 
-        if precision == "16-mixed" and accelerator == "cpu":
-            self._precision_dtype = torch.bfloat16
-        elif precision == "16-mixed":
-            self._precision_dtype = torch.half
-        else:
-            self._precision_dtype = torch.float32
-
-        self._accelerator = accelerator
+        # Training coefficients
+        self._warmup = warmup
+        self._learning_rate = learning_rate
         self._num_epochs = num_epochs
         self._batch_size = batch_size
+        self.experience_step = 0
 
+        # Loss coefficients
+        self._data_variance = data_variance
         self._past_samples_loss_weight = past_samples_loss_weight
         self._current_samples_loss_weight = current_samples_loss_weight
         self._future_samples_loss_weight = future_samples_loss_weight
@@ -151,6 +152,7 @@ class VQMAE(CLModel):
         self._current_cycle_consistency_weight = current_cycle_consistency_weight
         self._past_cycle_consistency_weight = past_cycle_consistency_weight
 
+        # Quantization flags
         self._quantize_features = quantize_features
         self._quantize_top_k = quantize_top_k
 
@@ -166,7 +168,6 @@ class VQMAE(CLModel):
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
         )
 
-        self._separate_codebooks = separate_codebooks
         self.feature_quantization = FeatureQuantizerEMA(
             num_embeddings,
             num_embeddings_per_step,
@@ -174,7 +175,7 @@ class VQMAE(CLModel):
             commitment_cost,
             decay,
             top_k=quantize_top_k,
-            perplexity_threshold=patches_perplexity_threshold,
+            perplexity_threshold=perplexity_threshold,
         )
 
         if self._supervised:
@@ -183,11 +184,7 @@ class VQMAE(CLModel):
         else:
             self.clf_head = None
 
-        self.experience_step = 0
-        self.use_lpips = use_lpips
-        self._data_variance = 0.06328692405746414
-
-        if self.use_lpips:
+        if self._use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
 
     def set_clf_head(self, model: "EmbClassifier"):
@@ -217,7 +214,7 @@ class VQMAE(CLModel):
         weight_tensor[past_data] = self._past_samples_loss_weight
         weight_tensor[current_data] = self._current_samples_loss_weight
 
-        if self.use_lpips:
+        if self._use_lpips:
             lpips_loss = (self._lpips(x, x_rec) * weight_tensor).mean()
             l1_loss = torch.mean(
                 F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
@@ -550,7 +547,7 @@ class VQMAE(CLModel):
         )
 
         lr_func = lambda epoch: min(
-            (epoch + 1) / (200 + 1e-8),
+            (epoch + 1) / (self._warmup + 1e-8),
             0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
         )
         lr_scheduler = torch.optim.lr_scheduler.LambdaLR(

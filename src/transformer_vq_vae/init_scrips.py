@@ -52,39 +52,45 @@ def get_evaluation_plugin(
 
 def get_model(config: TrainConfig, device: torch.device, benchmark) -> VQMAE:
     vae = VQMAE(
-        image_size=config.image_size,
-        patch_size=config.patch_size,
-        num_class_embeddings=config.num_class_embeddings,
+        # model parameters
         num_embeddings=config.num_embeddings,
         num_embeddings_per_step=config.num_embeddings_per_step,
         embedding_dim=config.embedding_dim,
         commitment_cost=config.commitment_cost,
+        mask_token_id=config.num_embeddings,
         decay=config.decay,
+        weight_decay=config.weight_decay,
+        image_size=config.image_size,
+        patch_size=config.patch_size,
+        encoder_layer=config.encoder_layer,
+        encoder_head=config.encoder_head,
+        decoder_layer=config.decoder_layer,
+        decoder_head=config.decoder_head,
+        mask_ratio=config.mask_ratio,
+        use_lpips=config.use_lpips,
+        # training coefficients
+        num_epochs=config.max_epochs,
+        batch_size=config.batch_size * config.accumulate_grad_batches,
         learning_rate=(
             config.learning_rate
             * config.batch_size
             * config.accumulate_grad_batches
             / 256
         ),
-        weight_decay=config.weight_decay,
-        mask_ratio=config.mask_ratio,
-        mask_token_id=config.num_embeddings,
-        use_lpips=config.use_lpips,
-        precision=config.precision,
-        accelerator=config.accelerator,
-        batch_size=config.batch_size * config.accumulate_grad_batches,
-        num_epochs=config.max_epochs,
+        warmup=config.warmup,
+        # loss coefficients
         past_cycle_consistency_weight=config.cycle_consistency_loss_weight_for_past,
         current_cycle_consistency_weight=config.cycle_consistency_loss_weight_for_current,
         cycle_consistency_sigma=config.cycle_consistency_sigma,
         past_samples_loss_weight=config.past_samples_loss_weight,
         current_samples_loss_weight=config.current_samples_loss_weight,
         future_samples_loss_weight=config.future_samples_loss_weight,
+        data_variance=config.data_variance,
+        # quantization params
         quantize_features=config.quantize_features,
         quantize_top_k=config.quantize_top_k,
-        separate_codebooks=config.separate_codebooks,
-        patches_perplexity_threshold=config.patches_perplexity_threshold,
-        class_perplexity_threshold=config.class_perplexity_threshold,
+        perplexity_threshold=config.perplexity_threshold,
+        # supervision params
         supervised=config.supervised,
         num_classes=benchmark.n_classes,
     )
