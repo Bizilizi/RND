@@ -1,4 +1,5 @@
 import torch
+from pytorch_lightning.utilities.types import DistributedDataParallel
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Subset
 
@@ -19,6 +20,9 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
         """Update the buffer."""
 
         model: VQMAE = strategy.model
+        if isinstance(model, DistributedDataParallel):
+            model = model.module
+
         eval_stream = strategy.current_eval_stream
 
         reconstruction_images = []

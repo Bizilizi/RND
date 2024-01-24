@@ -3,7 +3,7 @@ from typing import Any
 import torch
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
-from pytorch_lightning.utilities.types import STEP_OUTPUT
+from pytorch_lightning.utilities.types import STEP_OUTPUT, DistributedDataParallel
 
 import wandb
 from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
@@ -47,6 +47,8 @@ class LogCodebookHistogram(Callback):
     ) -> None:
 
         model: VQMAE = trainer.model
+        if isinstance(model, DistributedDataParallel):
+            model = model.module
 
         for logger in trainer.loggers:
             if (

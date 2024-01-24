@@ -21,10 +21,11 @@ class LogDataset(Callback):
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        if isinstance(trainer.model, DistributedDataParallel):
-            experience_step = trainer.model.module.get_experience_step()
-        else:
-            experience_step = trainer.model.get_experience_step()
+        model = trainer.model
+        if isinstance(model, DistributedDataParallel):
+            model = model.module
+
+        experience_step = model.get_experience_step()
 
         self.log_dataset_table(trainer, experience_step)
 

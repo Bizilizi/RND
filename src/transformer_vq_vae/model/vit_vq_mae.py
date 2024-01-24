@@ -580,6 +580,7 @@ class VQMAE(CLModel):
             {
                 f"{name}/experience_step_{self.experience_step}": value,
             },
+            sync_dist=True,
             *args,
             **kwargs,
         )
