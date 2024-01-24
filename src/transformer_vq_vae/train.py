@@ -128,10 +128,7 @@ def train_loop(
                     train_experience.dataset + bootstrapped_dataset
                 )
 
-                igpt_train_dataset = (
-                    igpt_train_dataset
-                    + reset_transformations_for_igpt(config, bootstrapped_dataset)
-                )
+                igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
 
             if config.num_random_future_samples != 0:
                 print(f"Model future samples..")

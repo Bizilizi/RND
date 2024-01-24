@@ -23,8 +23,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 4 \
-    --max_epochs 1000 \
-    --min_epochs 1000 \
+    --max_epochs 800 \
+    --min_epochs 800 \
     --max_epochs_lin_eval 100 \
     --num_random_past_samples 30000 \
     --num_random_past_samples_schedule schedule \
@@ -39,6 +39,10 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --data_variance 0.071093 \
     --perplexity_threshold 30 \
     --quantize_top_k 1 \
+    --encoder_layer 12 \
+    --encoder_head 3 \
+    --decoder_layer 4 \
+    --decoder_head 3 \
     --use_lpips True \
     --dataset cifar100 \
     --patch_size 2 \
@@ -56,7 +60,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --group mae-cifar10 \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
-    --num_workers 8 \
+    --num_workers 4 \
     --max_epochs 600 \
     --min_epochs 600 \
     --max_epochs_lin_eval 100 \
@@ -80,7 +84,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --use_lpips True \
     --dataset cifar10 \
     --patch_size 2 \
-    --num_embeddings 256 \
+    --num_embeddings 512 \
     --num_embeddings_per_step 64\
     --num_tasks 5 \
     --supervised True \
@@ -113,9 +117,10 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --perplexity_threshold 30 \
     --quantize_top_k 1 \
     --encoder_layer 12 \
-    --encoder_head 3 \
-    --decoder_layer 4 \
-    --decoder_head 3 \
+    --encoder_head 12 \
+    --decoder_layer 8 \
+    --decoder_head 12 \
+    --embedding_dim 768 \
     --use_lpips True \
     --dataset cifar10 \
     --patch_size 2 \
