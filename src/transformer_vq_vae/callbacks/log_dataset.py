@@ -6,6 +6,7 @@ from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
 
 import wandb
+from pytorch_lightning.utilities.types import DistributedDataParallel
 
 
 class LogDataset(Callback):
@@ -20,7 +21,11 @@ class LogDataset(Callback):
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        experience_step = trainer.model.get_experience_step()
+        if isinstance(trainer.model, DistributedDataParallel):
+            experience_step = trainer.model.module.get_experience_step()
+        else:
+            experience_step = trainer.model.get_experience_step()
+
         self.log_dataset_table(trainer, experience_step)
 
     def log_dataset_table(self, trainer: Trainer, experience_step: int) -> None:

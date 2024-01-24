@@ -2,7 +2,7 @@ import typing as t
 from uuid import uuid4
 
 from pytorch_lightning.callbacks import Callback, ModelCheckpoint
-from pytorch_lightning.utilities.types import STEP_OUTPUT
+from pytorch_lightning.utilities.types import STEP_OUTPUT, DistributedDataParallel
 
 from avalanche.training.templates import BaseSGDTemplate
 
@@ -38,7 +38,10 @@ class RestoreBestPerformingModel(ModelCheckpoint):
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        experience_step = trainer.model.get_experience_step()
+        if isinstance(trainer.model, DistributedDataParallel):
+            experience_step = trainer.model.module.get_experience_step()
+        else:
+            experience_step = trainer.model.get_experience_step()
 
         monitor, args = self.args
 
