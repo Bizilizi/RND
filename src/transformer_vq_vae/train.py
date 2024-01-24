@@ -188,6 +188,7 @@ def train_loop(
             n_layer=config.num_gpt_layers,
             classes_seen_so_far=train_experience.classes_seen_so_far,
             num_all_classes=benchmark.n_classes,
+            epoch_num=config.igpt_epoch_num,
         )
 
         cl_strategy.model.unfreeze()

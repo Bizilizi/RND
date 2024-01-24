@@ -151,6 +151,7 @@ def train_igpt(
     device: torch.device,
     classes_seen_so_far: t.List[int],
     num_all_classes: int,
+    epoch_num: int = 10,
     n_layer: int = 12,
     image_gpt: ImageGPTForCausalImageModeling = None,
 ):
@@ -222,13 +223,6 @@ def train_igpt(
         batch_size=config.igpt_batch_size,
         shuffle=True,
     )
-
-    if strategy.experience_step < 2:
-        epoch_num = 10
-    elif strategy.experience_step < 3:
-        epoch_num = 10
-    else:
-        epoch_num = 10
 
     grad_scaler = torch.cuda.amp.GradScaler()
     optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)

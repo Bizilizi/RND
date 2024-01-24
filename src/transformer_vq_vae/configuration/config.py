@@ -54,6 +54,7 @@ class TrainConfig(BaseTrainConfig):
     igpt_mask_ratio: float
     igpt_accumulate_grad_batches: int
     igpt_mask_token_weight: float
+    igpt_epoch_num: int
 
     # training (the rest in the BaseTrainConfig class)
     dataset: str = "cifar10"
