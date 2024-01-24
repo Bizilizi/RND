@@ -111,6 +111,7 @@ def get_model(config: TrainConfig, device: torch.device, benchmark) -> VQMAE:
         num_embeddings=config.num_embeddings,
         num_embeddings_per_step=config.num_embeddings_per_step,
         embedding_dim=config.embedding_dim,
+        decoder_embedding_dim=config.decoder_embedding_dim,
         commitment_cost=config.commitment_cost,
         mask_token_id=config.num_embeddings,
         decay=config.decay,

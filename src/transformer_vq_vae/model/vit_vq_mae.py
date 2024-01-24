@@ -89,6 +89,7 @@ class VQMAE(CLModel):
         num_embeddings,
         num_embeddings_per_step,
         embedding_dim,
+        decoder_embedding_dim,
         commitment_cost,
         mask_token_id: int,
         decay=0,
@@ -164,7 +165,7 @@ class VQMAE(CLModel):
         )
 
         self.decoder = MAEDecoder(
-            image_size, patch_size, embedding_dim, decoder_layer, decoder_head
+            image_size, patch_size, decoder_embedding_dim, decoder_layer, decoder_head
         )
 
         self.feature_quantization = FeatureQuantizerEMA(

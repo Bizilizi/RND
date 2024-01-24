@@ -9,6 +9,7 @@ class TrainConfig(BaseTrainConfig):
     num_embeddings_per_step: int
     num_class_embeddings: int
     embedding_dim: int
+    decoder_embedding_dim: int
     commitment_cost: float
     decay: float
     bootstrapped_dataset_path: str

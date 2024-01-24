@@ -23,8 +23,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 4 \
-    --max_epochs 800 \
-    --min_epochs 800 \
+    --max_epochs 1500 \
+    --min_epochs 1500 \
     --max_epochs_lin_eval 100 \
     --num_random_past_samples 30000 \
     --num_random_past_samples_schedule schedule \
@@ -48,8 +48,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --patch_size 2 \
     --num_embeddings 512 \
     --num_embeddings_per_step 64\
-    --num_tasks 5 \
-    --supervised False \
+    --num_tasks 20 \
+    --supervised True \
     --precision 16-mixed
 
 # CIFAR 10
@@ -87,7 +87,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --num_embeddings 512 \
     --num_embeddings_per_step 64\
     --num_tasks 5 \
-    --supervised True \
+    --supervised False \
     --precision 16-mixed
 
 # imagenet
@@ -100,8 +100,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --batch_size 64 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
-    --max_epochs 600 \
-    --min_epochs 600 \
+    --max_epochs 400 \
+    --min_epochs 400 \
     --max_epochs_lin_eval 100 \
     --num_random_past_samples 20000 \
     --num_random_past_samples_schedule schedule \
@@ -121,13 +121,14 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --decoder_layer 8 \
     --decoder_head 12 \
     --embedding_dim 768 \
+    --decoder_embedding_dim 512 \
     --use_lpips True \
-    --dataset cifar10 \
-    --patch_size 2 \
-    --num_embeddings 256 \
+    --dataset imagenet \
+    --patch_size 16 \
+    --num_embeddings 1024 \
     --num_embeddings_per_step 64\
     --num_tasks 5 \
-    --supervised True \
+    --supervised False \
     --precision 16-mixed
 
 # Dry run
