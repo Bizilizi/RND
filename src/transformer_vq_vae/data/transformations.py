@@ -43,10 +43,15 @@ imagenet_to_tensor_and_normalization = transforms.Compose(
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ]
 )
-default_imagenet_train_transform = transforms.Compose(
+imagenet_augmentations = transforms.Compose(
     [
         transforms.RandomResizedCrop(224, scale=(0.2, 1.0)),  # 3 is bicubic
         transforms.RandomHorizontalFlip(),
+    ]
+)
+default_imagenet_train_transform = transforms.Compose(
+    [
+        imagenet_augmentations,
         imagenet_to_tensor_and_normalization,
     ]
 )

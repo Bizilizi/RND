@@ -16,6 +16,8 @@ from src.transformer_vq_vae.data.transformations import (
     cifar10_to_tensor_and_normalization,
     cifar100_to_tensor_and_normalization,
     imagenet_to_tensor_and_normalization,
+    cifar_augmentations,
+    imagenet_augmentations,
 )
 from src.transformer_vq_vae.init_scrips import (
     get_benchmark,
@@ -66,6 +68,17 @@ def reset_transformations_for_igpt(config: TrainConfig, dataset: ClassificationD
         return dataset.replace_current_transform_group(
             imagenet_to_tensor_and_normalization
         )
+
+
+def apply_transformations_for_bootstrapped_dataset(
+    config: TrainConfig, dataset: ClassificationDataset
+):
+    if config.dataset == "cifar10":
+        return dataset.replace_current_transform_group(cifar_augmentations)
+    elif config.dataset == "cifar100":
+        return dataset.replace_current_transform_group(cifar_augmentations)
+    elif config.dataset in ["tiny-imagenet", "imagenet"]:
+        return dataset.replace_current_transform_group(imagenet_augmentations)
 
 
 def train_loop(
@@ -124,10 +137,14 @@ def train_loop(
                     classes_seen_so_far=previous_classes,
                 )
 
+                # IMPORTANT: Training dataset is augmented dataset + augmented bootstrapped dataset
                 train_experience.dataset = (
-                    train_experience.dataset + bootstrapped_dataset
+                    train_experience.dataset
+                    + apply_transformations_for_bootstrapped_dataset(
+                        config, bootstrapped_dataset
+                    )
                 )
-
+                # IMPORTANT: IGPT dataset is un-augmented dataset + un-augmented bootstrapped dataset
                 igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
 
             if config.num_random_future_samples != 0:
