@@ -155,7 +155,14 @@ def get_model(config: TrainConfig, device: torch.device, benchmark) -> VQMAE:
 
 
 def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
-    dataset_mean = 0 if config.dataset == "tiny-imagenet" else 0.5
+    if config.dataset == "cifar10":
+        dataset_mean = 0.5
+    elif config.dataset == "cifar100":
+        dataset_mean = 0.5
+    elif config.dataset == "tiny-imagenet":
+        dataset_mean = 0.449
+    elif config.dataset == "imagenet":
+        dataset_mean = 0.449
 
     return lambda experience_step: [
         #     EarlyStopping(

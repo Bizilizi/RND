@@ -58,8 +58,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
     --group mae-cifar10 \
-    --batch_size 512 \
-    --accumulate_grad_batches 1 \
+    --batch_size 256 \
+    --accumulate_grad_batches 2 \
     --num_workers 4 \
     --max_epochs 600 \
     --min_epochs 600 \
@@ -92,14 +92,15 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
 
 # imagenet
 TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
-    --dev True \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
     --group mae-imagenet \
+    --devices 0,1,2,3 \
+    --strategy ddp \
     --batch_size 64 \
-    --accumulate_grad_batches 1 \
-    --num_workers 64 \
+    --accumulate_grad_batches 64 \
+    --num_workers 16 \
     --max_epochs 400 \
     --min_epochs 400 \
     --max_epochs_lin_eval 100 \

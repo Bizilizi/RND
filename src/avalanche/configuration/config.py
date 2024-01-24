@@ -33,6 +33,7 @@ class EmptyIntToNone(str):
 class BaseTrainConfig(BaseModel):
     # Training
     accelerator: str
+    strategy: str
     devices: t.Union[None, str, EmptyStrToNone]
     batch_size: int
     max_epochs: int
