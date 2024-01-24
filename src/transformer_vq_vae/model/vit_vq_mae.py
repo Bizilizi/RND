@@ -201,6 +201,18 @@ class VQMAE(CLModel):
 
         self.feature_quantization.update_model_experience(experience_step)
 
+    def get_experience_step(self):
+        return self.experience_step
+
+    def get_experience(self):
+        return self.experience
+
+    def set_experience_step(self, experience_step):
+        self.experience_step = experience_step
+
+    def set_experience(self, experience):
+        self.experience = experience
+
     def get_reconstruction_loss(
         self,
         x: torch.Tensor,

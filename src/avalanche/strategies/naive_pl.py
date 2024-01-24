@@ -128,8 +128,8 @@ class NaivePytorchLightning(Naive):
         if hasattr(self.model, "update_model_experience"):
             self.model.update_model_experience(self.experience_step, self.experience)
         else:
-            self.model.experience_step = self.experience_step
-            self.model.experience = self.experience
+            self.model.set_experience_step(self.experience_step)
+            self.model.set_experience(self.experience)
 
     def restore_best_model(self) -> None:
         if self.experience_step > 0 and self.restore_best_model_callback:

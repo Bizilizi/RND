@@ -96,7 +96,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
     --group mae-imagenet \
-    --devices 0,1,2,3 \
+    --devices 0,1 \
     --strategy ddp \
     --batch_size 64 \
     --accumulate_grad_batches 64 \

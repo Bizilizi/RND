@@ -38,7 +38,7 @@ class RestoreBestPerformingModel(ModelCheckpoint):
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
-        experience_step = trainer.model.experience_step
+        experience_step = trainer.model.get_experience_step()
 
         monitor, args = self.args
 
