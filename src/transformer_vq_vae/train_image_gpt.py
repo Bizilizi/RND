@@ -18,6 +18,10 @@ from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.bootstrapped_dataset import BootstrappedDataset
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
+from src.transformer_vq_vae.data.transformations import (
+    imagenet_augmentations,
+    cifar_augmentations,
+)
 from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
 
 
@@ -82,19 +86,31 @@ def bootstrap_past_samples(
     dataset_path: str,
     config: TrainConfig,
     classes_seen_so_far: t.List[int],
-    transform: t.Optional[t.Any] = None,
-) -> ClassificationDataset:
+) -> t.Tuple[ClassificationDataset, ClassificationDataset]:
     num_images_per_batch = min(128, num_images)
     mask_token = vq_vae_model.feature_quantization.embedding.num_embeddings
     sos_token = vq_vae_model.feature_quantization.embedding.num_embeddings + 1
+
+    # transformations
+    if config.dataset in ["cifar10", "cifar100"]:
+        transform = cifar_augmentations
+    elif config.dataset in ["tiny-imagenet", "imagenet"]:
+        transform = imagenet_augmentations
+    else:
+        transform = None
 
     # Derive num patches based on path algorithm from VIT
     num_patches = (config.image_size // config.patch_size) ** 2
 
     print("Constructing bootstraped dataset")
-    bootstrapped_dataset = BootstrappedDataset(
+    mae_bootstrapped_dataset = BootstrappedDataset(
         dataset_path=dataset_path, experience_step=experience_step, transform=transform
     )
+    igpt_bootstrapped_dataset = BootstrappedDataset(
+        dataset_path=dataset_path,
+        experience_step=experience_step,
+    )
+
     image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
         vq_vae_model.device
     )
@@ -116,17 +132,27 @@ def bootstrap_past_samples(
         if labels is not None:
             labels = labels.cpu()
 
-        bootstrapped_dataset.add_data(
+        mae_bootstrapped_dataset.add_data(
             images=images.cpu(),
             latent_indices=latent_indices.cpu(),
             labels=labels,
         )
 
-    dataset = make_classification_dataset(
-        bootstrapped_dataset, targets=bootstrapped_dataset.targets
+        igpt_bootstrapped_dataset.add_data(
+            images=images.cpu(),
+            latent_indices=latent_indices.cpu(),
+            labels=labels,
+        )
+
+    mae_dataset = make_classification_dataset(
+        mae_bootstrapped_dataset, targets=mae_bootstrapped_dataset.targets
     )
 
-    return dataset
+    igpt_dataset = make_classification_dataset(
+        igpt_bootstrapped_dataset, targets=igpt_bootstrapped_dataset.targets
+    )
+
+    return mae_dataset, igpt_dataset
 
 
 def learning_rate_schedule(warmup_steps, total_steps):

@@ -6,7 +6,10 @@ from torch.utils.data import Dataset
 
 class BootstrappedDataset(Dataset):
     def __init__(
-        self, dataset_path: str, experience_step: int, transform: t.Optional[t.Any]
+        self,
+        dataset_path: str,
+        experience_step: int,
+        transform: t.Optional[t.Any] = None,
     ):
         super().__init__()
 

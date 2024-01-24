@@ -98,6 +98,20 @@ def train_loop(
         benchmark.train_stream, benchmark.test_stream
     ):
 
+        # IGPT data set is:
+        #  - original dataset but with validation transformation
+        #  - then wrapped to a MAE dataset format
+        igpt_train_dataset = reset_transformations_for_igpt(
+            config, train_experience.dataset
+        )
+        igpt_train_dataset = convert_avalanche_dataset_to_vq_mae_dataset(
+            igpt_train_dataset,
+            num_neighbours=config.quantize_top_k,
+            config=config,
+            time_tag=0,
+        )
+
+        # MAE dataset is original dataset but wrapped with extra fields
         train_experience.dataset = convert_avalanche_dataset_to_vq_mae_dataset(
             train_experience.dataset,
             num_neighbours=config.quantize_top_k,
@@ -109,10 +123,6 @@ def train_loop(
             num_neighbours=config.quantize_top_k,
             config=config,
             time_tag=0,
-        )
-
-        igpt_train_dataset = reset_transformations_for_igpt(
-            config, train_experience.dataset
         )
 
         # Bootstrap old data and modeled future samples
@@ -127,7 +137,10 @@ def train_loop(
                         train_experience.classes_in_this_experience
                     )
                 )
-                bootstrapped_dataset = bootstrap_past_samples(
+                (
+                    mae_bootstrapped_dataset,
+                    igpt_bootstrapped_dataset,
+                ) = bootstrap_past_samples(
                     image_gpt=image_gpt,
                     vq_vae_model=cl_strategy.model,
                     num_images=get_num_random_past_samples(config, cl_strategy),
@@ -139,13 +152,10 @@ def train_loop(
 
                 # IMPORTANT: Training dataset is augmented dataset + augmented bootstrapped dataset
                 train_experience.dataset = (
-                    train_experience.dataset
-                    + apply_transformations_for_bootstrapped_dataset(
-                        config, bootstrapped_dataset
-                    )
+                    train_experience.dataset + mae_bootstrapped_dataset
                 )
                 # IMPORTANT: IGPT dataset is un-augmented dataset + un-augmented bootstrapped dataset
-                igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
+                igpt_train_dataset = igpt_train_dataset + igpt_bootstrapped_dataset
 
             if config.num_random_future_samples != 0:
                 print(f"Model future samples..")
