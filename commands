@@ -142,8 +142,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --max_epochs 2 \
     --min_epochs 2 \
     --max_epochs_lin_eval 2 \
-    --num_random_past_samples 30000 \
-    --num_random_past_samples_schedule schedule \
+    --num_random_past_samples 100 \
+    --num_random_past_samples_schedule fixed \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
