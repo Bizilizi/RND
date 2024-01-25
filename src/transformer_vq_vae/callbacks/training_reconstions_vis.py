@@ -47,7 +47,7 @@ class VisualizeTrainingReconstructions(Callback):
         if isinstance(model, DistributedDataParallel):
             model = model.module
 
-        experience_step = trainer.model.experience_step
+        experience_step = model.experience_step
         dataset = trainer.datamodule.train_dataset
 
         for logger in trainer.loggers:

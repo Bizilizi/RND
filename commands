@@ -58,6 +58,8 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
     --group mae-cifar10 \
+    --devices 0,1 \
+    --strategy ddp \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 4 \
@@ -75,7 +77,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --data_variance 0.06328692405746414 \
-    --perplexity_threshold 30 \
+    --perplexity_threshold 0 \
     --quantize_top_k 1 \
     --encoder_layer 12 \
     --encoder_head 3 \
