@@ -270,27 +270,30 @@ class FeatureQuantizerEMA(nn.Module):
             num_embedding + self._num_embeddings_per_step,
             self._embedding_dim,
         )
-        self.embedding.weight.data[:num_embedding] = embedding_copy.weight.data
-        self.embedding.weight.requires_grad = False
+        self.embedding.weight.data[:num_embedding] = embedding_copy.weight.data.clone()
 
         # Extend ema vector
         ema_w_copy = self._ema_w
         self._ema_w = nn.Parameter(
             torch.Tensor(
                 num_embedding + self._num_embeddings_per_step, self._embedding_dim
-            )
+            ),
+            requires_grad=False,
         )
         self._ema_w.data.normal_()
-        self._ema_w.data[:num_embedding] = ema_w_copy.data
+        self._ema_w.data[:num_embedding] = ema_w_copy.data.clone()
 
         # Extend ema cluster size
-        self._ema_cluster_size = torch.cat(
-            [
-                self._ema_cluster_size,
-                torch.zeros(self._num_embeddings_per_step).to(
-                    self._ema_cluster_size.device
-                ),
-            ]
+        self.register_buffer(
+            "_ema_cluster_size",
+            torch.cat(
+                [
+                    self._ema_cluster_size,
+                    torch.zeros(self._num_embeddings_per_step).to(
+                        self._ema_cluster_size.device
+                    ),
+                ]
+            ),
         )
 
     @safe_autocast
