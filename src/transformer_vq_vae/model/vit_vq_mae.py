@@ -68,6 +68,8 @@ class ForwardOutput:
 @dataclasses.dataclass
 class CriterionOutput:
     reconstruction_loss: torch.Tensor
+    past_reconstruction_loss: torch.Tensor
+    current_reconstruction_loss: torch.Tensor
     past_cycle_consistency_loss: torch.Tensor
     current_cycle_consistency_loss: torch.Tensor
     cycle_consistency_loss: torch.Tensor
@@ -226,23 +228,29 @@ class VQMAE(CLModel):
         weight_tensor[past_data] = self._past_samples_loss_weight
         weight_tensor[current_data] = self._current_samples_loss_weight
 
+        past_l1_reconstruction_loss = (
+            F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3)) * past_data
+        )
+
+        current_l1_reconstruction_loss = (
+            F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3)) * current_data
+        )
+
+        reconstruction_loss = torch.mean(
+            (past_l1_reconstruction_loss + current_l1_reconstruction_loss)
+            * weight_tensor
+            / self._data_variance
+        )
+
         if self._use_lpips:
             lpips_loss = (self._lpips(x, x_rec) * weight_tensor).mean()
-            l1_loss = torch.mean(
-                F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
-                * weight_tensor
-                / self._data_variance
-            )
-            reconstruction_loss = lpips_loss + l1_loss
+            reconstruction_loss += lpips_loss
 
-        else:
-            reconstruction_loss = torch.mean(
-                F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
-                * weight_tensor
-                / self._data_variance
-            )
-
-        return reconstruction_loss
+        return (
+            reconstruction_loss,
+            past_l1_reconstruction_loss,
+            current_l1_reconstruction_loss,
+        )
 
     def get_cycle_consistency_loss(self, distances, indices):
         indices = rearrange(indices, "b (t k) -> b t k", k=self._quantize_top_k)
@@ -286,9 +294,11 @@ class VQMAE(CLModel):
         target_class = y["class"]
 
         # Compute reconstruction loss for past and current data
-        reconstruction_loss = self.get_reconstruction_loss(
-            x_recon, x_data, past_data, current_data
-        )
+        (
+            reconstruction_loss,
+            past_l1_reconstruction_loss,
+            current_l1_reconstruction_loss,
+        ) = self.get_reconstruction_loss(x_recon, x_data, past_data, current_data)
 
         # Compute consistency loss for past data
         if (
@@ -334,6 +344,8 @@ class VQMAE(CLModel):
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
+            past_reconstruction_loss=past_l1_reconstruction_loss,
+            current_reconstruction_loss=current_l1_reconstruction_loss,
             past_cycle_consistency_loss=past_cycle_consistency_loss,
             current_cycle_consistency_loss=current_cycle_consistency_loss,
             cycle_consistency_loss=cycle_consistency_loss,
@@ -463,6 +475,14 @@ class VQMAE(CLModel):
             criterion_output.reconstruction_loss.cpu().item(),
         )
         self.log_with_postfix(
+            "train/reconstruction_l1_loss_past",
+            criterion_output.past_reconstruction_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            "train/reconstruction_l1_loss_current",
+            criterion_output.current_reconstruction_loss.cpu().item(),
+        )
+        self.log_with_postfix(
             "train/perplexity",
             criterion_output.perplexity.cpu().item(),
         )
@@ -532,6 +552,14 @@ class VQMAE(CLModel):
         self.log_with_postfix(
             "val/reconstruction_loss",
             criterion_output.reconstruction_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            "val/reconstruction_l1_loss_past",
+            criterion_output.past_reconstruction_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            "val/reconstruction_l1_loss_current",
+            criterion_output.current_reconstruction_loss.cpu().item(),
         )
         self.log_with_postfix(
             "val/perplexity",
