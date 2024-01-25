@@ -63,20 +63,9 @@ class NaivePytorchLightning(Naive):
         self.train_plugins = train_plugins
         # Modify callback to
         self.callbacks_factory = callbacks
-        self.strategy_callbacks = [
-            PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)
-        ]
+        self.strategy_callbacks = []
 
         self.restore_best_model_callback = None
-        if self.best_model_path_prefix:
-            self.restore_best_model_callback = RestoreBestPerformingModel(
-                path_prefix=self.best_model_path_prefix,
-                monitor="val/reconstruction_loss",
-                mode="min",
-                every_n_epochs=self.validate_every_n,
-                verbose=False,
-            )
-            self.strategy_callbacks.append(self.restore_best_model_callback)
 
         super().__init__(*args, **kwargs)
 
@@ -99,6 +88,17 @@ class NaivePytorchLightning(Naive):
             val_dataset=eval_streams[0].dataset if eval_streams else None,
         )
 
+        callbacks = [PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)]
+        if self.best_model_path_prefix:
+            self.restore_best_model_callback = RestoreBestPerformingModel(
+                path_prefix=self.best_model_path_prefix,
+                monitor="val/reconstruction_loss",
+                mode="min",
+                every_n_epochs=self.validate_every_n,
+                verbose=False,
+            )
+            callbacks = callbacks + [self.restore_best_model_callback]
+
         # Training
         self.trainer = Trainer(
             check_val_every_n_epoch=self.validate_every_n,
@@ -107,9 +107,7 @@ class NaivePytorchLightning(Naive):
             logger=self.train_logger,
             max_epochs=self.max_epochs,
             min_epochs=self.min_epochs,
-            callbacks=(
-                self.callbacks_factory(self.experience_step) + self.strategy_callbacks
-            ),
+            callbacks=(self.callbacks_factory(self.experience_step) + callbacks),
             plugins=self.train_plugins,
             precision=self.precision,
             accumulate_grad_batches=self.accumulate_grad_batches,
