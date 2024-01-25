@@ -170,7 +170,7 @@ class VQMAE(CLModel):
             image_size, patch_size, decoder_embedding_dim, decoder_layer, decoder_head
         )
 
-        self.__dict__["feature_quantization"] = FeatureQuantizerEMA(
+        self.feature_quantization = FeatureQuantizerEMA(
             num_embeddings,
             num_embeddings_per_step,
             embedding_dim,
