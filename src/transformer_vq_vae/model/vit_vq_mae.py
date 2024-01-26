@@ -228,11 +228,16 @@ class VQMAE(CLModel):
         weight_tensor[past_data] = self._past_samples_loss_weight
         weight_tensor[current_data] = self._current_samples_loss_weight
 
-        past_l1_reconstruction_loss = (
-            torch.sum(F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3)) * past_data)
-            / past_data.sum()
-            / self._data_variance
-        )
+        if past_data.any():
+            past_l1_reconstruction_loss = (
+                torch.sum(
+                    F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3)) * past_data
+                )
+                / past_data.sum()
+                / self._data_variance
+            )
+        else:
+            past_l1_reconstruction_loss = torch.tensor(0, device=self.device)
 
         current_l1_reconstruction_loss = (
             torch.sum(
