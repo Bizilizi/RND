@@ -53,7 +53,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --precision 16-mixed
 
 # CIFAR 10
-TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
+sbatch submit.sh python train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
