@@ -65,11 +65,11 @@ def add_sumbitit_arguments(parser):
 class Trainer(object):
     def __init__(self, args):
         self.args = args
-        self._setup_gpu_args()
 
     def __call__(self):
         import os
 
+        self._setup_gpu_args()
         os.environ["TIMM_FUSED_ATTN"] = "1"
 
         # Choose appropriate entry function depending on model name
