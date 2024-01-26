@@ -156,7 +156,7 @@ def main():
         timeout_min=timeout_min,  # max is 60 * 72
         # Below are cluster dependent parameters
         slurm_partition=partition,
-        slurm_constraint=args.constraint,
+        slurm_constraint=args.gpu_type,
         slurm_additional_parameters={
             "mail-type": "BEGIN,END,FAIL",
             "mail-user": "dzverev@robots.ox.ac.uk",
