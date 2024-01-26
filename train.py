@@ -11,7 +11,7 @@ from src.utils.train_script import parse_arguments
 from src.vae_ft.train import main as vae_ft_main
 from src.vq_vae.train import main as vq_vae_main
 from src.transformer_vq_vae.train import main as transformer_vq_vae_main
-from train_utils import add_arguments
+from train_utils import add_train_arguments
 
 # configure logging at the root level of Lightning
 # logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
@@ -22,7 +22,7 @@ if __name__ == "__main__":
 
     # Parse arguments from command line
     parser = argparse.ArgumentParser(description="Model trainer")
-    parser = add_arguments(parser)
+    parser = add_train_arguments(parser)
     args = parse_arguments(parser)
 
     # Choose appropriate entry function depending on model name

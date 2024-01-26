@@ -1,17 +1,15 @@
-import datetime
 import typing as t
 
 import torch
 from pytorch_lightning import Callback
-from pytorch_lightning.callbacks import EarlyStopping
 from torchvision import transforms
 
 from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100, SplitImageNet
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
-from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.transformer_vq_vae.callbacks.codebook_histogram import LogCodebookHistogram
 from src.transformer_vq_vae.callbacks.log_dataset import LogDataset
+from src.transformer_vq_vae.callbacks.log_model import LogModelWightsCallback
 from src.transformer_vq_vae.callbacks.training_reconstions_vis import (
     VisualizeTrainingReconstructions,
 )

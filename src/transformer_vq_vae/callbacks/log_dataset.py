@@ -4,9 +4,9 @@ import torch
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.utilities.types import DistributedDataParallel
 
 import wandb
-from pytorch_lightning.utilities.types import DistributedDataParallel
 
 
 class LogDataset(Callback):

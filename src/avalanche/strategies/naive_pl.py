@@ -39,7 +39,7 @@ class NaivePytorchLightning(Naive):
         min_epochs: int,
         best_model_path_prefix: str = "",
         train_mb_num_workers: int = 2,
-        initial_resume_from: t.Optional[str] = None,
+        resume_arguments: t.Dict[str, str] = None,
         accelerator: str = "cpu",
         devices: str = "0,",
         strategy: str = "auto",
@@ -51,7 +51,7 @@ class NaivePytorchLightning(Naive):
         **kwargs,
     ) -> None:
         self.precision = precision
-        self.initial_resume_from = initial_resume_from
+        self.resume_arguments = resume_arguments
         self.train_logger = train_logger
         self.train_mb_num_workers = train_mb_num_workers
         self.accumulate_grad_batches = accumulate_grad_batches
@@ -69,7 +69,9 @@ class NaivePytorchLightning(Naive):
 
         super().__init__(*args, **kwargs)
 
-        self.experience_step = 0
+        self.experience_step = (
+            resume_arguments["experience_step"] if resume_arguments else 0
+        )
 
     def _train_exp(
         self,
@@ -117,12 +119,18 @@ class NaivePytorchLightning(Naive):
             # ),
         )
 
-        self.trainer.fit(
-            self.model, datamodule=datamodule, ckpt_path=self.initial_resume_from
+        ckpt_path = (
+            self.resume_arguments["model_checkpoint_path"]
+            if self.resume_arguments
+            else None
         )
-        self.initial_resume_from = None  # easy trick to avoid restoring twice
 
+        self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=ckpt_path)
+
+        self.resume_arguments = None
+        """An easy trick to avoid restoring twice when train loop revisited"""
         self.restore_best_model()
+        self.experience_step += 1
 
     def update_model_experience(self) -> None:
         if hasattr(self.model, "update_model_experience"):

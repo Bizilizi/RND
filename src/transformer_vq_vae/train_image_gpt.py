@@ -19,8 +19,8 @@ from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.bootstrapped_dataset import BootstrappedDataset
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.transformer_vq_vae.data.transformations import (
-    imagenet_augmentations,
     cifar_augmentations,
+    imagenet_augmentations,
 )
 from src.transformer_vq_vae.model.vit_vq_mae import VQMAE
 

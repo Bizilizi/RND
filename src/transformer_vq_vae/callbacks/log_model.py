@@ -32,7 +32,16 @@ class LogModelWightsCallback(Callback):
             model_ckpt = f"{self.checkpoint_path}/{self.model_prefix}-exp-{self.experience_step}-ep-{self.state['epochs']}.ckpt"
         else:
             model_ckpt = f"{self.checkpoint_path}/{self.model_prefix}-ep-{self.state['epochs']}.ckpt"
+
         trainer.save_checkpoint(model_ckpt)
+        torch.save(
+            {
+                "experience_step": self.experience_step,
+                "model_checkpoint_path": model_ckpt,
+                "wandb_run": wandb.run.id if wandb.run else None,
+            },
+            f"{self.checkpoint_path}/checkpoint_metadata.ckpt",
+        )
 
         # log model to W&B
         if isinstance(logger, WandbLogger) and self.log_to_wandb:

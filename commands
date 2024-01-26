@@ -58,10 +58,9 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
     --group mae-cifar10 \
-    --devices 0,1,2 \
-    --strategy ddp_find_unused_parameters_true \
-    --batch_size 128 \
-    --accumulate_grad_batches 4 \
+    --devices 0, \
+    --batch_size 512 \
+    --accumulate_grad_batches 1 \
     --num_workers 4 \
     --max_epochs 600 \
     --min_epochs 600 \

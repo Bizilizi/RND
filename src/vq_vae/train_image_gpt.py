@@ -1,27 +1,20 @@
-import datetime
 import pathlib
-import typing as t
 
 import numpy as np
 import torch
 from PIL import Image
-from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset
 from torchvision.io import read_image
-from torchvision.utils import make_grid, save_image
+from torchvision.utils import make_grid
 from tqdm.auto import tqdm, trange
 from transformers import ImageGPTConfig, ImageGPTForCausalImageModeling
 
 import wandb
 from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
-from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
-from src.rnd.callbacks.log_model import LogModelWightsCallback
-from src.vq_vae.callbacks.igpt_samples import LogIgptSamples
 from src.vq_vae.configuration.config import TrainConfig
 from src.vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.vq_vae.model.image_gpt_casual import ImageGPTCausal

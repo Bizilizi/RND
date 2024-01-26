@@ -60,7 +60,7 @@ def parse_args():
         type=str,
     )
 
-    train.add_arguments(parser)
+    train.add_train_arguments(parser)
 
     return parser.parse_args()
 

@@ -1,7 +1,7 @@
 import datetime
 import os
 import pathlib
-import shutil
+import typing as t
 from configparser import ConfigParser
 from pathlib import Path
 
@@ -15,9 +15,9 @@ from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.transformations import (
     cifar10_to_tensor_and_normalization,
     cifar100_to_tensor_and_normalization,
-    imagenet_to_tensor_and_normalization,
     cifar_augmentations,
     imagenet_augmentations,
+    imagenet_to_tensor_and_normalization,
 )
 from src.transformer_vq_vae.init_scrips import (
     get_benchmark,
@@ -87,15 +87,18 @@ def train_loop(
     is_using_wandb: bool,
     config: TrainConfig,
     device: torch.device,
+    resume_arguments: t.Optional[t.Dict[str, str]],
 ) -> None:
     """
     :return:
     """
 
     image_gpt = None
+    start_experience = resume_arguments["experience_step"] if resume_arguments else 0
 
     for train_experience, test_experience in zip(
-        benchmark.train_stream, benchmark.test_stream
+        benchmark.train_stream[start_experience:],
+        benchmark.test_stream[start_experience:],
     ):
 
         # IGPT data set is:
@@ -202,7 +205,6 @@ def train_loop(
         )
 
         cl_strategy.model.unfreeze()
-        cl_strategy.experience_step += 1
 
     if is_using_wandb:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
@@ -212,6 +214,8 @@ def main(args):
     # turn on multiplication speed up in ampere series
     # torch.backends.cuda.matmul.allow_tf32 = True
     # torch.backends.cudnn.allow_tf32 = True
+
+    resume_arguments = torch.load(args.resume_from) if args.resume_from else None
 
     # Reading configuration from ini file
     assert (
@@ -234,11 +238,12 @@ def main(args):
         or config.evaluation_logger == "wandb"
         or args.run_id
     )
+
     if is_using_wandb:
         if args.dev:
             os.environ["WANDB_MODE"] = "offline"
 
-        wandb_params = get_wandb_params(args, config)
+        wandb_params = get_wandb_params(args, config, resume_arguments)
 
         wandb.run.name = args.experiment_name or (
             f"BS-{config.batch_size * config.accumulate_grad_batches} | "
@@ -259,6 +264,10 @@ def main(args):
     config.checkpoint_path += f"/{run_id}/model"
     config.best_model_prefix += f"/{run_id}/best_model"
     config.bootstrapped_dataset_path += f"/{run_id}/bootstrapped_dataset"
+
+    args.checkpoint_path = config.checkpoint_path
+    args.best_model_prefix = config.best_model_prefix
+    args.bootstrapped_dataset_path = config.bootstrapped_dataset_path
 
     Path(config.checkpoint_path).mkdir(parents=True, exist_ok=True)
     Path(config.best_model_prefix).mkdir(parents=True, exist_ok=True)
@@ -283,6 +292,7 @@ def main(args):
         benchmark, eval_plugin_loggers, is_using_wandb
     )
 
+    # CL strategy
     cl_strategy = NaivePytorchLightning(
         precision=config.precision,
         accelerator=config.accelerator,
@@ -291,7 +301,7 @@ def main(args):
         validate_every_n=config.validate_every_n,
         accumulate_grad_batches=config.accumulate_grad_batches,
         train_logger=cl_strategy_logger,
-        initial_resume_from=args.resume_from,
+        resume_arguments=resume_arguments,
         model=model,
         device=device,
         optimizer=model.configure_optimizers()["optimizer"],
@@ -318,6 +328,7 @@ def main(args):
             is_using_wandb=is_using_wandb,
             config=config,
             device=device,
+            resume_arguments=resume_arguments,
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")
