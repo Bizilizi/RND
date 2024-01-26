@@ -34,6 +34,9 @@ def add_sumbitit_arguments(parser):
         type=str,
     )
     parser.add_argument(
+        "--nodes", default=1, type=int, help="Number of nodes to request"
+    )
+    parser.add_argument(
         "--output_dir",
         default="./slurm_logs",
         type=str,
