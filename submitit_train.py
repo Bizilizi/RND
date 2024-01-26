@@ -113,13 +113,9 @@ class Trainer(object):
 
     def _setup_gpu_args(self):
         import submitit
-        from pathlib import Path
 
         job_env = submitit.JobEnvironment()
-        self.args.output_dir = Path(
-            str(self.args.output_dir).replace("%j", str(job_env.job_id))
-        )
-        self.args.log_dir = self.args.output_dir
+
         self.args.gpu = job_env.local_rank
         self.args.rank = job_env.global_rank
         self.args.world_size = job_env.num_tasks

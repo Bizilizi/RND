@@ -224,33 +224,29 @@ class VQMAE(CLModel):
     ):
 
         # Create weight vector to shift gradient towards current dataset
-        weight_tensor = torch.ones(past_data.shape[0], device=self.device)
+        weight_tensor = torch.ones(x.shape[0], device=self.device)
         weight_tensor[past_data] = self._past_samples_loss_weight
         weight_tensor[current_data] = self._current_samples_loss_weight
 
-        if past_data.any():
+        full_reconstruction_loss = (
+            F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
+            * weight_tensor
+            / self._data_variance
+        )
+        num_past_images = past_data.sum()
+        num_current_images = current_data.sum()
+
+        reconstruction_loss = full_reconstruction_loss.mean()
+
+        if num_past_images:
             past_l1_reconstruction_loss = (
-                torch.sum(
-                    F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3)) * past_data
-                )
-                / past_data.sum()
-                / self._data_variance
+                torch.sum(full_reconstruction_loss * past_data) / num_past_images
             )
         else:
             past_l1_reconstruction_loss = torch.tensor(0, device=self.device)
 
         current_l1_reconstruction_loss = (
-            torch.sum(
-                F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3)) * current_data
-            )
-            / current_data.sum()
-            / self._data_variance
-        )
-
-        reconstruction_loss = torch.mean(
-            (past_l1_reconstruction_loss + current_l1_reconstruction_loss)
-            * weight_tensor
-            / self._data_variance
+            torch.sum(full_reconstruction_loss * current_data) / num_current_images
         )
 
         if self._use_lpips:
