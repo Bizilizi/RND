@@ -358,9 +358,8 @@ class FeatureQuantizerEMA(nn.Module):
                 self._ema_w * self._decay + (1 - self._decay) * dw
             )
 
-            self.embedding.weight = nn.Parameter(
-                self._ema_w / self._ema_cluster_size.unsqueeze(1)
-            )
+            updated_embeddings = self._ema_w / self._ema_cluster_size.unsqueeze(1)
+            self.embedding.weight.data = updated_embeddings.data
 
         # Loss
         e_latent_loss = F.mse_loss(quantized.detach(), inputs)
