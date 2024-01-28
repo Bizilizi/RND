@@ -56,16 +56,16 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type v100s \
+    --gpu_type a6000 \
     --partition ddp-4way \
     --timeout 2880 \
-    --ngpus 2 \
+    --ngpus 1 \
     --comment "vq-mae 5 tasks" \
     --group mae-cifar10 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
-    --devices 0,1 \
+    --devices 0, \
     --batch_size 256 \
     --accumulate_grad_batches 2 \
     --num_workers 4 \
@@ -79,9 +79,9 @@ python submitit_train.py \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
     --cycle_consistency_sigma 200 \
-    --past_samples_loss_weight 0 \
+    --past_samples_loss_weight 1 \
     --current_samples_loss_weight 1 \
-    --future_samples_loss_weight 1 \
+    --future_samples_loss_weight 0 \
     --data_variance 0.06328692405746414 \
     --perplexity_threshold 0 \
     --quantize_top_k 1 \
