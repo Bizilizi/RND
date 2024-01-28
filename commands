@@ -57,7 +57,7 @@ python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
     --gpu_type a6000 \
-    --partition ddp-4way \
+    --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
     --comment "vq-mae 5 tasks" \
