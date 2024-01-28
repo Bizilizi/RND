@@ -358,7 +358,7 @@ class FeatureQuantizerEMA(nn.Module):
                 self._ema_w * self._decay + (1 - self._decay) * dw
             )
 
-            self._embedding.weight = nn.Parameter(
+            self.embedding.weight = nn.Parameter(
                 self._ema_w / self._ema_cluster_size.unsqueeze(1)
             )
 
@@ -368,6 +368,7 @@ class FeatureQuantizerEMA(nn.Module):
 
         # Straight Through Estimator
         quantized = inputs + (quantized - inputs).detach()
+
         avg_probs = torch.mean(encodings, dim=0)  # num_embeddings
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 

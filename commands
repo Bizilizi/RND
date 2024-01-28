@@ -53,19 +53,22 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --precision 16-mixed
 
 # CIFAR 10
-python submitit_train.py \
-    --cpus_per_task 8 \
+# python submitit_train.py
+--cpus_per_task 8 \
     --slurm_mem 96 \
     --gpu_type a6000 \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
     --comment "vq-mae 5 tasks" \
+# TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py
+TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --group mae-cifar10 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /tmp/dzverev_data/ \
     --devices 0, \
+    --strategy ddp \
     --batch_size 256 \
     --accumulate_grad_batches 2 \
     --num_workers 4 \

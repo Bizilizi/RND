@@ -132,7 +132,7 @@ def main():
     args = parse_arguments(parser)
 
     # Make it deterministic
-    executor = submitit.AutoExecutor(folder=args.output_dir, slurm_max_num_timeout=30)
+    executor = submitit.AutoExecutor(folder=args.outgiput_dir, slurm_max_num_timeout=30)
 
     num_gpus_per_node = args.ngpus
     nodes = args.nodes
