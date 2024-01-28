@@ -160,20 +160,6 @@ def train_loop(
                 # IMPORTANT: IGPT dataset is un-augmented dataset + un-augmented bootstrapped dataset
                 igpt_train_dataset = igpt_train_dataset + igpt_bootstrapped_dataset
 
-            if config.num_random_future_samples != 0:
-                print(f"Model future samples..")
-                future_dataset = model_future_samples(
-                    vq_vae_model=cl_strategy.model,
-                    num_images=(
-                        config.num_random_future_samples
-                        * (4 - cl_strategy.experience_step)
-                    ),
-                    mode=config.future_samples_mode,
-                    config=config,
-                )
-
-                train_experience.dataset = train_experience.dataset + future_dataset
-
         # Train VQ-VAE
         cl_strategy.train(train_experience, [test_experience])
 

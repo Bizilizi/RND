@@ -243,7 +243,7 @@ class FeatureQuantizerEMA(nn.Module):
         if experience_step == 0:
             return
 
-        self.extend_codebook()
+        # self.extend_codebook()
 
     def reset_codebook(self, inputs, encodings):
         # Find embeddings that wasn't used in this batch
@@ -358,10 +358,9 @@ class FeatureQuantizerEMA(nn.Module):
                 self._ema_w * self._decay + (1 - self._decay) * dw
             )
 
-            updated_embeddings = self._ema_w / self._ema_cluster_size.unsqueeze(1)
-            self.embedding.weight.data[-self._num_embeddings :] = updated_embeddings[
-                -self._num_embeddings :
-            ]
+            self._embedding.weight = nn.Parameter(
+                self._ema_w / self._ema_cluster_size.unsqueeze(1)
+            )
 
         # Loss
         e_latent_loss = F.mse_loss(quantized.detach(), inputs)
@@ -369,7 +368,6 @@ class FeatureQuantizerEMA(nn.Module):
 
         # Straight Through Estimator
         quantized = inputs + (quantized - inputs).detach()
-
         avg_probs = torch.mean(encodings, dim=0)  # num_embeddings
         perplexity = torch.exp(-torch.sum(avg_probs * torch.log(avg_probs + 1e-10)))
 
