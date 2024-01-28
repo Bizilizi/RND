@@ -243,7 +243,7 @@ class FeatureQuantizerEMA(nn.Module):
         if experience_step == 0:
             return
 
-        # self.extend_codebook()
+        self.extend_codebook()
 
     def reset_codebook(self, inputs, encodings):
         # Find embeddings that wasn't used in this batch
