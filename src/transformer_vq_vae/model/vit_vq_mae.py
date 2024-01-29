@@ -238,7 +238,7 @@ class VQMAE(CLModel):
 
         reconstruction_loss = full_reconstruction_loss.mean()
 
-        if num_past_images:
+        if past_data.any():
             past_l1_reconstruction_loss = (
                 torch.sum(full_reconstruction_loss * past_data) / num_past_images
             )
