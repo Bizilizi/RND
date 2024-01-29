@@ -155,6 +155,7 @@ def bootstrap_past_samples(
             temperature=config.temperature,
             max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
             num_neighbours=config.quantize_top_k,
+            num_images=num_images_per_batch,
         )
 
         bootstrapped_dataset.add_data(
