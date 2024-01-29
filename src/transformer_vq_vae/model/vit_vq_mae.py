@@ -583,11 +583,17 @@ class VQMAE(CLModel):
         }
 
     def configure_optimizers(self):
+        parameters = [
+            self.encoder.parameters(),
+            self.feature_quantization.parameters(),
+            self.decoder.parameters(),
+        ]
+
+        if self._supervised:
+            parameters.append(self.clf_head.parameters())
+
         optimizer = torch.optim.AdamW(
-            chain(
-                self.encoder.parameters(),
-                self.decoder.parameters(),
-            ),
+            chain(*parameters),
             lr=self._learning_rate * self._batch_size / 256,
             betas=(0.9, 0.95),
             weight_decay=self._weight_decay,
