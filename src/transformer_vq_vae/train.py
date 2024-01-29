@@ -8,7 +8,7 @@ import torch
 from torchvision import transforms
 
 import wandb
-from avalanche.benchmarks import SplitCIFAR10
+from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
@@ -247,7 +247,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitCIFAR10(
+    benchmark = SplitCIFAR100(
         n_experiences=config.num_tasks,
         return_task_id=True,
         shuffle=True,
@@ -257,13 +257,13 @@ def main(args):
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.5071, 0.4865, 0.4409), (1.0, 1.0, 1.0)),
             ]
         ),
         eval_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.5071, 0.4865, 0.4409), (1.0, 1.0, 1.0)),
             ]
         ),
     )
