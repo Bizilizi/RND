@@ -42,7 +42,6 @@ class ClassificationDataset(Dataset):
 
         for batch in tqdm(dataloader, leave=False):
             x, y, *_ = batch
-
             x = x.to(vq_vae.device)
 
             with torch.no_grad():

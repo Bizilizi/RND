@@ -5,11 +5,12 @@ from avalanche.benchmarks.utils import make_classification_dataset
 
 
 class WrappedDataset(Dataset):
-    def __init__(self, dataset, num_neighbours: int):
+    def __init__(self, dataset, num_neighbours: int, time_tag):
         super().__init__()
 
         self.dataset = dataset
         self.num_neighbours = num_neighbours
+        self.time_tag = time_tag
 
     def __getitem__(self, item):
         x, y, *_ = self.dataset[item]
@@ -20,14 +21,19 @@ class WrappedDataset(Dataset):
             ),
         }
 
-        return data, y
+        targets = {
+            "class": y,
+            "time_tag": self.time_tag,
+        }
+
+        return data, targets
 
     def __len__(self):
         return len(self.dataset)
 
 
 def wrap_dataset_with_empty_indices(
-    dataset: ClassificationDataset, num_neighbours: int
+    dataset: ClassificationDataset, num_neighbours: int, time_tag: int = 0
 ):
     """
     Creates classification dataset compatible with Avalanche framework,
@@ -35,5 +41,5 @@ def wrap_dataset_with_empty_indices(
     and wraps them into : ({"images": x, "indices": None} , y, *_)
     """
 
-    wrapped_dataset = WrappedDataset(dataset, num_neighbours)
+    wrapped_dataset = WrappedDataset(dataset, num_neighbours, time_tag)
     return make_classification_dataset(wrapped_dataset, targets=dataset.targets)

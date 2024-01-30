@@ -1,5 +1,5 @@
 import torch
-from einops import rearrange
+from einops import rearrange, repeat
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from tqdm.auto import tqdm
 
@@ -8,7 +8,15 @@ from src.transformer_vq_vae.model.encoder import take_indexes
 
 class ImageGPTDataset(Dataset):
     def __init__(
-        self, vq_vae_model, dataset, sos_token, mask_token, ratio, top_k, num_workers=4
+        self,
+        vq_vae_model,
+        dataset,
+        sos_token,
+        mask_token,
+        ratio,
+        top_k,
+        num_tokens_without_sos,
+        num_workers=4,
     ):
         super().__init__()
 
@@ -17,6 +25,7 @@ class ImageGPTDataset(Dataset):
         self.ratio = ratio
         self.num_workers = num_workers
         self.top_k = top_k
+        self.num_tokens_without_sos = num_tokens_without_sos
 
         self.input_ids_values = []
         self.masked_input_ids_values = []
@@ -44,9 +53,10 @@ class ImageGPTDataset(Dataset):
         )
         device = vq_vae_model.device
 
-        for batch in tqdm(dataloader, leave=False):
-            data, y, *_ = batch
+        for batch in tqdm(dataloader, leave=False, desc="Igpt project dataset"):
+            data, targets, *_ = batch
 
+            y = targets["class"]
             x = data["images"]
             x = x.to(device)
 
@@ -122,6 +132,22 @@ class ImageGPTDataset(Dataset):
                     dim=0,
                 )
                 masked_input_ids = take_indexes(masked_input_ids, backward_indexes)
+
+                if vq_vae_model.supervised:
+                    classes_ids = y + self.num_tokens_without_sos
+                    """
+                    Shift classes ids with (num_embeddings + class_token + mask_token)
+                    to get classes ids.
+                    """
+
+                    classes_ids = repeat(
+                        classes_ids,
+                        "b -> 1 b k",
+                        k=self.top_k,
+                    ).to(device)
+
+                    masked_input_ids = torch.cat([classes_ids, masked_input_ids], dim=0)
+                    input_ids = torch.cat([classes_ids, input_ids], dim=0)
 
                 # Transform to batch
                 masked_input_ids = rearrange(masked_input_ids, "t b k-> b (t k)")

@@ -2,6 +2,7 @@ import os
 
 import math
 import pathlib
+import random
 import typing as t
 import torch
 from einops import rearrange
@@ -18,57 +19,14 @@ from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
+from src.transformer_vq_vae.data.bootstrapped_dataset import BootstrappedDataset
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
-
-
-class BootstrappedDataset(Dataset):
-    def __init__(
-        self, dataset_path: str, experience_step: int, transform: t.Optional[t.Any]
-    ):
-        super().__init__()
-
-        self.dataset_path = dataset_path
-        self.experience_step = experience_step
-        self.transform = transform
-
-        self.images = None
-        self.indices = None
-        self.targets = []
-
-    def add_data(self, images, latent_indices):
-
-        labels = [-1] * images.shape[0]
-
-        if self.images is None:
-            self.images = images
-            self.indices = latent_indices
-            self.targets = labels
-        else:
-            self.images = torch.cat([self.images, images], dim=0)
-            self.indices = torch.cat([self.indices, latent_indices], dim=0)
-            self.targets.extend(labels)
-
-    def __getitem__(self, item):
-        image = self.images[item]
-        indices = self.indices[item]
-
-        data = {
-            "images": image,
-            "indices": indices,
-        }
-        targets = self.targets[item]
-
-        return data, targets
-
-    def __len__(self):
-        return len(self.images)
 
 
 def init_token_embeddings(
     vq_vae_model: VitVQVae,
     image_gpt: ImageGPTForCausalImageModeling,
-    config: TrainConfig,
     mask_token: int,
 ) -> None:
     """
@@ -76,14 +34,23 @@ def init_token_embeddings(
     We copy data for the first config.num_class_embeddings + config.num_embeddings from
     VQ-Vae model, and the rest of two, corresponds to mask_token and sos_token
     """
+    num_class_embeddings = (
+        vq_vae_model.feature_quantization.class_quantization._embedding.weight.shape[0]
+    )
+    num_features_embeddings = (
+        vq_vae_model.feature_quantization.feature_quantization._embedding.weight.shape[
+            0
+        ]
+    )
+
     image_gpt.transformer.wte.weight.data[
-        : config.num_class_embeddings
+        :num_class_embeddings
     ] = (
         vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
     )
 
     image_gpt.transformer.wte.weight.data[
-        config.num_class_embeddings : -2
+        num_class_embeddings : num_class_embeddings + num_features_embeddings
     ] = (
         vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
     )
@@ -94,7 +61,8 @@ def init_token_embeddings(
 
 def get_image_embedding(
     vq_vae_model: VitVQVae,
-    config: TrainConfig,
+    num_embeddings: int,
+    embedding_dim: int,
     mask_token: int,
 ) -> torch.nn.Embedding:
     """
@@ -103,21 +71,18 @@ def get_image_embedding(
 
     Be careful, id of mask_token have to match with index of image_embeddings.weight.data[-1]
     """
-
-    image_embeddings = torch.nn.Embedding(
-        config.num_class_embeddings + config.num_embeddings + 1, config.embedding_dim
-    ).to(vq_vae_model.device)
-
-    image_embeddings.weight.data[
-        : config.num_class_embeddings
-    ] = (
-        vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
+    image_embeddings = torch.nn.Embedding(num_embeddings, embedding_dim).to(
+        vq_vae_model.device
     )
-    image_embeddings.weight.data[
-        config.num_class_embeddings : -1
-    ] = (
-        vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
+
+    image_embeddings.weight.data[: num_embeddings - 1] = torch.cat(
+        [
+            vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone(),
+            vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone(),
+        ],
+        dim=0,
     )
+
     image_embeddings.weight.data[
         mask_token
     ] = vq_vae_model.decoder.mask_token.data.clone()
@@ -133,34 +98,51 @@ def bootstrap_past_samples(
     experience_step: int,
     dataset_path: str,
     config: TrainConfig,
-    sos_token: int,
-    mask_token: int,
+    classes_seen_so_far: t.List[int],
+    num_classes: int,
     transform: t.Optional[t.Any] = None,
 ) -> ClassificationDataset:
     num_images_per_batch = min(128, num_images)
 
+    # Derive igpt params based on supervision
+    num_all_embeddings = config.num_class_embeddings + config.num_embeddings
+    if vq_vae_model.supervised:
+        sos_token = num_all_embeddings + num_classes + 1
+        mask_token = num_all_embeddings
+    else:
+        sos_token = num_all_embeddings + 1
+        mask_token = num_all_embeddings
+
     bootstrapped_dataset = BootstrappedDataset(
         dataset_path=dataset_path, experience_step=experience_step, transform=transform
     )
-    image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
-        vq_vae_model.device
-    )
+    image_embeddings = get_image_embedding(
+        vq_vae_model=vq_vae_model,
+        num_embeddings=num_all_embeddings + 1,
+        embedding_dim=config.embedding_dim,
+        mask_token=mask_token,
+    ).to(vq_vae_model.device)
 
     for _ in trange(num_images // num_images_per_batch):
-        images, latent_indices = sample_images(
+        images, latent_indices, labels = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
+            mask_token=mask_token,
             temperature=config.temperature,
             max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
             num_neighbours=config.quantize_top_k,
             num_images=num_images_per_batch,
+            classes_seen_so_far=classes_seen_so_far,
+            num_tokens_without_sos=num_all_embeddings + 1,
         )
 
+        if labels is not None:
+            labels = labels.cpu()
+
         bootstrapped_dataset.add_data(
-            images=images.cpu(),
-            latent_indices=latent_indices.cpu(),
+            images=images.cpu(), latent_indices=latent_indices.cpu(), labels=labels
         )
 
     dataset = make_classification_dataset(
@@ -190,14 +172,28 @@ def train_igpt(
     config: TrainConfig,
     train_dataset: Dataset,
     device: torch.device,
-    sos_token: int,
-    mask_token: int,
+    classes_seen_so_far: t.List[int],
+    num_classes: int,
     n_layer: int = 12,
     image_gpt: ImageGPTForCausalImageModeling = None,
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = config.num_class_embeddings + config.num_embeddings + 2
+
+    # Derive igpt params based on supervision
+    num_all_embeddings = config.num_class_embeddings + config.num_embeddings
+    if vq_vae_model.supervised:
+        sos_token = num_all_embeddings + 1 + num_classes
+        mask_token = num_all_embeddings
+
+        vocab_size = num_all_embeddings + 1 + num_classes + 1
+        n_positions = (16 * 16 + 1) * config.quantize_top_k + 2
+    else:
+        sos_token = num_all_embeddings + 1
+        mask_token = num_all_embeddings
+
+        vocab_size = num_all_embeddings + 2
+        n_positions = (16 * 16 + 1) * config.quantize_top_k + 1
 
     configuration = ImageGPTConfig(
         **{
@@ -210,7 +206,7 @@ def train_igpt(
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
-            "n_positions": (16 * 16 + 1) * config.quantize_top_k + 1,
+            "n_positions": n_positions,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,
@@ -222,10 +218,13 @@ def train_igpt(
     )
     image_gpt = image_gpt or ImageGPTForCausalImageModeling(configuration)
 
-    init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
-    image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
-        vq_vae_model.device
-    )
+    init_token_embeddings(vq_vae_model, image_gpt, mask_token)
+    image_embeddings = get_image_embedding(
+        vq_vae_model=vq_vae_model,
+        num_embeddings=num_all_embeddings + 1,
+        embedding_dim=config.embedding_dim,
+        mask_token=mask_token,
+    ).to(vq_vae_model.device)
 
     vq_vae_model.to(device)
     image_gpt.to(device)
@@ -239,6 +238,7 @@ def train_igpt(
         ratio=config.igpt_mask_ratio,
         num_workers=config.num_workers,
         top_k=config.quantize_top_k,
+        num_tokens_without_sos=num_all_embeddings + 1,
     )
     data_loader = DataLoader(
         train_dataset,
@@ -247,13 +247,12 @@ def train_igpt(
     )
 
     if strategy.experience_step < 2:
-        epoch_num = 20
+        epoch_num = 10
     elif strategy.experience_step < 3:
-        epoch_num = 20
+        epoch_num = 10
     else:
-        epoch_num = 20
+        epoch_num = 10
 
-    grad_scaler = torch.cuda.amp.GradScaler()
     optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
     exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
         optimizer,
@@ -265,25 +264,22 @@ def train_igpt(
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
 
     step = 0
-    for i in trange(0, epoch_num):
+    for i in trange(0, epoch_num, desc="Igpt-epochs"):
         counter = i
         logger.log_metrics({"igpt_epoch": counter}, step=step)
 
-        for batch in tqdm(data_loader):
+        for batch in tqdm(data_loader, desc="Igpt-batch"):
             step += 1
 
             input_ids = batch["masked_input_ids"].to(device)
-            with torch.autocast(device_type=config.accelerator):
-                output = image_gpt(input_ids=input_ids)
-                loss = loss_fn(
-                    output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
-                    input_ids[..., 1:].reshape(-1),
-                )
-                grad_scaler.scale(loss).backward()
+
+            output = image_gpt(input_ids=input_ids)
+            loss = loss_fn(
+                output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
+                input_ids[..., 1:].reshape(-1),
+            )
 
             if step % config.igpt_accumulate_grad_batches == 0:
-                grad_scaler.step(optimizer)
-                grad_scaler.update()
                 optimizer.zero_grad(set_to_none=True)
                 exp_lr_scheduler.step()
 
@@ -303,14 +299,19 @@ def train_igpt(
 
                 torch.save(state_dict, model_ckpt_path)
 
-        images, _ = sample_images(
+            # break
+
+        images, *_ = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
+            mask_token=mask_token,
             temperature=config.temperature,
             max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
             num_neighbours=config.quantize_top_k,
+            classes_seen_so_far=classes_seen_so_far,
+            num_tokens_without_sos=num_all_embeddings + 1,
         )
 
         sample = make_grid(images.cpu().data)
@@ -336,8 +337,11 @@ def sample_images(
     vq_vae_model,
     embedding,
     sos_token,
+    mask_token,
     max_length,
     num_neighbours,
+    classes_seen_so_far,
+    num_tokens_without_sos,
     temperature=1.23,
     num_images=8 * 4 * 10,
 ):
@@ -346,20 +350,52 @@ def sample_images(
 
     device = vq_vae_model.device
     decoder = vq_vae_model.decoder
+    labels = None
 
-    context = torch.full(
-        (num_images, 1), sos_token, device=device
-    )  # initialize with SOS token
-    igpt_output = image_gpt.generate(
-        input_ids=context,
-        max_length=max_length,
-        temperature=temperature,
-        do_sample=True,
-        top_k=45,
-        top_p=0.9,
-    )
-    igpt_output = igpt_output[:, 1:]
-    igpt_output[igpt_output == sos_token] = 0
+    if vq_vae_model.supervised:
+        labels = torch.tensor(
+            random.choices(classes_seen_so_far, k=num_images), device=device
+        )
+
+        labels_tokens = num_tokens_without_sos + labels
+        sos_tokens = torch.full((num_images,), sos_token, device=device)
+
+        context = torch.cat(
+            [
+                rearrange(sos_tokens, "n -> n 1"),
+                rearrange(labels_tokens, "n -> n 1"),
+            ],
+            dim=1,
+        )
+
+        igpt_output = image_gpt.generate(
+            input_ids=context,
+            max_length=max_length + 1,
+            temperature=temperature,
+            do_sample=True,
+            top_k=45,
+            top_p=0.9,
+        )
+
+        igpt_output = igpt_output[:, 2:]
+    else:
+
+        context = torch.full(
+            (num_images, 1), sos_token, device=device
+        )  # initialize with SOS token
+
+        igpt_output = image_gpt.generate(
+            input_ids=context,
+            max_length=max_length,
+            temperature=temperature,
+            do_sample=True,
+            top_k=45,
+            top_p=0.9,
+        )
+
+        igpt_output = igpt_output[:, 1:]
+
+    igpt_output[igpt_output > mask_token] = 0
 
     quantized = rearrange(
         embedding(igpt_output), "b (t k) c -> t k b c", k=num_neighbours
@@ -375,4 +411,4 @@ def sample_images(
     patches = decoder.head(features)
     x_recon = decoder.patch2img(patches)
 
-    return x_recon, igpt_output
+    return x_recon, igpt_output, labels

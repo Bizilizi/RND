@@ -75,7 +75,7 @@ class NaivePytorchLightning(Naive):
 
     def _train_exp(
         self,
-        experiences: t.Union[CLExperience, ExpSequence],
+        experiences: t.Union[CLExperience],
         eval_streams: t.Optional[t.Sequence[t.Union[CLExperience, ExpSequence]]] = None,
         **kwargs,
     ) -> None:

@@ -96,21 +96,27 @@ def train_loop(
 
             if config.num_random_past_samples != 0:
                 print(f"Bootstrap vae model..")
+                previous_classes = list(
+                    set(train_experience.classes_seen_so_far).difference(
+                        train_experience.classes_in_this_experience
+                    )
+                )
+
                 bootstrapped_dataset = bootstrap_past_samples(
                     image_gpt=image_gpt,
                     vq_vae_model=cl_strategy.model,
                     num_images=get_num_random_past_samples(config, cl_strategy),
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
-                    sos_token=sos_token,
                     experience_step=cl_strategy.experience_step,
-                    mask_token=mask_token,
-                    transform=transforms.Compose(
-                        [
-                            transforms.RandomCrop(32, padding=4),
-                            transforms.RandomHorizontalFlip(),
-                        ]
-                    ),
+                    # transform=transforms.Compose(
+                    #     [
+                    #         transforms.RandomCrop(32, padding=4),
+                    #         transforms.RandomHorizontalFlip(),
+                    #     ]
+                    # ),
+                    classes_seen_so_far=previous_classes,
+                    num_classes=benchmark.n_classes,
                 )
 
                 train_experience.dataset = (
@@ -137,7 +143,7 @@ def train_loop(
         # if cl_strategy.experience_step != 0:
         #     cl_strategy.device = torch.device("cpu")
 
-        cl_strategy.train(train_experience, [test_experience])
+        # cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
         # We train two classifiers. One to predict all classes,
@@ -146,14 +152,12 @@ def train_loop(
 
         # Train classifier
         print(f"Train classifier..")
-        train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-
-        # cl_strategy.model.set_clf_head(all_clf_head)
+        # train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        # train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
 
         # Train new image gpt model
         print(f"Train igpt..")
@@ -162,17 +166,16 @@ def train_loop(
             config=config,
             train_dataset=igpt_train_dataset,
             device=device,
-            sos_token=sos_token,
-            mask_token=mask_token,
             n_layer=config.num_gpt_layers,
             image_gpt=image_gpt if config.reuse_igpt else None,
+            classes_seen_so_far=train_experience.classes_seen_so_far,
+            num_classes=benchmark.n_classes,
         )
 
         # Evaluate VQ-VAE and linear classifier
         # cl_strategy.eval(benchmark.test_stream)
 
         # Reset linear classifier and unfreeze params
-        # cl_strategy.model.reset_clf_head()
 
         cl_strategy.model.unfreeze()
         cl_strategy.experience_step += 1
@@ -204,6 +207,9 @@ def main(args):
         or args.run_id
     )
     if is_using_wandb:
+        if args.dev:
+            os.environ["WANDB_MODE"] = "offline"
+
         wandb_params = get_wandb_params(args, config)
 
         wandb.run.name = args.experiment_name or (

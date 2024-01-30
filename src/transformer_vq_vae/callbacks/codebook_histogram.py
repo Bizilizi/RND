@@ -44,8 +44,9 @@ class LogCodebookHistogram(Callback):
                 patch_indices = []
 
                 with torch.no_grad():
-                    for x, y, *_ in dataloader:
+                    for x, targets, *_ in dataloader:
                         x = x["images"].to(model.device)
+                        y = targets["class"]
 
                         _, full_features, _ = model.encoder(x)
                         *_, input_ids = model.feature_quantization(full_features)
