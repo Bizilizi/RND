@@ -50,12 +50,14 @@ def get_evaluation_plugin(
     return eval_plugin
 
 
-def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
+def get_model(config: TrainConfig, device: torch.device, benchmark) -> VitVQVae:
     vae = VitVQVae(
         num_class_embeddings=config.num_class_embeddings,
         num_embeddings=config.num_embeddings,
         embedding_dim=config.embedding_dim,
         commitment_cost=config.commitment_cost,
+        num_classes=benchmark.n_classes,
+        supervised=config.supervised,
         decay=config.decay,
         learning_rate=(
             config.learning_rate

@@ -34,6 +34,7 @@ class BaseTrainConfig(BaseModel):
     # Training
     accelerator: str
     devices: t.Union[None, str, EmptyStrToNone]
+    strategy: str = "auto"
     batch_size: int
     max_epochs: int
     min_epochs: int

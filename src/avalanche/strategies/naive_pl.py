@@ -42,6 +42,7 @@ class NaivePytorchLightning(Naive):
         initial_resume_from: t.Optional[str] = None,
         accelerator: str = "cpu",
         devices: str = "0,",
+        strategy: str = "auto",
         validate_every_n: int = 1,
         accumulate_grad_batches: t.Optional[int] = None,
         callbacks: t.Optional[t.Callable[[int], t.List[Callback]]] = None,
@@ -57,6 +58,7 @@ class NaivePytorchLightning(Naive):
         self.validate_every_n = validate_every_n
         self.accelerator = accelerator
         self.devices = devices
+        self.strategy = strategy
         self.min_epochs = min_epochs
         self.max_epochs = max_epochs
         self.best_model_path_prefix = best_model_path_prefix
@@ -104,6 +106,7 @@ class NaivePytorchLightning(Naive):
             check_val_every_n_epoch=self.validate_every_n,
             accelerator=self.accelerator,
             devices=self.devices,
+            strategy=self.strategy,
             logger=self.train_logger,
             max_epochs=self.max_epochs,
             min_epochs=self.min_epochs,

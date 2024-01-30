@@ -15,6 +15,7 @@ class TrainConfig(BaseTrainConfig):
     quantize_top_k: int
     separate_codebooks: bool
     bootstrapped_dataset_path: str
+    supervised: str
 
     use_lpips: bool
     mask_ratio: float

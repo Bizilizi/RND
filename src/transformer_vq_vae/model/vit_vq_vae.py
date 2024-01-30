@@ -78,6 +78,7 @@ class VitVQVae(CLModel):
         mask_token_id: int,
         num_epochs: int,
         batch_size: int,
+        num_classes: int,
         decay=0,
         learning_rate: float = 1e-3,
         weight_decay=0.05,
@@ -100,6 +101,7 @@ class VitVQVae(CLModel):
         quantize_features: bool = True,
         quantize_top_k: int = 3,
         separate_codebooks: bool = True,
+        supervised: bool = False,
     ) -> None:
         super().__init__()
 
@@ -111,6 +113,7 @@ class VitVQVae(CLModel):
         self._latent_sos_token = num_embeddings + 1
         self._mask_ratio = mask_ratio
         self._mask_token_id = mask_token_id
+        self._supervised = supervised
 
         if precision == "16-mixed" and accelerator == "cpu":
             self._precision_dtype = torch.bfloat16
@@ -154,7 +157,11 @@ class VitVQVae(CLModel):
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
         )
 
-        self.clf_head = None
+        if self._supervised:
+            self.clf_head = nn.Linear(embedding_dim, num_classes)
+        else:
+            self.clf_head = None
+
         self.experience_step = 0
         self.use_lpips = use_lpips
         self._data_variance = 0.06328692405746414
@@ -348,7 +355,7 @@ class VitVQVae(CLModel):
         # If the model has classification head we calculate image embedding
         # based on output of the encoder without masking random patches
         if self.clf_head is not None:
-            image_emb = full_features[0]
+            image_emb = full_features.mean(dim=0)
             clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
@@ -392,6 +399,18 @@ class VitVQVae(CLModel):
             + criterion_output.reconstruction_loss
             + criterion_output.cycle_consistency_loss
         )
+
+        if self._supervised:
+            loss += criterion_output.clf_loss
+
+            self.log_with_postfix(
+                f"train/classification_loss",
+                criterion_output.clf_loss.cpu().item(),
+            )
+            self.log_with_postfix(
+                f"train/classification_accuracy",
+                criterion_output.clf_acc.cpu().item(),
+            )
 
         # LOGGING
         self.log_with_postfix(
@@ -455,6 +474,18 @@ class VitVQVae(CLModel):
             + criterion_output.cycle_consistency_loss
         )
 
+        if self._supervised:
+            loss += criterion_output.clf_loss
+
+            self.log_with_postfix(
+                f"val/classification_loss",
+                criterion_output.clf_loss.cpu().item(),
+            )
+            self.log_with_postfix(
+                f"val/classification_accuracy",
+                criterion_output.clf_acc.cpu().item(),
+            )
+
         # LOGGING
         self.log_with_postfix(
             f"val/loss",
@@ -495,12 +526,17 @@ class VitVQVae(CLModel):
         sch.step()
 
     def configure_optimizers(self):
+        parameters = [
+            self.encoder.parameters(),
+            # self.feature_quantization.parameters(),
+            self.decoder.parameters(),
+        ]
+
+        if self._supervised:
+            parameters.append(self.clf_head.parameters())
+
         optimizer = torch.optim.AdamW(
-            chain(
-                self.encoder.parameters(),
-                # self.feature_quantization.parameters(),
-                self.decoder.parameters(),
-            ),
+            chain(*parameters),
             lr=self._learning_rate * self._batch_size / 256,
             betas=(0.9, 0.95),
             weight_decay=self._weight_decay,
