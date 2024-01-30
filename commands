@@ -41,4 +41,5 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --quantize_top_k 1 \
     --num_embeddings 256 \
     --num_class_embeddings 4 \
+    --supervised True\
     --precision 16-mixed
