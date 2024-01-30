@@ -143,7 +143,7 @@ def train_loop(
         # if cl_strategy.experience_step != 0:
         #     cl_strategy.device = torch.device("cpu")
 
-        # cl_strategy.train(train_experience, [test_experience])
+        cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
         # We train two classifiers. One to predict all classes,
@@ -152,12 +152,12 @@ def train_loop(
 
         # Train classifier
         print(f"Train classifier..")
-        # train_classifier_on_all_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # ).to(device)
-        # train_classifier_on_observed_only_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # ).to(device)
+        train_classifier_on_all_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+        train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
 
         # Train new image gpt model
         print(f"Train igpt..")
@@ -253,7 +253,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitCIFAR100(
+    benchmark = SplitCIFAR10(
         n_experiences=config.num_tasks,
         return_task_id=True,
         shuffle=True,
@@ -263,13 +263,13 @@ def main(args):
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize((0.5071, 0.4865, 0.4409), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
         ),
         eval_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize((0.5071, 0.4865, 0.4409), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
             ]
         ),
     )
