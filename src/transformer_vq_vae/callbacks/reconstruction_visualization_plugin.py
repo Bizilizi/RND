@@ -1,4 +1,5 @@
 import torch
+from pytorch_lightning.utilities.types import DistributedDataParallel
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Subset
 
@@ -18,7 +19,10 @@ class ReconstructionVisualizationPlugin(SupervisedPlugin):
     def before_eval(self, strategy: "NaivePytorchLightning", **kwargs):
         """Update the buffer."""
 
-        model: VitVQVae = strategy.model
+        model = strategy.model
+        if isinstance(model, DistributedDataParallel):
+            model = model.module
+
         eval_stream = strategy.current_eval_stream
 
         reconstruction_images = []

@@ -16,8 +16,7 @@ sbatch submit.sh python train.py \
 
 
 TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
-    --dev True \
-    --devices 0, \
+    --devices 0,1 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
