@@ -46,8 +46,8 @@ def get_num_random_past_samples(
         return config.num_random_past_samples * cl_strategy.experience_step
 
     if config.num_random_past_samples_schedule == "schedule":
-        schedule = [0, 3000, 5000, 7000, 10000]
-        return schedule[int(cl_strategy.experience_step)]
+        schedule = torch.linspace(0, config.num_random_past_samples, config.num_tasks)
+        return int(schedule[int(cl_strategy.experience_step)])
 
 
 def train_loop(
