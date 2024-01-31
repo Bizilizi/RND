@@ -35,8 +35,8 @@ class NaivePytorchLightning(Naive):
         self,
         train_logger: t.Optional["Logger"],
         train_plugins: t.List[t.Any],
-        max_epochs: int,
-        min_epochs: int,
+        max_epochs: t.Union[int, t.List[int]],
+        min_epochs: t.Union[int, t.List[int]],
         best_model_path_prefix: str = "",
         train_mb_num_workers: int = 2,
         initial_resume_from: t.Optional[str] = None,
@@ -102,14 +102,24 @@ class NaivePytorchLightning(Naive):
             callbacks = callbacks + [self.restore_best_model_callback]
 
         # Training
+        if isinstance(self.max_epochs, list):
+            max_epochs = self.max_epochs[self.experience_step]
+        else:
+            max_epochs = self.max_epochs
+
+        if isinstance(self.max_epochs, list):
+            min_epochs = self.min_epochs[self.experience_step]
+        else:
+            min_epochs = self.min_epochs
+
         self.trainer = Trainer(
             check_val_every_n_epoch=self.validate_every_n,
             accelerator=self.accelerator,
             devices=self.devices,
             strategy=self.strategy,
             logger=self.train_logger,
-            max_epochs=self.max_epochs,
-            min_epochs=self.min_epochs,
+            max_epochs=max_epochs,
+            min_epochs=min_epochs,
             callbacks=(self.callbacks_factory(self.experience_step) + callbacks),
             plugins=self.train_plugins,
             precision=self.precision,

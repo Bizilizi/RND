@@ -36,6 +36,17 @@ from train_utils import get_device, get_loggers, get_wandb_params
 from pathlib import Path
 
 
+def get_epochs_schedule(config: TrainConfig):
+    if config.num_epochs_schedule == "fixed":
+        return config.max_epochs
+
+    if config.num_epochs_schedule == "schedule":
+        schedule = torch.linspace(
+            config.max_epochs, config.min_epochs, config.num_tasks
+        )
+        return schedule.tolist()
+
+
 def get_num_random_past_samples(
     config: TrainConfig, cl_strategy: NaivePytorchLightning
 ):
@@ -253,7 +264,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitCIFAR10(
+    benchmark = SplitCIFAR100(
         n_experiences=config.num_tasks,
         return_task_id=True,
         shuffle=True,
@@ -263,13 +274,13 @@ def main(args):
                 transforms.RandomCrop(32, padding=4),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.5071, 0.4865, 0.4409), (1.0, 1.0, 1.0)),
             ]
         ),
         eval_transform=transforms.Compose(
             [
                 transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
+                transforms.Normalize((0.5071, 0.4865, 0.4409), (1.0, 1.0, 1.0)),
             ]
         ),
     )
@@ -283,6 +294,7 @@ def main(args):
         benchmark, eval_plugin_loggers, is_using_wandb
     )
 
+    epochs_schedule = get_epochs_schedule(config)
     cl_strategy = NaivePytorchLightning(
         precision=config.precision,
         accelerator=config.accelerator,
@@ -302,8 +314,8 @@ def main(args):
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
         callbacks=get_callbacks(config),
-        max_epochs=config.max_epochs,
-        min_epochs=config.min_epochs,
+        max_epochs=epochs_schedule,
+        min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,
         plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
         train_plugins=get_train_plugins(config),
