@@ -278,6 +278,7 @@ def train_igpt(
                 output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
                 input_ids[..., 1:].reshape(-1),
             )
+            loss.backward()
 
             if step % config.igpt_accumulate_grad_batches == 0:
                 optimizer.zero_grad(set_to_none=True)
