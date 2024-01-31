@@ -269,7 +269,7 @@ def train_igpt(
         counter = i
         logger.log_metrics({"igpt_epoch": counter}, step=step)
 
-        for batch in tqdm(data_loader, desc="Igpt-batch"):
+        for batch in tqdm(data_loader, desc="Igpt-batch", leave=False):
             step += 1
 
             input_ids = batch["masked_input_ids"].to(device)

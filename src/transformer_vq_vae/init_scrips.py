@@ -2,11 +2,14 @@ import datetime
 import typing as t
 
 import torch
+from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 from pytorch_lightning import Callback
 from pytorch_lightning.callbacks import EarlyStopping
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
+from torchvision import transforms
+
 from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.transformer_vq_vae.callbacks.codebook_histogram import LogCodebookHistogram
 from src.transformer_vq_vae.callbacks.log_dataset import LogDataset
@@ -23,6 +26,53 @@ from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 from src.transformer_vq_vae.plugins.mixed_precision_plugin import (
     CustomMixedPrecisionPlugin,
 )
+
+
+def get_benchmark(config: TrainConfig, target_dataset_dir):
+    if config.dataset == "cifar10":
+        config.image_size = 32
+        return SplitCIFAR10(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+            train_transform=transforms.Compose(
+                [
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                ]
+            ),
+            eval_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                ]
+            ),
+        )
+    elif config.dataset == "cifar100":
+        config.image_size = 32
+        return SplitCIFAR100(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
+            train_transform=transforms.Compose(
+                [
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                ]
+            ),
+            eval_transform=transforms.Compose(
+                [
+                    transforms.ToTensor(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                ]
+            ),
+        )
 
 
 def get_evaluation_plugin(

@@ -19,6 +19,7 @@ from src.transformer_vq_vae.init_scrips import (
     get_evaluation_plugin,
     get_model,
     get_train_plugins,
+    get_benchmark,
 )
 from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
@@ -272,26 +273,7 @@ def main(args):
         shutil.copytree(str(dataset_path), str(target_dataset_path))
 
     # Create benchmark
-    benchmark = SplitCIFAR100(
-        n_experiences=config.num_tasks,
-        return_task_id=True,
-        shuffle=True,
-        dataset_root=target_dataset_dir,
-        train_transform=transforms.Compose(
-            [
-                transforms.RandomCrop(32, padding=4),
-                transforms.RandomHorizontalFlip(),
-                transforms.ToTensor(),
-                transforms.Normalize((0.5071, 0.4865, 0.4409), (1.0, 1.0, 1.0)),
-            ]
-        ),
-        eval_transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.5071, 0.4865, 0.4409), (1.0, 1.0, 1.0)),
-            ]
-        ),
-    )
+    benchmark = get_benchmark(config, target_dataset_dir)
 
     device = get_device(config)
     model = get_model(config, device, benchmark)

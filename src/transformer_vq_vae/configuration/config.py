@@ -47,6 +47,8 @@ class TrainConfig(BaseTrainConfig):
     # training
     max_epochs_lin_eval: int
     min_epochs_lin_eval: int
+    dataset: str
+    image_size: int
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
