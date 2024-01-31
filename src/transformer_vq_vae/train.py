@@ -46,6 +46,12 @@ def get_epochs_schedule(config: TrainConfig):
         )
         return schedule.tolist()
 
+    if config.num_epochs_schedule == "warmup":
+        schedule = [config.min_epochs] * config.num_tasks
+        schedule[0] = config.max_epochs
+
+        return schedule
+
 
 def get_num_random_past_samples(
     config: TrainConfig, cl_strategy: NaivePytorchLightning
