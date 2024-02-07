@@ -17,10 +17,10 @@ sbatch submit.sh python train.py \
 
 TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --group mae-augmentations \
-    --dataset cifar100 \
-    --num_tasks 20 \
-    --max_epochs 1200 \
-    --min_epochs 300 \
+    --dataset cifar10 \
+    --num_tasks 5 \
+    --max_epochs 600 \
+    --min_epochs 200 \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0, \
@@ -39,7 +39,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
     --cycle_consistency_sigma 200 \
-    --past_samples_loss_weight 1 \
+    --past_samples_loss_weight 0 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \
