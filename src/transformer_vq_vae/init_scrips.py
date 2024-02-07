@@ -146,7 +146,7 @@ def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
         #         patience=50,
         #     ),
         LogModelWightsCallback(
-            log_every=100,
+            log_every=config.save_model_every,
             checkpoint_path=config.checkpoint_path,
             experience_step=experience_step,
             log_to_wandb=False,

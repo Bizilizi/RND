@@ -49,6 +49,7 @@ class TrainConfig(BaseTrainConfig):
     min_epochs_lin_eval: int
     dataset: str
     image_size: int
+    save_model_every: int
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
