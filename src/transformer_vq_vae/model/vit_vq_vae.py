@@ -12,6 +12,7 @@ from pytorch_metric_learning.losses import ContrastiveLoss
 from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
+from torchvision.transforms import v2
 
 from src.avalanche.model.cl_model import CLModel
 from src.transformer_vq_vae.model.decoder import MAEDecoder
@@ -168,6 +169,10 @@ class VitVQVae(CLModel):
 
         if self.use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
+
+        cutmix = v2.CutMix(num_classes=num_classes)
+        mixup = v2.MixUp(num_classes=num_classes)
+        self.cutmix_or_mixup = v2.RandomChoice([cutmix, mixup])
 
     def set_clf_head(self, model: "EmbClassifier"):
         self.__dict__["clf_head"] = model
@@ -388,6 +393,7 @@ class VitVQVae(CLModel):
 
         x = data["images"]
         y = targets["class"]
+        x, y = self.cutmix_or_mixup(x, y)
 
         past_data = targets["time_tag"] == -1
 
@@ -399,6 +405,7 @@ class VitVQVae(CLModel):
         if past_data.any():
             forward_output.z_indices[past_data] = data["indices"][past_data]
 
+        targets["class"] = y
         criterion_output = self.criterion(forward_output, targets)
 
         loss = (

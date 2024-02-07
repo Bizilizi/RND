@@ -17,14 +17,14 @@ sbatch submit.sh python train.py \
 
 TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --group mae-augmentations \
-    --datset cifar100 \
+    --dataset cifar100 \
     --num_tasks 20 \
     --max_epochs 1200 \
     --min_epochs 300 \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0, \
-    --save_model_every 25 \
+    --save_model_every 100 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
