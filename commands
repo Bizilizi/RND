@@ -22,7 +22,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar100 mixup" \
+    --comment "cifar100 randaug" \
     --group mae-augmentations \
     --dataset cifar100 \
     --num_tasks 20 \
