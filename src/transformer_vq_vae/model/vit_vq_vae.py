@@ -12,7 +12,6 @@ from pytorch_metric_learning.losses import ContrastiveLoss
 from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
-from torchvision.transforms import v2
 from src.avalanche.model.cl_model import CLModel
 from src.transformer_vq_vae.model.decoder import MAEDecoder
 from src.transformer_vq_vae.model.encoder import MAEEncoder
@@ -169,10 +168,6 @@ class VitVQVae(CLModel):
         if self.use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
 
-        cutmix = v2.CutMix(num_classes=num_classes)
-        mixup = v2.MixUp(num_classes=num_classes)
-        self.cutmix_or_mixup = v2.RandomChoice([cutmix, mixup])
-
     def set_clf_head(self, model: "EmbClassifier"):
         self.__dict__["clf_head"] = model
 
@@ -248,8 +243,6 @@ class VitVQVae(CLModel):
             )
 
         y = targets["class"]
-        y_cutmix_or_mixup = targets.get("y_cutmix_or_mixup", y)
-
         past_data = targets["time_tag"] == -1
         current_data = targets["time_tag"] == 0
 
@@ -292,7 +285,7 @@ class VitVQVae(CLModel):
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:
-            clf_loss = F.cross_entropy(forward_output.clf_logits, y_cutmix_or_mixup)
+            clf_loss = F.cross_entropy(forward_output.clf_logits, y)
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
 
         perplexity = forward_output.feature_perplexity + forward_output.class_perplexity
@@ -394,7 +387,6 @@ class VitVQVae(CLModel):
 
         x = data["images"]
         y = targets["class"]
-        x, y_cutmix_or_mixup = self.cutmix_or_mixup(x, y)
 
         past_data = targets["time_tag"] == -1
 
@@ -406,7 +398,6 @@ class VitVQVae(CLModel):
         if past_data.any():
             forward_output.z_indices[past_data] = data["indices"][past_data]
 
-        targets["y_cutmix_or_mixup"] = y_cutmix_or_mixup
         criterion_output = self.criterion(forward_output, targets)
 
         loss = (

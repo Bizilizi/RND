@@ -19,17 +19,17 @@ python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
     --gpu_type a6000 \
-    --partition low-prio-gpu \
+    --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar100 20t ssup 10k" \
-    --group mae-num-pas-images \
+    --comment "cifar100 mixup" \
+    --group mae-augmentations \
     --dataset cifar100 \
     --num_tasks 20 \
     --max_epochs 1200 \
     --min_epochs 300 \
     --num_epochs_schedule warmup \
-    --supervised False \
+    --supervised True \
     --devices 0, \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
@@ -39,14 +39,14 @@ python submitit_train.py \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
     --max_epochs_lin_eval 100 \
-    --num_random_past_samples 10000 \
+    --num_random_past_samples 20000 \
     --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
     --cycle_consistency_sigma 200 \
-    --past_samples_loss_weight 0 \
+    --past_samples_loss_weight 1 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \
