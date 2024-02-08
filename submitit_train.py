@@ -146,7 +146,7 @@ def main():
     executor.update_parameters(
         mem_gb=args.slurm_mem,
         gpus_per_node=num_gpus_per_node,
-        tasks_per_node=num_gpus_per_node,  # one task per GPU
+        tasks_per_node=1,  # one task per GPU
         cpus_per_task=args.cpus_per_task,
         nodes=nodes,
         timeout_min=timeout_min,  # max is 60 * 72
