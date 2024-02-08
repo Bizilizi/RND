@@ -22,12 +22,12 @@ python submitit_train.py \
     --partition low-prio-gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 5t ssup cycle vs rec loss" \
-    --group mae-num \
-    --dataset cifar10 \
-    --num_tasks 5 \
-    --max_epochs 600 \
-    --min_epochs 200 \
+    --comment "cifar100 20t ssup 10k" \
+    --group mae-num-pas-images \
+    --dataset cifar100 \
+    --num_tasks 20 \
+    --max_epochs 1200 \
+    --min_epochs 300 \
     --num_epochs_schedule warmup \
     --supervised False \
     --devices 0, \
@@ -39,7 +39,7 @@ python submitit_train.py \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
     --max_epochs_lin_eval 100 \
-    --num_random_past_samples 20000 \
+    --num_random_past_samples 10000 \
     --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
     --future_samples_mode noise \

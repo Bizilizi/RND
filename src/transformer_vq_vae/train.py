@@ -74,14 +74,18 @@ def train_loop(
     is_using_wandb: bool,
     config: TrainConfig,
     device: torch.device,
-    resume_arguments: t.Optional[t.Dict[str, str]],
+    resume_arguments: t.Optional[t.Dict[str, t.Any]],
 ) -> None:
     """
     :return:
     """
 
     image_gpt = None
-    start_experience = resume_arguments["experience_step"] if resume_arguments else 0
+    if resume_arguments:
+        start_experience = resume_arguments["current_experience_step"]
+        print(f"Resume experience step from: {start_experience}")
+    else:
+        start_experience = 0
 
     for train_experience, test_experience in zip(
         benchmark.train_stream[start_experience:],
@@ -95,23 +99,20 @@ def train_loop(
         )
         igpt_train_dataset = train_experience.dataset + test_experience.dataset
 
-        # Model future at the very first step
-        if cl_strategy.experience_step == 0 and config.num_random_future_samples != 0:
-            print(f"Model future samples..")
-            future_dataset = model_future_samples(
-                vq_vae_model=cl_strategy.model,
-                num_images=(
-                    config.num_random_future_samples * (4 - cl_strategy.experience_step)
-                ),
-                mode=config.future_samples_mode,
-                config=config,
-            )
-
-            train_experience.dataset = train_experience.dataset + future_dataset
         # Bootstrap old data and modeled future samples
         if cl_strategy.experience_step != 0 and image_gpt is not None:
             image_gpt.to(device)
             cl_strategy.model.to(device)
+
+            # Restore model params from previous CL step
+            # Only in case this run was restored according to resume_arguments
+            if resume_arguments and resume_arguments["current_experience_step"] > 0:
+                experience_step = cl_strategy.experience_step - 1
+                chkp_path = resume_arguments[
+                    f"experience_step_{experience_step}/model_checkpoint_path"
+                ]
+                state_dict = torch.load(chkp_path)["state_dict"]
+                cl_strategy.model.load_state_dict(state_dict)
 
             if config.num_random_past_samples != 0:
                 print(f"Bootstrap vae model..")
@@ -128,12 +129,6 @@ def train_loop(
                     dataset_path=config.bootstrapped_dataset_path,
                     config=config,
                     experience_step=cl_strategy.experience_step,
-                    # transform=transforms.Compose(
-                    #     [
-                    #         transforms.RandomCrop(32, padding=4),
-                    #         transforms.RandomHorizontalFlip(),
-                    #     ]
-                    # ),
                     classes_seen_so_far=previous_classes,
                     num_classes=benchmark.n_classes,
                 )
@@ -144,25 +139,12 @@ def train_loop(
 
                 igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
 
-            if config.num_random_future_samples != 0:
-                print(f"Model future samples..")
-                future_dataset = model_future_samples(
-                    vq_vae_model=cl_strategy.model,
-                    num_images=(
-                        config.num_random_future_samples
-                        * (4 - cl_strategy.experience_step)
-                    ),
-                    mode=config.future_samples_mode,
-                    config=config,
-                )
-
-                train_experience.dataset = train_experience.dataset + future_dataset
-
         # Train VQ-VAE
-        # if cl_strategy.experience_step != 0:
-        #     cl_strategy.device = torch.device("cpu")
-
-        cl_strategy.train(train_experience, [test_experience])
+        checkpoint_fully_trained = resume_arguments and (
+            resume_arguments["current_epochs"] < resume_arguments["current_max_epochs"]
+        )
+        if not checkpoint_fully_trained:
+            cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
         # We train two classifiers. One to predict all classes,
@@ -191,13 +173,12 @@ def train_loop(
             num_classes=benchmark.n_classes,
         )
 
-        # Evaluate VQ-VAE and linear classifier
-        # cl_strategy.eval(benchmark.test_stream)
-
-        # Reset linear classifier and unfreeze params
-
+        # Unfreeze model and move to the next experience
         cl_strategy.model.unfreeze()
         cl_strategy.experience_step += 1
+
+        # If we resume, we resume only once
+        resume_arguments = False
 
     if is_using_wandb:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
@@ -242,6 +223,10 @@ def main(args):
         wandb_params["id"] = wandb.run.id
 
         wandb.run.summary["slurm_job_id"] = os.environ.get("SLURM_JOB_ID", -1)
+        if resume_arguments:
+            wandb.run.summary["restored_from"] = resume_arguments[
+                "current_model_checkpoint_path"
+            ]
     else:
         wandb_params = None
 

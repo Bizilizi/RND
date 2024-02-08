@@ -247,11 +247,11 @@ def train_igpt(
     )
 
     if strategy.experience_step < 2:
-        epoch_num = 10
+        epoch_num = 2
     elif strategy.experience_step < 3:
-        epoch_num = 10
+        epoch_num = 2
     else:
-        epoch_num = 10
+        epoch_num = 2
 
     grad_scaler = torch.cuda.amp.GradScaler()
     optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)

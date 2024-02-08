@@ -10,7 +10,7 @@ from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
 from torchvision import transforms
 
-from src.rnd.callbacks.log_model import LogModelWightsCallback
+from src.transformer_vq_vae.callbacks.log_model import LogModelWightsCallback
 from src.transformer_vq_vae.callbacks.codebook_histogram import LogCodebookHistogram
 from src.transformer_vq_vae.callbacks.log_dataset import LogDataset
 from src.transformer_vq_vae.callbacks.training_reconstions_vis import (

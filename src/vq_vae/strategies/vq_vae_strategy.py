@@ -43,7 +43,7 @@ class VQVaeStrategy(NaivePytorchLightning):
         )
 
         ckpt_path = (
-            self.resume_arguments["model_checkpoint_path"]
+            self.resume_arguments["current_model_checkpoint_path"]
             if self.resume_arguments
             else None
         )

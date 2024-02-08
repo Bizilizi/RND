@@ -3,8 +3,6 @@ import typing as t
 
 import torch
 from pytorch_lightning import Callback, Trainer
-from pytorch_lightning.callbacks import EarlyStopping
-from pytorch_lightning.profilers import AdvancedProfiler
 
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
@@ -13,8 +11,6 @@ from src.avalanche.callbacks.lightning_training_to_avalanche import (
     PLTrainLoopToAvalancheTrainLoopCallback,
 )
 from src.avalanche.callbacks.restore_best_model import RestoreBestPerformingModel
-from src.rnd.callbacks.log_generated_images import LogSampledImagesCallback
-from pytorch_lightning.plugins import PrecisionPlugin
 
 if t.TYPE_CHECKING:
     from pytorch_lightning.loggers import Logger
@@ -39,7 +35,7 @@ class NaivePytorchLightning(Naive):
         min_epochs: t.Union[int, t.List[int]],
         best_model_path_prefix: str = "",
         train_mb_num_workers: int = 2,
-        resume_arguments: t.Dict[str, str] = None,
+        resume_arguments: t.Dict[str, t.Any] = None,
         accelerator: str = "cpu",
         devices: str = "0,",
         strategy: str = "auto",
@@ -71,9 +67,11 @@ class NaivePytorchLightning(Naive):
 
         super().__init__(*args, **kwargs)
 
-        self.experience_step = (
-            resume_arguments["experience_step"] if resume_arguments else 0
-        )
+        if resume_arguments:
+            self.experience_step = resume_arguments["current_experience_step"]
+            print(f"Cl Strategy experience restored: {self.experience_step}")
+        else:
+            self.experience_step = 0
 
     def _train_exp(
         self,
@@ -131,11 +129,11 @@ class NaivePytorchLightning(Naive):
             # ),
         )
 
-        ckpt_path = (
-            self.resume_arguments["model_checkpoint_path"]
-            if self.resume_arguments
-            else None
-        )
+        if self.resume_arguments:
+            ckpt_path = self.resume_arguments["current_model_checkpoint_path"]
+            print(f"Restoring training from: {ckpt_path}")
+        else:
+            ckpt_path = None
 
         self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=ckpt_path)
 

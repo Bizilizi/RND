@@ -149,7 +149,11 @@ def get_wandb_params(args, config, resume_arguments):
     """
     Construct wandb parameters based on passed arguments and config
     """
-    run_id = resume_arguments["wandb_run"] if resume_arguments else None
+    if resume_arguments:
+        run_id = resume_arguments["wandb_run"]
+        print(f"Restoring wandb run: {run_id}")
+    else:
+        run_id = None
 
     wandb_params = dict(
         project=args.project if args.project is not None else args.model.upper(),
