@@ -38,7 +38,8 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
             dataset_root=target_dataset_dir,
             train_transform=transforms.Compose(
                 [
-                    transforms.RandAugment(),
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
                 ]
@@ -59,7 +60,8 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
             dataset_root=target_dataset_dir,
             train_transform=transforms.Compose(
                 [
-                    transforms.RandAugment(),
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
                 ]
