@@ -108,7 +108,7 @@ def get_loggers(
 
     # Create Evaluation plugin
     evaluation_loggers = []
-    if config.evaluation_logger == "wandb":
+    if config.evaluation_logger == "wandb" and wandb_params:
         evaluation_loggers.append(
             InteractiveWandBLogger(
                 project_name=wandb_params["project"],
@@ -121,7 +121,7 @@ def get_loggers(
         evaluation_loggers.append(InteractiveLogger())
 
     # Create avalanche strategy
-    if config.train_logger == "wandb":
+    if config.train_logger == "wandb" and wandb_params:
 
         train_logger = pl_loggers.WandbLogger(
             project=wandb_params["project"],
