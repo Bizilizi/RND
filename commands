@@ -18,16 +18,16 @@ sbatch submit.sh python train.py \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type a6000 \
-    --partition ddp-2way \
+    --gpu_type v100s \
+    --partition ddp-4way \
     --timeout 2880 \
     --ngpus 2 \
-    --comment "cifar100 cycle sup" \
+    --comment "cifar10 cycle sup" \
     --group mae-cycle-vs-rec-loss \
-    --dataset cifar100 \
-    --num_tasks 20 \
-    --max_epochs 1200 \
-    --min_epochs 300 \
+    --dataset cifar10 \
+    --num_tasks 5 \
+    --max_epochs 600 \
+    --min_epochs 200 \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0,1 \

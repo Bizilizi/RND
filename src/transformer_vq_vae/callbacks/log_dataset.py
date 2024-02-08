@@ -23,7 +23,10 @@ class LogDataset(Callback):
             model = model.module
 
         experience_step = model.experience_step
-        self.log_dataset_table(trainer, experience_step)
+
+        for logger in trainer.loggers:
+            if isinstance(logger, WandbLogger):
+                self.log_dataset_table(trainer, experience_step)
 
     def log_dataset_table(self, trainer: Trainer, experience_step: int) -> None:
         columns = [f"col_{i}" for i in range(10)]
