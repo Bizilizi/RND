@@ -3,7 +3,7 @@ import dataclasses
 import math
 import typing as t
 from itertools import chain
-
+from torchvision.transforms import v2
 import lpips
 import torch
 from einops import rearrange
@@ -101,6 +101,7 @@ class VitVQVae(CLModel):
         quantize_top_k: int = 3,
         separate_codebooks: bool = True,
         supervised: bool = False,
+        use_mixup: bool = False,
     ) -> None:
         super().__init__()
 
@@ -167,6 +168,12 @@ class VitVQVae(CLModel):
 
         if self.use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
+
+        self.use_mixup = use_mixup
+        if use_mixup:
+            cutmix = v2.CutMix(num_classes=num_classes)
+            mixup = v2.MixUp(num_classes=num_classes)
+            self.cutmix_or_mixup = v2.RandomChoice([cutmix, mixup])
 
     def set_clf_head(self, model: "EmbClassifier"):
         self.__dict__["clf_head"] = model
@@ -243,6 +250,8 @@ class VitVQVae(CLModel):
             )
 
         y = targets["class"]
+        y_cutmix_or_mixup = targets.get("y_cutmix_or_mixup", y)
+
         past_data = targets["time_tag"] == -1
         current_data = targets["time_tag"] == 0
 
@@ -285,7 +294,7 @@ class VitVQVae(CLModel):
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:
-            clf_loss = F.cross_entropy(forward_output.clf_logits, y)
+            clf_loss = F.cross_entropy(forward_output.clf_logits, y_cutmix_or_mixup)
             clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
 
         perplexity = forward_output.feature_perplexity + forward_output.class_perplexity
@@ -387,6 +396,10 @@ class VitVQVae(CLModel):
 
         x = data["images"]
         y = targets["class"]
+
+        if self.use_mixup:
+            x, y_cutmix_or_mixup = self.cutmix_or_mixup(x, y)
+            targets["y_cutmix_or_mixup"] = y_cutmix_or_mixup
 
         past_data = targets["time_tag"] == -1
 

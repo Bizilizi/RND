@@ -50,6 +50,7 @@ class TrainConfig(BaseTrainConfig):
     dataset: str
     image_size: int
     save_model_every: int
+    augment: str
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":

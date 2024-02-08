@@ -31,6 +31,17 @@ from src.transformer_vq_vae.plugins.mixed_precision_plugin import (
 def get_benchmark(config: TrainConfig, target_dataset_dir):
     if config.dataset == "cifar10":
         config.image_size = 32
+
+        if config.augment == "rand":
+            augment = transforms.RandAugment()
+        else:
+            augment = transforms.Compose(
+                [
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                ]
+            )
+
         return SplitCIFAR10(
             n_experiences=config.num_tasks,
             return_task_id=True,
@@ -38,10 +49,9 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
             dataset_root=target_dataset_dir,
             train_transform=transforms.Compose(
                 [
-                    transforms.RandomCrop(32, padding=4),
-                    transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                    augment,
                 ]
             ),
             eval_transform=transforms.Compose(
@@ -53,6 +63,17 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
         )
     elif config.dataset == "cifar100":
         config.image_size = 32
+
+        if config.augment == "rand":
+            augment = transforms.RandAugment()
+        else:
+            augment = transforms.Compose(
+                [
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                ]
+            )
+
         return SplitCIFAR100(
             n_experiences=config.num_tasks,
             return_task_id=True,
@@ -60,10 +81,9 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
             dataset_root=target_dataset_dir,
             train_transform=transforms.Compose(
                 [
-                    transforms.RandomCrop(32, padding=4),
-                    transforms.RandomHorizontalFlip(),
                     transforms.ToTensor(),
                     transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                    augment,
                 ]
             ),
             eval_transform=transforms.Compose(
@@ -132,6 +152,7 @@ def get_model(config: TrainConfig, device: torch.device, benchmark) -> VitVQVae:
         quantize_features=config.quantize_features,
         quantize_top_k=config.quantize_top_k,
         separate_codebooks=config.separate_codebooks,
+        use_mixup=config.augment == "mixup",
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

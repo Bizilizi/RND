@@ -31,6 +31,7 @@ python submitit_train.py \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0,1 \
+    --augment rand \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \

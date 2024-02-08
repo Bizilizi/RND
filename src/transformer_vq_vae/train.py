@@ -208,7 +208,7 @@ def main(args):
         or config.evaluation_logger == "wandb"
         or args.run_id
     )
-    is_using_wandb = is_using_wandb and (args.local_rank == 0)
+    # is_using_wandb = is_using_wandb and (args.local_rank == 0)
 
     if is_using_wandb:
         if args.dev:
