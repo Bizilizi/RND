@@ -15,21 +15,28 @@ sbatch submit.sh python train.py \
     --future_samples_mode noiseg
 
 
-TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
-    --group mae-rec-to-clf-correlation \
+python submitit_train.py \
+    --cpus_per_task 8 \
+    --slurm_mem 96 \
+    --gpu_type v100s \
+    --partition ddp-4way \
+    --timeout 2880 \
+    --ngpus 2 \
+    --comment "vq-mae augmentations" \
+    --group mae-augmentations \
     --dataset cifar100 \
     --num_tasks 20 \
     --max_epochs 1200 \
     --min_epochs 300 \
     --num_epochs_schedule warmup \
     --supervised False \
-    --devices 0, \
+    --devices 0,1 \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --batch_size 512 \
-    --accumulate_grad_batches 1 \
+    --batch_size 256 \
+    --accumulate_grad_batches 2 \
     --num_workers 8 \
     --max_epochs_lin_eval 100 \
     --num_random_past_samples 20000 \
@@ -39,7 +46,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
     --cycle_consistency_sigma 200 \
-    --past_samples_loss_weight 0 \
+    --past_samples_loss_weight 1 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \
