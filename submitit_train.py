@@ -159,7 +159,7 @@ def main():
         },
         **kwargs,
     )
-    executor.update_parameters(name="vq-mae")
+    executor.update_parameters(name=args.comment)
 
     trainer = Trainer(args)
     job = executor.submit(trainer)
