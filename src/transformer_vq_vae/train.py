@@ -3,7 +3,7 @@ import os
 import pathlib
 import shutil
 from configparser import ConfigParser
-
+import typing as t
 import torch
 from torchvision import transforms
 
@@ -74,17 +74,18 @@ def train_loop(
     is_using_wandb: bool,
     config: TrainConfig,
     device: torch.device,
+    resume_arguments: t.Optional[t.Dict[str, str]],
 ) -> None:
     """
     :return:
     """
 
     image_gpt = None
-    sos_token = config.num_class_embeddings + config.num_embeddings + 1
-    mask_token = config.num_class_embeddings + config.num_embeddings
+    start_experience = resume_arguments["experience_step"] if resume_arguments else 0
 
     for train_experience, test_experience in zip(
-        benchmark.train_stream, benchmark.test_stream
+        benchmark.train_stream[start_experience:],
+        benchmark.test_stream[start_experience:],
     ):
         train_experience.dataset = wrap_dataset_with_empty_indices(
             train_experience.dataset, num_neighbours=config.quantize_top_k
@@ -203,6 +204,8 @@ def train_loop(
 
 
 def main(args):
+    resume_arguments = torch.load(args.resume_from) if args.resume_from else None
+
     # Reading configuration from ini file
     assert (
         args.config
@@ -228,7 +231,7 @@ def main(args):
         if args.dev:
             os.environ["WANDB_MODE"] = "offline"
 
-        wandb_params = get_wandb_params(args, config)
+        wandb_params = get_wandb_params(args, config, resume_arguments)
 
         wandb.run.name = args.experiment_name or (
             f"BS-{config.batch_size * config.accumulate_grad_batches} | "
@@ -292,7 +295,6 @@ def main(args):
         validate_every_n=config.validate_every_n,
         accumulate_grad_batches=config.accumulate_grad_batches,
         train_logger=cl_strategy_logger,
-        initial_resume_from=args.resume_from,
         model=model,
         device=device,
         strategy=config.strategy,
@@ -309,6 +311,7 @@ def main(args):
         best_model_path_prefix=config.best_model_prefix,
         plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
         train_plugins=get_train_plugins(config),
+        resume_arguments=resume_arguments,
     )
 
     # Run training process
@@ -320,6 +323,7 @@ def main(args):
             is_using_wandb=is_using_wandb,
             config=config,
             device=device,
+            resume_arguments=resume_arguments,
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")

@@ -39,7 +39,7 @@ class NaivePytorchLightning(Naive):
         min_epochs: t.Union[int, t.List[int]],
         best_model_path_prefix: str = "",
         train_mb_num_workers: int = 2,
-        initial_resume_from: t.Optional[str] = None,
+        resume_arguments: t.Dict[str, str] = None,
         accelerator: str = "cpu",
         devices: str = "0,",
         strategy: str = "auto",
@@ -51,7 +51,7 @@ class NaivePytorchLightning(Naive):
         **kwargs,
     ) -> None:
         self.precision = precision
-        self.initial_resume_from = initial_resume_from
+        self.resume_arguments = resume_arguments
         self.train_logger = train_logger
         self.train_mb_num_workers = train_mb_num_workers
         self.accumulate_grad_batches = accumulate_grad_batches
@@ -71,7 +71,9 @@ class NaivePytorchLightning(Naive):
 
         super().__init__(*args, **kwargs)
 
-        self.experience_step = 0
+        self.experience_step = (
+            resume_arguments["experience_step"] if resume_arguments else 0
+        )
 
     def _train_exp(
         self,
@@ -80,7 +82,6 @@ class NaivePytorchLightning(Naive):
         **kwargs,
     ) -> None:
         self.update_model_experience()
-        self.resume_from_checkpoint()
 
         # Create DataModule
         datamodule = PLDataModule(
@@ -130,17 +131,20 @@ class NaivePytorchLightning(Naive):
             # ),
         )
 
-        self.trainer.fit(self.model, datamodule=datamodule)
+        ckpt_path = (
+            self.resume_arguments["model_checkpoint_path"]
+            if self.resume_arguments
+            else None
+        )
+
+        self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=ckpt_path)
+
+        self.resume_arguments = None
         self.restore_best_model()
 
     def update_model_experience(self) -> None:
         self.model.experience_step = self.experience_step
         self.model.experience = self.experience
-
-    def resume_from_checkpoint(self) -> None:
-        if self.experience_step == 0 and self.initial_resume_from:
-            state_dict = torch.load(self.initial_resume_from)["state_dict"]
-            self.model.load_state_dict(state_dict)
 
     def restore_best_model(self) -> None:
         if self.experience_step > 0 and self.restore_best_model_callback:

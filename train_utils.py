@@ -145,14 +145,15 @@ def get_device(config):
         return torch.device(config.accelerator)
 
 
-def get_wandb_params(args, config):
+def get_wandb_params(args, config, resume_arguments):
     """
     Construct wandb parameters based on passed arguments and config
     """
+    run_id = resume_arguments["wandb_run"] if resume_arguments else None
 
     wandb_params = dict(
         project=args.project if args.project is not None else args.model.upper(),
-        id=args.run_id,
+        id=run_id,
         entity="vgg-continual-learning",
         group=args.group,
         dir=args.wandb_dir,
