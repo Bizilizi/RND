@@ -93,6 +93,13 @@ def add_arguments(parser):
         help="local wandb development",
         default=None,
     )
+    parser.add_argument(
+        "--local_rank",
+        nargs="?",
+        type=int,
+        help="train world rank",
+        default=0,
+    )
 
     return parser
 
