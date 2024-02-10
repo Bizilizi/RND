@@ -5,6 +5,7 @@ import shutil
 from configparser import ConfigParser
 import typing as t
 import torch
+from torch import distributed
 from torchvision import transforms
 
 import wandb
@@ -27,6 +28,7 @@ from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_observed_only_classes,
 )
 from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.transformer_vq_vae.utils.copy_dataset_to_tmp import copy_dataset_to_tmp
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
 )
@@ -180,12 +182,16 @@ def train_loop(
         # If we resume, we resume only once
         resume_arguments = False
 
+        # Wait until the main process
+        distributed.barrier()
+
     if is_using_wandb:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
 
 def main(args):
     resume_arguments = torch.load(args.resume_from) if args.resume_from else None
+    is_main_process = args.local_rank == 0
 
     # Reading configuration from ini file
     assert (
@@ -208,7 +214,7 @@ def main(args):
         or config.evaluation_logger == "wandb"
         or args.run_id
     )
-    is_using_wandb = is_using_wandb and (args.local_rank == 0)
+    is_using_wandb = is_using_wandb and is_main_process
 
     if is_using_wandb:
         if args.dev:
@@ -245,22 +251,15 @@ def main(args):
     Path(config.bootstrapped_dataset_path).mkdir(parents=True, exist_ok=True)
 
     # Moving dataset to tmp
-    datasets_dir = pathlib.Path(config.dataset_path)
     tmp = os.environ.get("TMPDIR", "/tmp")
-    target_dataset_dir = pathlib.Path(f"{tmp}/dzverev_data/")
-    target_dataset_dir.mkdir(exist_ok=True)
+    target_dataset_dir = pathlib.Path(f"{tmp}/dzverev_data/{config.dataset}")
+    target_dataset_dir.mkdir(exist_ok=True, parents=True)
 
-    zip_path = datasets_dir / "cifar-10-python.tar.gz"
-    dataset_path = datasets_dir / "cifar-10-batches-py"
+    if is_main_process:
+        copy_dataset_to_tmp(config, target_dataset_dir)
 
-    target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
-    target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
-
-    if zip_path.exists() and not target_zip_path.exists():
-        shutil.copy(str(zip_path), str(target_zip_path))
-
-    if dataset_path.exists() and not target_dataset_path.exists():
-        shutil.copytree(str(dataset_path), str(target_dataset_path))
+    # Wait until the dataset is loaded and unpacked
+    distributed.barrier()
 
     # Create benchmark
     benchmark = get_benchmark(config, target_dataset_dir)

@@ -3,6 +3,8 @@ from functools import partial
 from subprocess import Popen
 
 import submitit
+from torch import distributed
+
 import wandb
 from lightning_fabric import seed_everything
 
@@ -86,6 +88,12 @@ class Trainer(object):
 
         # Make it deterministic
         seed_everything(self.args.seed)
+
+        # Init pytorch distributed
+        distributed.init_process_group(
+            world_size=self.args.world_size,
+            rank=self.args.local_rank,
+        )
 
         # Run wandb agent if sweep id was passed to arguments
         if self.args.sweep_id:

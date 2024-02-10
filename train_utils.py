@@ -97,8 +97,22 @@ def add_arguments(parser):
         "--local_rank",
         nargs="?",
         type=int,
-        help="train world rank",
+        help="train local rank",
         default=0,
+    )
+    parser.add_argument(
+        "--global_rank",
+        nargs="?",
+        type=int,
+        help="train gloabal rank",
+        default=0,
+    )
+    parser.add_argument(
+        "--world_size",
+        nargs="?",
+        type=int,
+        help="train world size",
+        default=1,
     )
 
     return parser

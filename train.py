@@ -4,6 +4,7 @@ from functools import partial
 
 import torch
 from lightning_fabric import seed_everything
+from torch import distributed
 
 import wandb
 from src.rnd.train import main as rnd_main
@@ -39,6 +40,12 @@ if __name__ == "__main__":
 
     # Make it deterministic
     seed_everything(args.seed)
+
+    # Init pytorch distributed
+    distributed.init_process_group(
+        world_size=args.world_size,
+        rank=args.local_rank,
+    )
 
     # Run wandb agent if sweep id was passed to arguments
     if args.sweep_id:

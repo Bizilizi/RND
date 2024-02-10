@@ -23,7 +23,7 @@ python submitit_train.py \
     --timeout 2880 \
     --ngpus 2 \
     --comment "test ddp cl setup" \
-    --group local \
+    --group tests \
     --dataset cifar100 \
     --num_tasks 20 \
     --max_epochs 200 \
@@ -31,7 +31,7 @@ python submitit_train.py \
     --num_epochs_schedule warmup \
     --supervised True \
     --augment rand \
-    --devices 0, \
+    --devices 0,1 \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
