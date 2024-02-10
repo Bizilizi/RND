@@ -5,6 +5,7 @@ import typing as t
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.loggers.logger import DummyLogger
 
 import wandb
 from avalanche.logging import InteractiveLogger
@@ -161,7 +162,7 @@ def get_loggers(
     elif config.train_logger == "tensorboard":
         train_logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
     else:
-        train_logger = None
+        train_logger = DummyLogger()
 
     return train_logger, evaluation_loggers
 

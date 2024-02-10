@@ -191,6 +191,7 @@ def train_loop(
 
 def main(args):
     resume_arguments = torch.load(args.resume_from) if args.resume_from else None
+    is_distributed = len(args.devices.split(",")) > 1
     is_main_process = args.local_rank == 0
 
     # Reading configuration from ini file

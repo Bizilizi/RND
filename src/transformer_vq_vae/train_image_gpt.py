@@ -296,16 +296,17 @@ def train_igpt(
                 step=i,
             )
 
-            if step % 100 == 0:
-                model_ckpt_path = f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
-                state_dict = image_gpt.state_dict()
-                for k, v in state_dict.items():
-                    state_dict[k] = v.cpu()
+        # Save igpt model on every epoch
+        model_ckpt_path = (
+            f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
+        )
+        state_dict = image_gpt.state_dict()
+        for k, v in state_dict.items():
+            state_dict[k] = v.cpu()
 
-                torch.save(state_dict, model_ckpt_path)
+        torch.save(state_dict, model_ckpt_path)
 
-            # break
-
+        # Break
         images, *_ = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
