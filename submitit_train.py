@@ -91,6 +91,7 @@ class Trainer(object):
 
         # Init pytorch distributed
         distributed.init_process_group(
+            init_method=f"tcp://localhost:{self.args.port}",
             world_size=self.args.world_size,
             rank=self.args.local_rank,
         )
