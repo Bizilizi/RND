@@ -43,6 +43,7 @@ if __name__ == "__main__":
 
     # Init pytorch distributed
     distributed.init_process_group(
+        init_method=f"tcp://localhost:{args.port}",
         world_size=args.world_size,
         rank=args.local_rank,
     )

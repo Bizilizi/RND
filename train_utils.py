@@ -114,6 +114,13 @@ def add_arguments(parser):
         help="train world size",
         default=1,
     )
+    parser.add_argument(
+        "--port",
+        nargs="?",
+        type=int,
+        help="dist port",
+        default=1723,
+    )
 
     return parser
 
