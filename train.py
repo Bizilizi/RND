@@ -38,6 +38,13 @@ if __name__ == "__main__":
     else:
         assert False, "Unknown value '--model' parameter"
 
+    # Init pytorch distributed
+    distributed.init_process_group(
+        init_method=f"tcp://localhost:{args.port}",
+        world_size=args.world_size,
+        rank=args.local_rank,
+    )
+
     # Make it deterministic
     seed_everything(args.seed)
 

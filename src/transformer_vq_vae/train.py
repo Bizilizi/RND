@@ -190,13 +190,6 @@ def train_loop(
 
 
 def main(args):
-    # Init pytorch distributed
-    distributed.init_process_group(
-        init_method=f"tcp://localhost:{args.port}",
-        world_size=args.world_size,
-        rank=args.local_rank,
-    )
-
     resume_arguments = torch.load(args.resume_from) if args.resume_from else None
     is_distributed = len(args.devices.split(",")) > 1
     is_main_process = args.local_rank == 0
