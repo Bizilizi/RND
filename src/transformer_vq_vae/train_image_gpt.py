@@ -225,7 +225,7 @@ def train_igpt(
     init_token_embeddings(vq_vae_model, image_gpt, mask_token)
 
     if is_distributed:
-        image_gpt = DDP(image_gpt, device_ids=[local_rank])
+        image_gpt = DDP(image_gpt, device_ids=[device.index])
 
     # Create image embedding token for easier image generation
     image_embeddings = get_image_embedding(
