@@ -152,8 +152,8 @@ def train_loop(
         checkpoint_fully_trained = resume_arguments and (
             resume_arguments["current_epochs"] < resume_arguments["current_max_epochs"]
         )
-        # if not checkpoint_fully_trained:
-        #     cl_strategy.train(train_experience, [test_experience])
+        if not checkpoint_fully_trained:
+            cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
         # We train two classifiers. One to predict all classes,
@@ -161,14 +161,14 @@ def train_loop(
         cl_strategy.model.freeze()
 
         # Train classifier
-        # if local_rank == 0:
-        # print(f"Train classifier..")
-        # train_classifier_on_all_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # ).to(device)
-        # train_classifier_on_observed_only_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # ).to(device)
+        if local_rank == 0:
+            print(f"Train classifier..")
+            train_classifier_on_all_classes(
+                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+            ).to(device)
+            train_classifier_on_observed_only_classes(
+                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+            ).to(device)
 
         distributed.barrier()
 
@@ -183,7 +183,7 @@ def train_loop(
             image_gpt=image_gpt if config.reuse_igpt else None,
             classes_seen_so_far=train_experience.classes_seen_so_far,
             num_classes=benchmark.n_classes,
-            is_distributed=is_distributed,
+            is_distributed=False,
             local_rank=local_rank,
         )
 
