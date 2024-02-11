@@ -1,5 +1,5 @@
 import argparse
-import logging
+import torch.multiprocessing as mp
 from functools import partial
 
 import torch
@@ -17,7 +17,15 @@ from train_utils import add_arguments
 # configure logging at the root level of Lightning
 # logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
 torch.multiprocessing.set_sharing_strategy("file_system")
+
+
 # torch.set_float32_matmul_precision("medium")
+
+
+def ddp_wrapper(fn, local_rank, args):
+    args.local_rank = local_rank
+    fn(args)
+
 
 if __name__ == "__main__":
 
@@ -58,6 +66,18 @@ if __name__ == "__main__":
         )
     else:
         # Otherwise just run entry main function
-        entry_main(args)
+        devices = args.devices.rstrip(",").split(",")
+        is_distributed = len(devices) > 1
+
+        if is_distributed:
+            world_size = len(devices)
+            mp.spawn(
+                partial(ddp_wrapper, entry_main),
+                args=(args,),
+                nprocs=world_size,
+                join=True,
+            )
+        else:
+            entry_main(args)
 
     distributed.destroy_process_group()
