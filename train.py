@@ -43,6 +43,7 @@ if __name__ == "__main__":
         init_method=f"tcp://localhost:{args.port}",
         world_size=args.world_size,
         rank=args.local_rank,
+        group_name="cl_sync",
     )
 
     # Make it deterministic
