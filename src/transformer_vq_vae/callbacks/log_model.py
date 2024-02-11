@@ -34,6 +34,7 @@ class LogModelWightsCallback(Callback):
         else:
             model_ckpt = f"{self.checkpoint_path}/{self.model_prefix}-ep-{self.state['epochs']}.ckpt"
 
+        print(f"save_model: {model_ckpt}")
         trainer.save_checkpoint(model_ckpt)
 
         # save/update global training state
@@ -56,10 +57,14 @@ class LogModelWightsCallback(Callback):
             }
         )
 
+        print(
+            f"save meta checkpoint: {f'{self.checkpoint_path}/checkpoint_metadata.ckpt'}"
+        )
         torch.save(
             checkpoint_metadata,
             f"{self.checkpoint_path}/checkpoint_metadata.ckpt",
         )
+        print("done")
 
     def on_train_epoch_end(
         self,
