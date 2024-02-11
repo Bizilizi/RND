@@ -161,14 +161,13 @@ def train_loop(
         cl_strategy.model.freeze()
 
         # Train classifier
-        if local_rank == 0:
-            print(f"Train classifier..")
-            train_classifier_on_all_classes(
-                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-            ).to(device)
-            train_classifier_on_observed_only_classes(
-                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-            ).to(device)
+        print(f"Train classifier..")
+        train_classifier_on_all_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+        train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
 
         distributed.barrier()
 
