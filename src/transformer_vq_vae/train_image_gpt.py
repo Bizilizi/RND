@@ -224,9 +224,6 @@ def train_igpt(
     image_gpt = image_gpt or ImageGPTForCausalImageModeling(configuration)
     init_token_embeddings(vq_vae_model, image_gpt, mask_token)
 
-    if is_distributed:
-        image_gpt = DDP(image_gpt, device_ids=[local_rank], output_device=local_rank)
-
     # Create image embedding token for easier image generation
     image_embeddings = get_image_embedding(
         vq_vae_model=vq_vae_model,
@@ -237,6 +234,9 @@ def train_igpt(
 
     # Transfer models to corresponding device (DDP)
     image_gpt = image_gpt.to(device)
+    if is_distributed:
+        image_gpt = DDP(image_gpt, device_ids=[local_rank], output_device=local_rank)
+
     vq_vae_model.to(device)
     image_embeddings.to(device)
 
