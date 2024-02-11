@@ -1,4 +1,5 @@
 import argparse
+import random
 from functools import partial
 from subprocess import Popen
 
@@ -132,6 +133,7 @@ def main():
     parser = add_sumbitit_arguments(parser)
 
     args = parse_arguments(parser)
+    args.port = random.randint(1723, 91723)
 
     # Make it deterministic
     executor = submitit.AutoExecutor(folder=args.output_dir, slurm_max_num_timeout=30)

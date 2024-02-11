@@ -1,4 +1,6 @@
 import argparse
+import random
+
 import torch.multiprocessing as mp
 from functools import partial
 
@@ -13,6 +15,7 @@ from src.vae_ft.train import main as vae_ft_main
 from src.vq_vae.train import main as vq_vae_main
 from src.transformer_vq_vae.train import main as transformer_vq_vae_main
 from train_utils import add_arguments
+
 
 # configure logging at the root level of Lightning
 # logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
@@ -59,7 +62,9 @@ if __name__ == "__main__":
     else:
         # Otherwise just run entry main function
         devices = args.devices.rstrip(",").split(",")
+
         args.world_size = len(devices)
+        args.port = random.randint(1723, 91723)
 
         if args.world_size > 1:
             mp.spawn(

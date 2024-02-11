@@ -21,7 +21,7 @@ python submitit_train.py \
     --gpu_type v100s \
     --partition ddp-4way \
     --timeout 2880 \
-    --ngpus 1 \
+    --ngpus 2 \
     --comment "test ddp cl setup" \
     --group tests \
     --dataset cifar100 \
