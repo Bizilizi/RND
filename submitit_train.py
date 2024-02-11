@@ -133,7 +133,7 @@ def main():
     parser = add_sumbitit_arguments(parser)
 
     args = parse_arguments(parser)
-    args.port = random.randint(1723, 91723)
+    args.port = random.randint(0, 65535)
 
     # Make it deterministic
     executor = submitit.AutoExecutor(folder=args.output_dir, slurm_max_num_timeout=30)

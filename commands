@@ -21,7 +21,7 @@ python submitit_train.py \
     --gpu_type v100s \
     --partition ddp-4way \
     --timeout 2880 \
-    --ngpus 2 \
+    --ngpus 1 \
     --comment "test ddp cl setup" \
     --group tests \
     --dataset cifar100 \
@@ -30,7 +30,7 @@ python submitit_train.py \
     --min_epochs 200 \
     --num_epochs_schedule warmup \
     --supervised True \
-    --devices 0,1 \
+    --devices 0, \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
