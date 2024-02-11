@@ -12,6 +12,7 @@ import wandb
 class LogModelWightsCallback(Callback):
     def __init__(
         self,
+        local_rank: int,
         log_every=5,
         checkpoint_path: str = "checkpoints",
         model_prefix: str = "model",
@@ -27,6 +28,7 @@ class LogModelWightsCallback(Callback):
         self.model_description = model_description
         self.log_to_wandb = log_to_wandb
         self.experience_step = experience_step
+        self.local_rank = local_rank
 
     def save_model_weights(self, logger, trainer: "pl.Trainer"):
         if self.experience_step is not None:
@@ -34,37 +36,33 @@ class LogModelWightsCallback(Callback):
         else:
             model_ckpt = f"{self.checkpoint_path}/{self.model_prefix}-ep-{self.state['epochs']}.ckpt"
 
-        print(f"save_model: {model_ckpt}")
         trainer.save_checkpoint(model_ckpt)
 
-        # save/update global training state
-        checkpoint_metadata_path = pathlib.Path(
-            f"{self.checkpoint_path}/checkpoint_metadata.ckpt"
-        )
-        if checkpoint_metadata_path.exists():
-            checkpoint_metadata = torch.load(checkpoint_metadata_path)
-        else:
-            checkpoint_metadata = {}
+        if self.local_rank == 0:
+            # save/update global training state
+            checkpoint_metadata_path = pathlib.Path(
+                f"{self.checkpoint_path}/checkpoint_metadata.ckpt"
+            )
+            if checkpoint_metadata_path.exists():
+                checkpoint_metadata = torch.load(checkpoint_metadata_path)
+            else:
+                checkpoint_metadata = {}
 
-        checkpoint_metadata.update(
-            {
-                f"experience_step_{self.experience_step}/model_checkpoint_path": model_ckpt,
-                "wandb_run": wandb.run.id if wandb.run else None,
-                "current_model_checkpoint_path": model_ckpt,
-                "current_experience_step": self.experience_step,
-                "current_epochs": self.state["epochs"],
-                "current_max_epochs": trainer.max_epochs,
-            }
-        )
+            checkpoint_metadata.update(
+                {
+                    f"experience_step_{self.experience_step}/model_checkpoint_path": model_ckpt,
+                    "wandb_run": wandb.run.id if wandb.run else None,
+                    "current_model_checkpoint_path": model_ckpt,
+                    "current_experience_step": self.experience_step,
+                    "current_epochs": self.state["epochs"],
+                    "current_max_epochs": trainer.max_epochs,
+                }
+            )
 
-        print(
-            f"save meta checkpoint: {f'{self.checkpoint_path}/checkpoint_metadata.ckpt'}"
-        )
-        torch.save(
-            checkpoint_metadata,
-            f"{self.checkpoint_path}/checkpoint_metadata.ckpt",
-        )
-        print("done")
+            torch.save(
+                checkpoint_metadata,
+                f"{self.checkpoint_path}/checkpoint_metadata.ckpt",
+            )
 
     def on_train_epoch_end(
         self,

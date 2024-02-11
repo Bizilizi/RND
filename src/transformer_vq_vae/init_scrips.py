@@ -160,9 +160,9 @@ def get_model(config: TrainConfig, device: torch.device, benchmark) -> VitVQVae:
 
 
 def get_callbacks(
-    config: TrainConfig, is_main_process
+    config: TrainConfig, local_rank
 ) -> t.Callable[[int], t.List[Callback]]:
-    if is_main_process:
+    if local_rank == 0:
         return lambda experience_step: [
             #     EarlyStopping(
             #         monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
@@ -170,6 +170,7 @@ def get_callbacks(
             #         patience=50,
             #     ),
             LogModelWightsCallback(
+                local_rank=local_rank,
                 log_every=config.save_model_every,
                 checkpoint_path=config.checkpoint_path,
                 experience_step=experience_step,
@@ -183,7 +184,15 @@ def get_callbacks(
             LogCodebookHistogram(log_every=50),
         ]
     else:
-        return lambda experience_step: []
+        return lambda experience_step: [
+            LogModelWightsCallback(
+                local_rank=local_rank,
+                log_every=config.save_model_every,
+                checkpoint_path=config.checkpoint_path,
+                experience_step=experience_step,
+                log_to_wandb=False,
+            ),
+        ]
 
 
 def get_train_plugins(config: TrainConfig):
