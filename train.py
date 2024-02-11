@@ -16,7 +16,7 @@ from train_utils import add_arguments
 
 # configure logging at the root level of Lightning
 # logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
-torch.multiprocessing.set_sharing_strategy("file_system")
+# torch.multiprocessing.set_sharing_strategy("file_system")
 
 
 # torch.set_float32_matmul_precision("medium")
