@@ -12,7 +12,8 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.io import read_image
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm, trange
-from transformers import ImageGPTConfig, ImageGPTForCausalImageModeling
+from transformers import ImageGPTConfig
+from src.transformer_vq_vae.model.image_gpt import ImageGPTForCausalImageModeling
 
 import wandb
 from avalanche.benchmarks.utils import make_classification_dataset

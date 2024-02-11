@@ -20,27 +20,30 @@ import warnings
 from typing import Any, Optional, Tuple, Union
 
 import torch
-import torch.nn.functional as F
 import torch.utils.checkpoint
-from huggingface_hub.utils import logging
 from torch import nn
 from torch.cuda.amp import autocast
 from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss, MSELoss
-from transformers import Conv1D, ImageGPTConfig, PreTrainedModel, add_start_docstrings
+
 from transformers.activations import ACT2FN
 from transformers.modeling_outputs import (
     BaseModelOutputWithPastAndCrossAttentions,
     CausalLMOutputWithCrossAttentions,
     SequenceClassifierOutputWithPast,
 )
+from transformers.modeling_utils import PreTrainedModel
 from transformers.pytorch_utils import (
+    Conv1D,
     find_pruneable_heads_and_indices,
     prune_conv1d_layer,
 )
 from transformers.utils import (
+    add_start_docstrings,
     add_start_docstrings_to_model_forward,
+    logging,
     replace_return_docstrings,
 )
+from transformers import ImageGPTConfig
 
 logger = logging.get_logger(__name__)
 
@@ -184,7 +187,7 @@ class ImageGPTLayerNorm(nn.Module):
     def __init__(self, hidden_size: Tuple[int], eps: float = 1e-5):
         super().__init__()
         self.eps = eps
-        self.weight = nn.Parameter(torch.Tensor(hidden_size))
+        self.weight = nn.Parameter(torch.Tensor(hidden_size), requires_grad=False)
 
     def forward(self, tensor: torch.Tensor) -> tuple:
         # input is not mean centered
@@ -212,8 +215,9 @@ class ImageGPTAttention(nn.Module):
             torch.tril(
                 torch.ones((max_positions, max_positions), dtype=torch.bool)
             ).view(1, 1, max_positions, max_positions),
+            persistent=False,
         )
-        self.register_buffer("masked_bias", torch.tensor(-1e4))
+        self.register_buffer("masked_bias", torch.tensor(-1e4), persistent=False)
 
         self.embed_dim = config.hidden_size
         self.num_heads = config.num_attention_heads
@@ -241,7 +245,6 @@ class ImageGPTAttention(nn.Module):
         self.c_proj = Conv1D(self.embed_dim, self.embed_dim)
 
         self.attn_dropout = nn.Dropout(config.attn_pdrop)
-        self.attn_dropout_rate = config.attn_pdrop
         self.resid_dropout = nn.Dropout(config.resid_pdrop)
 
         self.pruned_heads = set()
@@ -266,6 +269,118 @@ class ImageGPTAttention(nn.Module):
         )
         self.num_heads = self.num_heads - len(heads)
         self.pruned_heads = self.pruned_heads.union(heads)
+
+    def _attn(self, query, key, value, attention_mask=None, head_mask=None):
+        attn_weights = torch.matmul(query, key.transpose(-1, -2))
+
+        if self.scale_attn_weights:
+            attn_weights = attn_weights / (float(value.size(-1)) ** 0.5)
+
+        # Layer-wise attention scaling
+        if self.scale_attn_by_inverse_layer_idx:
+            attn_weights = attn_weights / float(self.layer_idx + 1)
+
+        if not self.is_cross_attention:
+            # if only "normal" attention layer implements causal mask
+            query_length, key_length = query.size(-2), key.size(-2)
+            causal_mask = self.bias[
+                :, :, key_length - query_length : key_length, :key_length
+            ]
+            mask_value = torch.finfo(attn_weights.dtype).min
+            # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
+            # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
+            mask_value = torch.tensor(mask_value, dtype=attn_weights.dtype).to(
+                attn_weights.device
+            )
+            attn_weights = torch.where(causal_mask, attn_weights, mask_value)
+
+        if attention_mask is not None:
+            # Apply the attention mask
+            attn_weights = attn_weights + attention_mask
+
+        attn_weights = nn.Softmax(dim=-1)(attn_weights)
+
+        # Downcast (if necessary) back to V's dtype (if in mixed-precision) -- No-Op otherwise
+        attn_weights = attn_weights.type(value.dtype)
+        attn_weights = self.attn_dropout(attn_weights)
+
+        # Mask heads if we want to
+        if head_mask is not None:
+            attn_weights = attn_weights * head_mask
+
+        attn_output = torch.matmul(attn_weights, value)
+
+        return attn_output, attn_weights
+
+    def _upcast_and_reordered_attn(
+        self, query, key, value, attention_mask=None, head_mask=None
+    ):
+        # Use `torch.baddbmm` (a bit more efficient w/ alpha param for scaling -- from Megatron-LM)
+        bsz, num_heads, q_seq_len, dk = query.size()
+        _, _, k_seq_len, _ = key.size()
+
+        # Preallocate attn_weights for `baddbmm`
+        attn_weights = torch.empty(
+            bsz * num_heads,
+            q_seq_len,
+            k_seq_len,
+            dtype=torch.float32,
+            device=query.device,
+        )
+
+        # Compute Scale Factor
+        scale_factor = 1.0
+        if self.scale_attn_weights:
+            scale_factor /= float(value.size(-1)) ** 0.5
+
+        if self.scale_attn_by_inverse_layer_idx:
+            scale_factor /= float(self.layer_idx + 1)
+
+        # Upcast (turn off autocast) and reorder (Scale K by 1 / root(dk))
+        with autocast(enabled=False):
+            q, k = query.reshape(-1, q_seq_len, dk), key.transpose(-1, -2).reshape(
+                -1, dk, k_seq_len
+            )
+            attn_weights = torch.baddbmm(
+                attn_weights, q.float(), k.float(), beta=0, alpha=scale_factor
+            )
+            attn_weights = attn_weights.reshape(bsz, num_heads, q_seq_len, k_seq_len)
+
+        if not self.is_cross_attention:
+            # if only "normal" attention layer implements causal mask
+            query_length, key_length = query.size(-2), key.size(-2)
+            causal_mask = self.bias[
+                :, :, key_length - query_length : key_length, :key_length
+            ]
+            mask_value = torch.finfo(attn_weights.dtype).min
+            # Need to be a tensor, otherwise we get error: `RuntimeError: expected scalar type float but found double`.
+            # Need to be on the same device, otherwise `RuntimeError: ..., x and y to be on the same device`
+            mask_value = torch.tensor(mask_value, dtype=attn_weights.dtype).to(
+                attn_weights.device
+            )
+            attn_weights = torch.where(causal_mask, attn_weights, mask_value)
+
+        if attention_mask is not None:
+            # Apply the attention mask
+            attn_weights = attn_weights + attention_mask
+
+        attn_weights = nn.Softmax(dim=-1)(attn_weights)
+
+        # Downcast (if necessary) back to V's dtype (if in mixed-precision) -- No-Op if otherwise
+        if attn_weights.dtype != torch.float32:
+            raise RuntimeError(
+                "Error with upcasting, attn_weights does not have dtype torch.float32"
+            )
+        attn_weights = attn_weights.type(value.dtype)
+        attn_weights = self.attn_dropout(attn_weights)
+
+        # Mask heads if we want to
+        if head_mask is not None:
+            attn_weights = attn_weights * head_mask
+
+        attn_output = torch.matmul(attn_weights, value)
+
+        return attn_output, attn_weights
 
     def _split_heads(self, tensor, num_heads, attn_head_size):
         """
@@ -323,27 +438,22 @@ class ImageGPTAttention(nn.Module):
         else:
             present = None
 
-        if self.scale_attn_weights:
-            query = query / (float(value.size(-1)) ** 0.5)
-
-        # Layer-wise attention scaling
-        if self.scale_attn_by_inverse_layer_idx:
-            query = query / float(self.layer_idx + 1)
-
-        attn_output = F.scaled_dot_product_attention(
-            query,
-            key,
-            value,
-            attention_mask,
-            self.attn_dropout_rate,
-            is_causal=True if attention_mask is None else False,
-        )
+        if self.reorder_and_upcast_attn:
+            attn_output, attn_weights = self._upcast_and_reordered_attn(
+                query, key, value, attention_mask, head_mask
+            )
+        else:
+            attn_output, attn_weights = self._attn(
+                query, key, value, attention_mask, head_mask
+            )
 
         attn_output = self._merge_heads(attn_output, self.num_heads, self.head_dim)
         attn_output = self.c_proj(attn_output)
         attn_output = self.resid_dropout(attn_output)
 
         outputs = (attn_output, present)
+        if output_attentions:
+            outputs += (attn_weights,)
 
         return outputs  # a, present, (attentions)
 
@@ -493,18 +603,17 @@ class ImageGPTPreTrainedModel(PreTrainedModel):
                     ),
                 )
 
-    def _set_gradient_checkpointing(self, module, value=False):
-        if isinstance(module, ImageGPTModel):
-            module.gradient_checkpointing = value
-
 
 IMAGEGPT_START_DOCSTRING = r"""
+
     This model inherits from [`PreTrainedModel`]. Check the superclass documentation for the generic methods the
     library implements for all its model (such as downloading or saving, resizing the input embeddings, pruning heads
     etc.)
+
     This model is also a PyTorch [torch.nn.Module](https://pytorch.org/docs/stable/nn.html#torch.nn.Module) subclass.
     Use it as a regular PyTorch Module and refer to the PyTorch documentation for all matter related to general usage
     and behavior.
+
     Parameters:
         config ([`ImageGPTConfig`]): Model configuration class with all the parameters of the model.
             Initializing with a config file does not load the weights associated with the model, only the
@@ -517,36 +626,47 @@ IMAGEGPT_INPUTS_DOCSTRING = r"""
             `input_ids_length` = `sequence_length` if `past_key_values` is `None` else
             `past_key_values[0][0].shape[-2]` (`sequence_length` of input past key value states). Indices of input
             sequence tokens in the vocabulary.
+
             If `past_key_values` is used, only `input_ids` that do not have their past calculated should be passed as
             `input_ids`.
+
             Indices can be obtained using [`AutoImageProcessor`]. See [`ImageGPTImageProcessor.__call__`] for details.
+
         past_key_values (`Tuple[Tuple[torch.Tensor]]` of length `config.n_layers`):
             Contains precomputed hidden-states (key and values in the attention blocks) as computed by the model (see
             `past_key_values` output below). Can be used to speed up sequential decoding. The `input_ids` which have
             their past given to this model should not be passed as `input_ids` as they have already been computed.
         attention_mask (`torch.FloatTensor` of shape `(batch_size, sequence_length)`, *optional*):
             Mask to avoid performing attention on padding token indices. Mask values selected in `[0, 1]`:
+
             - 1 for tokens that are **not masked**,
             - 0 for tokens that are **masked**.
+
             [What are attention masks?](../glossary#attention-mask)
         token_type_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
             Segment token indices to indicate first and second portions of the inputs. Indices are selected in `[0,
             1]`:
+
             - 0 corresponds to a *sentence A* token,
             - 1 corresponds to a *sentence B* token.
+
             [What are token type IDs?](../glossary#token-type-ids)
         position_ids (`torch.LongTensor` of shape `(batch_size, sequence_length)`, *optional*):
             Indices of positions of each input sequence tokens in the position embeddings. Selected in the range `[0,
             config.max_position_embeddings - 1]`.
+
             [What are position IDs?](../glossary#position-ids)
         head_mask (`torch.FloatTensor` of shape `(num_heads,)` or `(num_layers, num_heads)`, *optional*):
             Mask to nullify selected heads of the self-attention modules. Mask values selected in `[0, 1]`:
+
             - 1 indicates the head is **not masked**,
             - 0 indicates the head is **masked**.
+
         inputs_embeds (`torch.FloatTensor` of shape `(batch_size, sequence_length, hidden_size)`, *optional*):
             Optionally, instead of passing `input_ids` you can choose to directly pass an embedded representation. This
             is useful if you want more control over how to convert `input_ids` indices into associated vectors than the
             model's internal embedding lookup matrix.
+
             If `past_key_values` is used, optionally only the last `inputs_embeds` have to be input (see
             `past_key_values`).
         use_cache (`bool`, *optional*):
@@ -568,8 +688,6 @@ IMAGEGPT_INPUTS_DOCSTRING = r"""
     IMAGEGPT_START_DOCSTRING,
 )
 class ImageGPTModel(ImageGPTPreTrainedModel):
-    _keys_to_ignore_on_load_missing = ["attn.masked_bias"]
-
     def __init__(self, config: ImageGPTConfig):
         super().__init__(config)
 
@@ -634,16 +752,22 @@ class ImageGPTModel(ImageGPTPreTrainedModel):
             Labels for language modeling. Note that the labels **are shifted** inside the model, i.e. you can set
             `labels = input_ids` Indices are selected in `[-100, 0, ..., config.vocab_size]` All labels set to `-100`
             are ignored (masked), the loss is only computed for labels in `[0, ..., config.vocab_size]`
+
         Returns:
+
         Examples:
+
         ```python
         >>> from transformers import AutoImageProcessor, ImageGPTModel
         >>> from PIL import Image
         >>> import requests
+
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
+
         >>> image_processor = AutoImageProcessor.from_pretrained("openai/imagegpt-small")
         >>> model = ImageGPTModel.from_pretrained("openai/imagegpt-small")
+
         >>> inputs = image_processor(images=image, return_tensors="pt")
         >>> outputs = model(**inputs)
         >>> last_hidden_states = outputs.last_hidden_state
@@ -683,6 +807,7 @@ class ImageGPTModel(ImageGPTPreTrainedModel):
                 "You cannot specify both input_ids and inputs_embeds at the same time"
             )
         elif input_ids is not None:
+            self.warn_if_padding_and_no_attention_mask(input_ids, attention_mask)
             input_shape = input_ids.size()
             input_ids = input_ids.view(-1, input_shape[-1])
             batch_size = input_ids.shape[0]
@@ -696,8 +821,6 @@ class ImageGPTModel(ImageGPTPreTrainedModel):
 
         if token_type_ids is not None:
             token_type_ids = token_type_ids.view(-1, input_shape[-1])
-        if position_ids is not None:
-            position_ids = position_ids.view(-1, input_shape[-1])
 
         if past_key_values is None:
             past_length = 0
@@ -711,7 +834,7 @@ class ImageGPTModel(ImageGPTPreTrainedModel):
                 dtype=torch.long,
                 device=device,
             )
-            position_ids = position_ids.unsqueeze(0).view(-1, input_shape[-1])
+            position_ids = position_ids.unsqueeze(0)
 
         # ImageGPTAttention mask.
         if attention_mask is not None:
@@ -798,22 +921,16 @@ class ImageGPTModel(ImageGPTPreTrainedModel):
                 all_hidden_states = all_hidden_states + (hidden_states,)
 
             if self.gradient_checkpointing and self.training:
-
-                def create_custom_forward(module):
-                    def custom_forward(*inputs):
-                        # None for past_key_value
-                        return module(*inputs, use_cache, output_attentions)
-
-                    return custom_forward
-
-                outputs = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(block),
+                outputs = self._gradient_checkpointing_func(
+                    block.__call__,
                     hidden_states,
                     None,
                     attention_mask,
                     head_mask[i],
                     encoder_hidden_states,
                     encoder_attention_mask,
+                    use_cache,
+                    output_attentions,
                 )
             else:
                 outputs = block(
@@ -883,11 +1000,7 @@ class ImageGPTModel(ImageGPTPreTrainedModel):
     IMAGEGPT_START_DOCSTRING,
 )
 class ImageGPTForCausalImageModeling(ImageGPTPreTrainedModel):
-    _keys_to_ignore_on_load_missing = [
-        r"attn.masked_bias",
-        r"attn.bias",
-        r"lm_head.weight",
-    ]
+    _tied_weights_keys = ["lm_head.weight"]
 
     def __init__(self, config: ImageGPTConfig):
         super().__init__(config)
@@ -910,11 +1023,20 @@ class ImageGPTForCausalImageModeling(ImageGPTPreTrainedModel):
         self, input_ids: torch.Tensor, past_key_values: Optional[bool] = None, **kwargs
     ):
         token_type_ids = kwargs.get("token_type_ids", None)
-        # only last token for inputs_ids if past is defined in kwargs
+        # Omit tokens covered by past_key_values
         if past_key_values:
-            input_ids = input_ids[:, -1].unsqueeze(-1)
+            past_length = past_key_values[0][0].shape[2]
+
+            # Some generation methods already pass only the last input ID
+            if input_ids.shape[1] > past_length:
+                remove_prefix_length = past_length
+            else:
+                # Default to old behavior: keep only final ID
+                remove_prefix_length = input_ids.shape[1] - 1
+
+            input_ids = input_ids[:, remove_prefix_length:]
             if token_type_ids is not None:
-                token_type_ids = token_type_ids[:, -1].unsqueeze(-1)
+                token_type_ids = token_type_ids[:, -input_ids.shape[1] :]
 
         attention_mask = kwargs.get("attention_mask", None)
         position_ids = kwargs.get("position_ids", None)
@@ -924,7 +1046,7 @@ class ImageGPTForCausalImageModeling(ImageGPTPreTrainedModel):
             position_ids = attention_mask.long().cumsum(-1) - 1
             position_ids.masked_fill_(attention_mask == 0, 1)
             if past_key_values:
-                position_ids = position_ids[:, -1].unsqueeze(-1)
+                position_ids = position_ids[:, -input_ids.shape[1] :]
         else:
             position_ids = None
         return {
@@ -963,33 +1085,41 @@ class ImageGPTForCausalImageModeling(ImageGPTPreTrainedModel):
             Labels for language modeling. Note that the labels **are shifted** inside the model, i.e. you can set
             `labels = input_ids` Indices are selected in `[-100, 0, ..., config.vocab_size]` All labels set to `-100`
             are ignored (masked), the loss is only computed for labels in `[0, ..., config.vocab_size]`
+
         Returns:
+
         Examples:
+
         ```python
         >>> from transformers import AutoImageProcessor, ImageGPTForCausalImageModeling
         >>> import torch
         >>> import matplotlib.pyplot as plt
         >>> import numpy as np
+
         >>> image_processor = AutoImageProcessor.from_pretrained("openai/imagegpt-small")
         >>> model = ImageGPTForCausalImageModeling.from_pretrained("openai/imagegpt-small")
         >>> device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        >>> model.to(device)
+        >>> model.to(device)  # doctest: +IGNORE_RESULT
+
         >>> # unconditional generation of 8 images
-        >>> batch_size = 8
+        >>> batch_size = 4
         >>> context = torch.full((batch_size, 1), model.config.vocab_size - 1)  # initialize with SOS token
-        >>> context = torch.tensor(context).to(device)
+        >>> context = context.to(device)
         >>> output = model.generate(
         ...     input_ids=context, max_length=model.config.n_positions + 1, temperature=1.0, do_sample=True, top_k=40
         ... )
+
         >>> clusters = image_processor.clusters
         >>> height = image_processor.size["height"]
         >>> width = image_processor.size["width"]
+
         >>> samples = output[:, 1:].cpu().detach().numpy()
         >>> samples_img = [
         ...     np.reshape(np.rint(127.5 * (clusters[s] + 1.0)), [height, width, 3]).astype(np.uint8) for s in samples
         ... ]  # convert color cluster tokens back to pixels
         >>> f, axes = plt.subplots(1, batch_size, dpi=300)
-        >>> for img, ax in zip(samples_img, axes):
+
+        >>> for img, ax in zip(samples_img, axes):  # doctest: +IGNORE_RESULT
         ...     ax.axis("off")
         ...     ax.imshow(img)
         ```"""
@@ -1081,8 +1211,6 @@ class ImageGPTForCausalImageModeling(ImageGPTPreTrainedModel):
     IMAGEGPT_START_DOCSTRING,
 )
 class ImageGPTForImageClassification(ImageGPTPreTrainedModel):
-    _keys_to_ignore_on_load_missing = [r"h\.\d+\.attn\.masked_bias", r"lm_head.weight"]
-
     def __init__(self, config: ImageGPTConfig):
         super().__init__(config)
         self.num_labels = config.num_labels
@@ -1117,16 +1245,22 @@ class ImageGPTForImageClassification(ImageGPTPreTrainedModel):
             Labels for computing the sequence classification/regression loss. Indices should be in `[0, ...,
             config.num_labels - 1]`. If `config.num_labels == 1` a regression loss is computed (Mean-Square loss), If
             `config.num_labels > 1` a classification loss is computed (Cross-Entropy).
+
         Returns:
+
         Examples:
+
         ```python
         >>> from transformers import AutoImageProcessor, ImageGPTForImageClassification
         >>> from PIL import Image
         >>> import requests
+
         >>> url = "http://images.cocodataset.org/val2017/000000039769.jpg"
         >>> image = Image.open(requests.get(url, stream=True).raw)
+
         >>> image_processor = AutoImageProcessor.from_pretrained("openai/imagegpt-small")
         >>> model = ImageGPTForImageClassification.from_pretrained("openai/imagegpt-small")
+
         >>> inputs = image_processor(images=image, return_tensors="pt")
         >>> outputs = model(**inputs)
         >>> logits = outputs.logits
