@@ -89,14 +89,6 @@ class Trainer(object):
         # Make it deterministic
         seed_everything(self.args.seed)
 
-        # Init pytorch distributed
-        distributed.init_process_group(
-            init_method=f"tcp://localhost:{self.args.port}",
-            world_size=self.args.world_size,
-            rank=self.args.local_rank,
-            group_name="cl_sync",
-        )
-
         # Run wandb agent if sweep id was passed to arguments
         if self.args.sweep_id:
             wandb.agent(
@@ -107,8 +99,6 @@ class Trainer(object):
         else:
             # Otherwise just run entry main function
             entry_main(self.args)
-
-        distributed.destroy_process_group()
 
     def checkpoint(self):
         import submitit

@@ -200,8 +200,16 @@ def train_loop(
 
 def main(args):
     resume_arguments = torch.load(args.resume_from) if args.resume_from else None
-    is_distributed = len(args.devices.rstrip(",").split(",")) > 1
+    is_distributed = args.world_size > 1
     is_main_process = args.local_rank == 0
+
+    # Init pytorch distributed
+    distributed.init_process_group(
+        init_method=f"tcp://localhost:{args.port}",
+        world_size=args.world_size,
+        rank=args.local_rank,
+        group_name="cl_sync",
+    )
 
     # Reading configuration from ini file
     assert (
@@ -334,3 +342,5 @@ def main(args):
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")
+
+    distributed.destroy_process_group()

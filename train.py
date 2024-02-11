@@ -46,14 +46,6 @@ if __name__ == "__main__":
     else:
         assert False, "Unknown value '--model' parameter"
 
-    # Init pytorch distributed
-    distributed.init_process_group(
-        init_method=f"tcp://localhost:{args.port}",
-        world_size=args.world_size,
-        rank=args.local_rank,
-        group_name="cl_sync",
-    )
-
     # Make it deterministic
     seed_everything(args.seed)
 
@@ -67,17 +59,14 @@ if __name__ == "__main__":
     else:
         # Otherwise just run entry main function
         devices = args.devices.rstrip(",").split(",")
-        is_distributed = len(devices) > 1
+        args.world_size = len(devices)
 
-        if is_distributed:
-            world_size = len(devices)
+        if args.world_size > 1:
             mp.spawn(
                 partial(ddp_wrapper, entry_main),
                 args=(args,),
-                nprocs=world_size,
+                nprocs=args.world_size,
                 join=True,
             )
         else:
             entry_main(args)
-
-    distributed.destroy_process_group()
