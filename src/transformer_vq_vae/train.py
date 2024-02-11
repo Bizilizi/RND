@@ -82,6 +82,9 @@ def train_loop(
     :return:
     """
 
+    if is_using_wandb:
+        log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
+
     image_gpt = None
     if resume_arguments:
         start_experience = resume_arguments["current_experience_step"]
@@ -185,11 +188,15 @@ def train_loop(
         # Wait until the main process
         distributed.barrier()
 
-    if is_using_wandb:
-        log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
-
 
 def main(args):
+    # Init pytorch distributed
+    distributed.init_process_group(
+        init_method=f"tcp://localhost:{args.port}",
+        world_size=args.world_size,
+        rank=args.local_rank,
+    )
+
     resume_arguments = torch.load(args.resume_from) if args.resume_from else None
     is_distributed = len(args.devices.split(",")) > 1
     is_main_process = args.local_rank == 0
@@ -241,7 +248,16 @@ def main(args):
 
     # Fix path params
     today = datetime.datetime.now()
-    run_id = wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
+    list_with_run_id = [None]
+
+    if is_main_process:
+        run_id = (
+            wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
+        )
+        list_with_run_id = [run_id]
+
+    distributed.broadcast_object_list(list_with_run_id)
+    run_id = list_with_run_id[0]
 
     config.checkpoint_path += f"/{run_id}/model"
     config.best_model_prefix += f"/{run_id}/best_model"

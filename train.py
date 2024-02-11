@@ -41,13 +41,6 @@ if __name__ == "__main__":
     # Make it deterministic
     seed_everything(args.seed)
 
-    # Init pytorch distributed
-    distributed.init_process_group(
-        init_method=f"tcp://localhost:{args.port}",
-        world_size=args.world_size,
-        rank=args.local_rank,
-    )
-
     # Run wandb agent if sweep id was passed to arguments
     if args.sweep_id:
         wandb.agent(
