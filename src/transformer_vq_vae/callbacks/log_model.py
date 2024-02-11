@@ -61,17 +61,6 @@ class LogModelWightsCallback(Callback):
             f"{self.checkpoint_path}/checkpoint_metadata.ckpt",
         )
 
-        # log model to W&B
-        if isinstance(logger, WandbLogger) and self.log_to_wandb:
-            artifact = wandb.Artifact(
-                f"model-{logger.experiment.id}",
-                type="model",
-                description=self.model_description,
-            )
-            artifact.add_file(model_ckpt)
-
-            logger.experiment.log_artifact(artifact)
-
     def on_train_epoch_end(
         self,
         trainer: "pl.Trainer",
