@@ -22,6 +22,7 @@ from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.bootstrapped_dataset import BootstrappedDataset
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 def init_token_embeddings(
@@ -168,6 +169,7 @@ def learning_rate_schedule(warmup_steps, total_steps):
 
 
 def train_igpt(
+    *,
     strategy: NaivePytorchLightning,
     config: TrainConfig,
     train_dataset: Dataset,
@@ -176,6 +178,8 @@ def train_igpt(
     num_classes: int,
     n_layer: int = 12,
     image_gpt: ImageGPTForCausalImageModeling = None,
+    is_distributed: bool,
+    local_rank: int,
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
@@ -195,6 +199,7 @@ def train_igpt(
         vocab_size = num_all_embeddings + 2
         n_positions = (16 * 16 + 1) * config.quantize_top_k + 1
 
+    # Create IGPT instance
     configuration = ImageGPTConfig(
         **{
             "activation_function": "quick_gelu",
@@ -217,19 +222,25 @@ def train_igpt(
         }
     )
     image_gpt = image_gpt or ImageGPTForCausalImageModeling(configuration)
-
     init_token_embeddings(vq_vae_model, image_gpt, mask_token)
+
+    if is_distributed:
+        image_gpt = DDP(image_gpt, device_ids=[local_rank])
+
+    # Create image embedding token for easier image generation
     image_embeddings = get_image_embedding(
         vq_vae_model=vq_vae_model,
         num_embeddings=num_all_embeddings + 1,
         embedding_dim=config.embedding_dim,
         mask_token=mask_token,
-    ).to(vq_vae_model.device)
+    )
 
+    # Transfer models to corresponding device (DDP)
+    image_gpt = image_gpt.to(device)
     vq_vae_model.to(device)
-    image_gpt.to(device)
     image_embeddings.to(device)
 
+    # Create IGPT dataset
     train_dataset = ImageGPTDataset(
         vq_vae_model=vq_vae_model,
         dataset=train_dataset,
@@ -246,13 +257,8 @@ def train_igpt(
         shuffle=True,
     )
 
-    if strategy.experience_step < 2:
-        epoch_num = 2
-    elif strategy.experience_step < 3:
-        epoch_num = 2
-    else:
-        epoch_num = 2
-
+    # Init training variables
+    epoch_num = config.max_epochs_igpt
     grad_scaler = torch.cuda.amp.GradScaler()
     optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
     exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
@@ -261,9 +267,9 @@ def train_igpt(
             500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
         ),
     )
-
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
 
+    # Train loop
     step = 0
     for i in trange(0, epoch_num, desc="Igpt-epochs"):
         counter = i
@@ -288,43 +294,55 @@ def train_igpt(
                 optimizer.zero_grad(set_to_none=True)
                 exp_lr_scheduler.step()
 
-            logger.log_metrics(
-                {
-                    f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
-                    "epoch": i,
-                },
-                step=i,
-            )
+            if isinstance(logger, WandbLogger) and local_rank == 0:
+                logger.log_metrics(
+                    {
+                        f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
+                        "epoch": i,
+                    },
+                    step=i,
+                )
 
         # Save igpt model on every epoch
-        model_ckpt_path = (
-            f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
-        )
-        state_dict = image_gpt.state_dict()
-        for k, v in state_dict.items():
-            state_dict[k] = v.cpu()
+        if local_rank == 0:
+            if is_distributed:
+                state_dict = image_gpt.module.state_dict()
+            else:
+                state_dict = image_gpt.state_dict()
 
-        torch.save(state_dict, model_ckpt_path)
+            for k, v in state_dict.items():
+                state_dict[k] = v.cpu()
 
-        # Break
-        images, *_ = sample_images(
-            image_gpt=image_gpt,
-            vq_vae_model=vq_vae_model,
-            embedding=image_embeddings,
-            sos_token=sos_token,
-            mask_token=mask_token,
-            temperature=config.temperature,
-            max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
-            num_neighbours=config.quantize_top_k,
-            classes_seen_so_far=classes_seen_so_far,
-            num_tokens_without_sos=num_all_embeddings + 1,
-        )
+            torch.save(
+                state_dict,
+                f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt",
+            )
 
-        sample = make_grid(images.cpu().data)
-        sample = (sample + 0.5) * 255
-        sample = sample.clip(0, 255)
+        # Generate sampled images at the end of the epoch
+        if isinstance(logger, WandbLogger) and local_rank == 0:
+            if is_distributed:
+                sampler = image_gpt.module
+            else:
+                sampler = image_gpt
 
-        if isinstance(logger, WandbLogger):
+            images, *_ = sample_images(
+                image_gpt=sampler,
+                vq_vae_model=vq_vae_model,
+                embedding=image_embeddings,
+                sos_token=sos_token,
+                mask_token=mask_token,
+                temperature=config.temperature,
+                max_length=(16 * 16 + 1) * config.quantize_top_k + 1,
+                num_neighbours=config.quantize_top_k,
+                classes_seen_so_far=classes_seen_so_far,
+                num_tokens_without_sos=num_all_embeddings + 1,
+            )
+
+            sample = make_grid(images.cpu().data)
+            sample = (sample + 0.5) * 255
+            sample = sample.clip(0, 255)
+
+            # Log sampled images
             logger.log_metrics(
                 {
                     f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
@@ -334,7 +352,10 @@ def train_igpt(
                 }
             )
 
-    return image_gpt
+    if is_distributed:
+        return image_gpt.module
+    else:
+        return image_gpt
 
 
 @torch.no_grad()

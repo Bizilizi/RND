@@ -77,6 +77,8 @@ def train_loop(
     config: TrainConfig,
     device: torch.device,
     resume_arguments: t.Optional[t.Dict[str, t.Any]],
+    is_distributed: bool,
+    local_rank: int,
 ) -> None:
     """
     :return:
@@ -145,11 +147,13 @@ def train_loop(
                 igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
 
         # Train VQ-VAE
+        # We check whether we have a corresponding checkpoint for this CL step
+        # If we have it, and it's not completed we continue training, otherwise we go further
         checkpoint_fully_trained = resume_arguments and (
             resume_arguments["current_epochs"] < resume_arguments["current_max_epochs"]
         )
-        if not checkpoint_fully_trained:
-            cl_strategy.train(train_experience, [test_experience])
+        # if not checkpoint_fully_trained:
+        #     cl_strategy.train(train_experience, [test_experience])
 
         # Train linear classifier, but before we freeze model params
         # We train two classifiers. One to predict all classes,
@@ -157,13 +161,16 @@ def train_loop(
         cl_strategy.model.freeze()
 
         # Train classifier
-        print(f"Train classifier..")
-        train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
+        # if local_rank == 0:
+        # print(f"Train classifier..")
+        # train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+        # train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # ).to(device)
+
+        distributed.barrier()
 
         # Train new image gpt model
         print(f"Train igpt..")
@@ -176,6 +183,8 @@ def train_loop(
             image_gpt=image_gpt if config.reuse_igpt else None,
             classes_seen_so_far=train_experience.classes_seen_so_far,
             num_classes=benchmark.n_classes,
+            is_distributed=is_distributed,
+            local_rank=local_rank,
         )
 
         # Unfreeze model and move to the next experience
@@ -191,7 +200,7 @@ def train_loop(
 
 def main(args):
     resume_arguments = torch.load(args.resume_from) if args.resume_from else None
-    is_distributed = len(args.devices.split(",")) > 1
+    is_distributed = len(args.devices.rstrip(",").split(",")) > 1
     is_main_process = args.local_rank == 0
 
     # Reading configuration from ini file
@@ -274,7 +283,7 @@ def main(args):
     # Create benchmark
     benchmark = get_benchmark(config, target_dataset_dir)
 
-    device = get_device(config)
+    device = get_device(config, args.local_rank)
     model = get_model(config, device, benchmark)
 
     # Create evaluation plugin and train/val loggers
@@ -301,7 +310,7 @@ def main(args):
         train_epochs=config.max_epochs,
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
-        callbacks=get_callbacks(config),
+        callbacks=get_callbacks(config, is_main_process),
         max_epochs=epochs_schedule,
         min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,
@@ -316,10 +325,12 @@ def main(args):
         train_loop(
             benchmark=benchmark,
             cl_strategy=cl_strategy,
-            is_using_wandb=is_using_wandb,
             config=config,
             device=device,
             resume_arguments=resume_arguments,
+            is_using_wandb=is_using_wandb,
+            is_distributed=is_distributed,
+            local_rank=args.local_rank,
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")

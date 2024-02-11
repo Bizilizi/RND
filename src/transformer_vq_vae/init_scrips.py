@@ -159,26 +159,31 @@ def get_model(config: TrainConfig, device: torch.device, benchmark) -> VitVQVae:
     return vae
 
 
-def get_callbacks(config: TrainConfig) -> t.Callable[[int], t.List[Callback]]:
-    return lambda experience_step: [
-        #     EarlyStopping(
-        #         monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
-        #         mode="min",
-        #         patience=50,
-        #     ),
-        LogModelWightsCallback(
-            log_every=config.save_model_every,
-            checkpoint_path=config.checkpoint_path,
-            experience_step=experience_step,
-            log_to_wandb=False,
-        ),
-        LogDataset(),
-        VisualizeTrainingReconstructions(log_every=10, name="rec_img_100"),
-        VisualizeTrainingReconstructions(
-            log_every=100, num_images=1000, w1=10, name="rec_img_1000"
-        ),
-        LogCodebookHistogram(log_every=50),
-    ]
+def get_callbacks(
+    config: TrainConfig, is_main_process
+) -> t.Callable[[int], t.List[Callback]]:
+    if is_main_process:
+        return lambda experience_step: [
+            #     EarlyStopping(
+            #         monitor=f"val/reconstruction_loss/experience_step_{experience_step}",
+            #         mode="min",
+            #         patience=50,
+            #     ),
+            LogModelWightsCallback(
+                log_every=config.save_model_every,
+                checkpoint_path=config.checkpoint_path,
+                experience_step=experience_step,
+                log_to_wandb=False,
+            ),
+            LogDataset(),
+            VisualizeTrainingReconstructions(log_every=10, name="rec_img_100"),
+            VisualizeTrainingReconstructions(
+                log_every=100, num_images=1000, w1=10, name="rec_img_1000"
+            ),
+            LogCodebookHistogram(log_every=50),
+        ]
+    else:
+        return lambda experience_step: []
 
 
 def get_train_plugins(config: TrainConfig):

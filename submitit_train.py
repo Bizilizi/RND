@@ -108,6 +108,8 @@ class Trainer(object):
             # Otherwise just run entry main function
             entry_main(self.args)
 
+        distributed.destroy_process_group()
+
     def checkpoint(self):
         import submitit
         import pathlib

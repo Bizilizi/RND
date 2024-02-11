@@ -59,3 +59,5 @@ if __name__ == "__main__":
     else:
         # Otherwise just run entry main function
         entry_main(args)
+
+    distributed.destroy_process_group()

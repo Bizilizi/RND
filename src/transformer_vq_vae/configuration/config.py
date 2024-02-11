@@ -47,6 +47,7 @@ class TrainConfig(BaseTrainConfig):
     # training
     max_epochs_lin_eval: int
     min_epochs_lin_eval: int
+    max_epochs_igpt: int
     dataset: str
     image_size: int
     save_model_every: int

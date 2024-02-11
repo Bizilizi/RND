@@ -167,9 +167,9 @@ def get_loggers(
     return train_logger, evaluation_loggers
 
 
-def get_device(config):
-    if config.accelerator == "gpu":
-        return torch.device("cuda")
+def get_device(config, local_rank):
+    if config.accelerator in ["gpu", "cuda"]:
+        return torch.device(f"cuda:{local_rank}")
     else:
         return torch.device(config.accelerator)
 
