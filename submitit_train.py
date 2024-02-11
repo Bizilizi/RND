@@ -94,6 +94,7 @@ class Trainer(object):
             init_method=f"tcp://localhost:{self.args.port}",
             world_size=self.args.world_size,
             rank=self.args.local_rank,
+            group_name="cl_sync",
         )
 
         # Run wandb agent if sweep id was passed to arguments
