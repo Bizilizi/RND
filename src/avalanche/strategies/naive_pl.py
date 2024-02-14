@@ -95,7 +95,7 @@ class NaivePytorchLightning(Naive):
         )
 
         callbacks = [PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)]
-        if self.best_model_path_prefix and self.local_rank == 0:
+        if self.best_model_path_prefix:
             self.restore_best_model_callback = RestoreBestPerformingModel(
                 path_prefix=self.best_model_path_prefix,
                 monitor="val/reconstruction_loss",

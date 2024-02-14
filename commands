@@ -16,30 +16,30 @@ sbatch submit.sh python train.py \
 
 
 python submitit_train.py \
-    --cpus_per_task 8 \
+    --cpus_per_task 4 \
     --slurm_mem 96 \
-    --gpu_type a6000 \
-    --partition low-prio-gpu \
+    --gpu_type v100s \
+    --partition ddp-4way \
     --timeout 2880 \
-    --ngpus 1 \
-    --comment "50k fixed images ssup" \
-    --group mae-num-pas-images \
+    --ngpus 2 \
+    --comment "ddp test" \
+    --group tests \
     --dataset cifar10 \
     --num_tasks 5 \
-    --max_epochs 600 \
-    --min_epochs 250 \
+    --max_epochs 29 \
+    --min_epochs 29 \
     --num_epochs_schedule warmup \
-    --supervised False \
-    --devices 0, \
-    --max_epochs_igpt 15 \
+    --supervised True \
+    --devices 0,1 \
+    --max_epochs_igpt 2 \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --batch_size 512 \
+    --batch_size 256 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
-    --max_epochs_lin_eval 100 \
+    --max_epochs_lin_eval 20 \
     --num_random_past_samples 50000 \
     --num_random_past_samples_schedule fixed \
     --num_random_future_samples 0 \
