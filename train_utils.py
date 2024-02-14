@@ -190,6 +190,7 @@ def get_wandb_params(args, config, resume_arguments):
         entity="vgg-continual-learning",
         group=args.group,
         dir=args.wandb_dir,
+        resume="allow",
     )
     wandb.init(**wandb_params)
 
