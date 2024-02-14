@@ -7,6 +7,8 @@ from pytorch_lightning import Callback, Trainer
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
+from torch import distributed
+
 from src.avalanche.callbacks.lightning_training_to_avalanche import (
     PLTrainLoopToAvalancheTrainLoopCallback,
 )
@@ -33,6 +35,7 @@ class NaivePytorchLightning(Naive):
         train_plugins: t.List[t.Any],
         max_epochs: t.Union[int, t.List[int]],
         min_epochs: t.Union[int, t.List[int]],
+        local_rank: int = 0,
         best_model_path_prefix: str = "",
         train_mb_num_workers: int = 2,
         resume_arguments: t.Dict[str, t.Any] = None,
@@ -59,6 +62,8 @@ class NaivePytorchLightning(Naive):
         self.max_epochs = max_epochs
         self.best_model_path_prefix = best_model_path_prefix
         self.train_plugins = train_plugins
+        self.local_rank = local_rank
+
         # Modify callback to
         self.callbacks_factory = callbacks
         self.strategy_callbacks = []
@@ -90,7 +95,7 @@ class NaivePytorchLightning(Naive):
         )
 
         callbacks = [PLTrainLoopToAvalancheTrainLoopCallback(strategy=self, **kwargs)]
-        if self.best_model_path_prefix:
+        if self.best_model_path_prefix and self.local_rank == 0:
             self.restore_best_model_callback = RestoreBestPerformingModel(
                 path_prefix=self.best_model_path_prefix,
                 monitor="val/reconstruction_loss",
@@ -145,9 +150,15 @@ class NaivePytorchLightning(Naive):
         self.model.experience = self.experience
 
     def restore_best_model(self) -> None:
-        if self.experience_step > 0 and self.restore_best_model_callback:
-            state_dict = torch.load(self.restore_best_model_callback.best_model_path)[
-                "state_dict"
-            ]
+        if self.experience_step > 0:
+            list_with_best_model_path = [None]
+            if self.local_rank == 0:
+                list_with_best_model_path[
+                    0
+                ] = self.restore_best_model_callback.best_model_path
+
+            distributed.broadcast_object_list(list_with_best_model_path)
+            best_model_path = list_with_best_model_path[0]
+
+            state_dict = torch.load(best_model_path)["state_dict"]
             self.model.load_state_dict(state_dict)
-            os.remove(self.restore_best_model_callback.best_model_path)

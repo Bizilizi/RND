@@ -301,6 +301,7 @@ def main(args):
 
     epochs_schedule = get_epochs_schedule(config)
     cl_strategy = NaivePytorchLightning(
+        local_rank=args.local_rank,
         precision=config.precision,
         accelerator=config.accelerator,
         devices=config.devices,

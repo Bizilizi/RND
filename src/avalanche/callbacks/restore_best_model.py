@@ -48,7 +48,7 @@ class RestoreBestPerformingModel(ModelCheckpoint):
 
         super().__init__(
             dirpath=self.path_prefix,
-            filename="model",
+            filename=f"model-exp-{experience_step}",
             save_top_k=1,
             monitor=f"{self._monitor}/experience_step_{experience_step}",
             mode=self.mode,
