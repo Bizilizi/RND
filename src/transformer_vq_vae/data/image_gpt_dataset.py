@@ -127,11 +127,25 @@ class ImageGPTDataset(Dataset):
 
         return input_ids
 
+    def _rand_mask_indices(self, indices):
+        T = indices.shape[0]
+        change_T = int(T * self.ratio)
+
+        forward_indices = torch.randperm(T)
+        masked_indices = indices.clone()
+        masked_indices[forward_indices[:change_T]] = self.mask_token
+
+        return masked_indices
+
     def __len__(self):
         return len(self.targets)
 
     def __getitem__(self, item):
+        input_ids = self.input_ids_values[item]
+        masked_input_ids = self._rand_mask_indices(input_ids)
+
         return {
-            "input_ids": self.input_ids_values[item],
+            "input_ids": input_ids,
+            "masked_input_ids": masked_input_ids,
             "labels": self.targets[item],
         }

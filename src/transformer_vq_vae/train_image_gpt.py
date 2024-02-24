@@ -279,7 +279,7 @@ def train_igpt(
         for batch in tqdm(data_loader, desc="Igpt-batch", leave=False):
             step += 1
 
-            input_ids = batch["input_ids"].to(device)
+            input_ids = batch["masked_input_ids"].to(device)
 
             with torch.autocast(device_type=config.accelerator):
                 output = image_gpt(input_ids=input_ids)

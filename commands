@@ -16,33 +16,33 @@ sbatch submit.sh python train.py \
 
 
 python submitit_train.py \
-    --cpus_per_task 4 \
+    --cpus_per_task 8 \
     --slurm_mem 96 \
     --gpu_type a6000 \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "rand augment" \
-    --group mae-augmentations \
-    --dataset cifar100 \
-    --num_tasks 20 \
-    --max_epochs 1200 \
-    --min_epochs 300 \
+    --comment "cifar10 z_latent igpt bootstrap" \
+    --group igpt-bootstrap-exp \
+    --dataset cifar10 \
+    --num_tasks 5 \
+    --max_epochs 600 \
+    --min_epochs 200 \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0, \
     --augment rand \
-    --max_epochs_igpt 10 \
+    --max_epochs_igpt 13 \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --batch_size 256 \
+    --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
     --max_epochs_lin_eval 100 \
-    --num_random_past_samples 20000 \
-    --num_random_past_samples_schedule schedule \
+    --num_random_past_samples 25000 \
+    --num_random_past_samples_schedule fixed \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
@@ -54,5 +54,5 @@ python submitit_train.py \
     --separate_codebooks true \
     --quantize_top_k 1 \
     --num_embeddings 256 \
-    --num_class_embeddings 4 \
+    --num_class_embeddings 4 \git
     --precision 16-mixed
