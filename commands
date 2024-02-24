@@ -18,16 +18,16 @@ sbatch submit.sh python train.py \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type a6000 \
-    --partition gpu \
+    --gpu_type p40 \
+    --partition low-prio-gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar100 z_latent igpt bootstrap (masked)" \
-    --group igpt-bootstrap-exp \
-    --dataset cifar100 \
-    --num_tasks 20 \
-    --max_epochs 1200 \
-    --min_epochs 300 \
+    --comment "test preempt" \
+    --group test-preempt \
+    --dataset cifar10 \
+    --num_tasks 5 \
+    --max_epochs 600 \
+    --min_epochs 200 \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0, \
@@ -37,7 +37,7 @@ python submitit_train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --batch_size 512 \
+    --batch_size 256 \
     --accumulate_grad_batches 1 \
     --num_workers 8 \
     --max_epochs_lin_eval 100 \

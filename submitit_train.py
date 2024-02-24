@@ -172,7 +172,7 @@ def main():
     import time
 
     time.sleep(60 * 20)
-    job._interrupt(timout=False)
+    job._interrupt(timeout=False)
 
 
 if __name__ == "__main__":
