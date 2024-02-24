@@ -287,6 +287,9 @@ def main(args):
     # Wait until the dataset is loaded and unpacked
     distributed.barrier()
 
+    # Pass new checkpoint_path to args so submitit can restore from it
+    args.checkpoint_path = config.checkpoint_path
+
     # Create benchmark
     benchmark = get_benchmark(config, target_dataset_dir)
 

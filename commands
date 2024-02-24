@@ -22,17 +22,17 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 z_latent igpt bootstrap" \
+    --comment "cifar100 z_latent igpt bootstrap (masked)" \
     --group igpt-bootstrap-exp \
-    --dataset cifar10 \
-    --num_tasks 5 \
-    --max_epochs 600 \
-    --min_epochs 200 \
+    --dataset cifar100 \
+    --num_tasks 20 \
+    --max_epochs 1200 \
+    --min_epochs 300 \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0, \
     --augment rand \
-    --max_epochs_igpt 13 \
+    --max_epochs_igpt 20 \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
@@ -54,5 +54,5 @@ python submitit_train.py \
     --separate_codebooks true \
     --quantize_top_k 1 \
     --num_embeddings 256 \
-    --num_class_embeddings 4 \git
+    --num_class_embeddings 4 \
     --precision 16-mixed
