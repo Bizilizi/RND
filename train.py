@@ -64,7 +64,7 @@ if __name__ == "__main__":
         devices = args.devices.rstrip(",").split(",")
 
         args.world_size = len(devices)
-        args.port = random.randint(1723, 91723)
+        args.port = random.randint(1723, 65535)
 
         if args.world_size > 1:
             mp.spawn(
