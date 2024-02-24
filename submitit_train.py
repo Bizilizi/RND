@@ -167,8 +167,12 @@ def main():
 
     trainer = Trainer(args)
     job = executor.submit(trainer)
-
     print("Submitted job_id:", job.job_id)
+
+    import time
+
+    time.sleep(60 * 20)
+    job._interrupt(timout=False)
 
 
 if __name__ == "__main__":
