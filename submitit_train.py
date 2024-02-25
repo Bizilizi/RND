@@ -15,6 +15,7 @@ from src.utils.train_script import parse_arguments
 from src.vae_ft.train import main as vae_ft_main
 from src.vq_vae.train import main as vq_vae_main
 from src.transformer_vq_vae.train import main as transformer_vq_vae_main
+from src.vq_vmae_joined_igpt.train import main as vq_vmae_joined_igpt_main
 
 
 def chunker(seq, size):
@@ -84,6 +85,8 @@ class Trainer(object):
             entry_main = vq_vae_main
         elif self.args.model == "transformer-vq-vae":
             entry_main = transformer_vq_vae_main
+        elif self.args.model == "vq-vmae-joined-igpt":
+            entry_main = vq_vmae_joined_igpt_main
         else:
             assert False, "Unknown value '--model' parameter"
 
