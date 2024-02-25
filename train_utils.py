@@ -185,7 +185,7 @@ def get_wandb_params(args, config, resume_arguments):
         run_id = None
 
     wandb_params = dict(
-        project=args.project if args.project is not None else args.model.upper(),
+        project=args.project if args.project is not None else args.model.lower(),
         id=run_id,
         entity="vgg-continual-learning",
         group=args.group,

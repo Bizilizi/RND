@@ -169,11 +169,6 @@ def main():
     job = executor.submit(trainer)
     print("Submitted job_id:", job.job_id)
 
-    import time
-
-    time.sleep(60 * 20)
-    job._interrupt(timeout=False)
-
 
 if __name__ == "__main__":
     main()

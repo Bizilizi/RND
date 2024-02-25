@@ -18,12 +18,14 @@ sbatch submit.sh python train.py \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type p40 \
-    --partition low-prio-gpu \
+    --gpu_type a6000 \
+    --batch_size 512 \
+    --accumulate_grad_batches 1 \
+    --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "test preempt" \
-    --group test-preempt \
+    --comment "cifar10 mae-cycle-vs-rec-loss CCL only sup" \
+    --group mae-cycle-vs-rec-loss \
     --dataset cifar10 \
     --num_tasks 5 \
     --max_epochs 600 \
@@ -31,24 +33,22 @@ python submitit_train.py \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0, \
-    --augment rand \
-    --max_epochs_igpt 20 \
+    --augment default \
+    --max_epochs_igpt 10 \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --batch_size 256 \
-    --accumulate_grad_batches 1 \
     --num_workers 8 \
     --max_epochs_lin_eval 100 \
-    --num_random_past_samples 25000 \
-    --num_random_past_samples_schedule fixed \
+    --num_random_past_samples 20000 \
+    --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
     --cycle_consistency_sigma 200 \
-    --past_samples_loss_weight 1 \
+    --past_samples_loss_weight 0 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \

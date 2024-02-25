@@ -11,25 +11,26 @@ from torchvision import transforms
 import wandb
 from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
+from src.vq_vmae_joined_igpt.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
 )
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.init_scrips import (
+from src.vq_vmae_joined_igpt.configuration.config import TrainConfig
+from src.vq_vmae_joined_igpt.init_scrips import (
     get_callbacks,
     get_evaluation_plugin,
     get_model,
     get_train_plugins,
     get_benchmark,
 )
-from src.transformer_vq_vae.model_future import model_future_samples
-from src.transformer_vq_vae.train_classifier import (
+from src.vq_vmae_joined_igpt.model_future import model_future_samples
+from src.vq_vmae_joined_igpt.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
+    validate_classifier_on_test_stream,
 )
-from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
-from src.transformer_vq_vae.utils.copy_dataset_to_tmp import copy_dataset_to_tmp
-from src.transformer_vq_vae.utils.wrap_empty_indices import (
+from src.vq_vmae_joined_igpt.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.vq_vmae_joined_igpt.utils.copy_dataset_to_tmp import copy_dataset_to_tmp
+from src.vq_vmae_joined_igpt.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
 )
 from src.utils.summary_table import log_summary_table_to_wandb
@@ -161,30 +162,27 @@ def train_loop(
         cl_strategy.model.freeze()
 
         # Train classifier
-        print(f"Train classifier..")
-        train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
+        print(f"Evaluate classifier..")
+        if cl_strategy.model.supervised and local_rank == 0:
+            validate_classifier_on_test_stream(
+                strategy=cl_strategy,
+                config=config,
+                benchmark=benchmark,
+                device=device,
+            )
+        else:
+            train_classifier_on_all_classes(
+                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+            )
+            train_classifier_on_observed_only_classes(
+                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+            )
 
         distributed.barrier()
 
         # Train new image gpt model
         print(f"Train igpt..")
-        image_gpt = train_igpt(
-            strategy=cl_strategy,
-            config=config,
-            train_dataset=igpt_train_dataset,
-            device=device,
-            n_layer=config.num_gpt_layers,
-            image_gpt=image_gpt if config.reuse_igpt else None,
-            classes_seen_so_far=train_experience.classes_seen_so_far,
-            num_classes=benchmark.n_classes,
-            is_distributed=False,
-            local_rank=local_rank,
-        )
+        image_gpt = cl_strategy.model.image_gpt
 
         # Unfreeze model and move to the next experience
         cl_strategy.model.unfreeze()
@@ -321,7 +319,7 @@ def main(args):
         train_epochs=config.max_epochs,
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
-        callbacks=get_callbacks(config, args.local_rank),
+        callbacks=get_callbacks(config, args.local_rank, benchmark),
         max_epochs=epochs_schedule,
         min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,

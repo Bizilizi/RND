@@ -1,0 +1,11 @@
+method: random
+metric:
+  goal: minimize
+  name: val/reconstruction_loss/experience_step_0
+parameters:
+  accumulate_grad_batches:
+    values: [1, 2, 4, 6, 8]
+  num_embeddings:
+    values: [128, 256, 512, 768, 1024]
+  embedding_dim:
+    values: [32, 64, 128, 256, 512]

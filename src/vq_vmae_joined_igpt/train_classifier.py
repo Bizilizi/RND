@@ -1,16 +1,19 @@
 import torch
+import wandb
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.loggers import WandbLogger
 from torch.utils.data import ConcatDataset
 
 from avalanche.benchmarks import SplitCIFAR10
 from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.data.clf_dataset import ClassificationDataset
-from src.transformer_vq_vae.model.classification_head import EmbClassifier
-from src.transformer_vq_vae.utils.wrap_empty_indices import (
+from src.vq_vmae_joined_igpt.configuration.config import TrainConfig
+from src.vq_vmae_joined_igpt.data.clf_dataset import ClassificationDataset
+from src.vq_vmae_joined_igpt.model.classification_head import EmbClassifier
+from src.vq_vmae_joined_igpt.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
+    WrappedDataset,
 )
 
 
@@ -140,25 +143,25 @@ def train_classifier_on_observed_only_classes(
     return clf_head
 
 
+@torch.no_grad()
 def validate_classifier_on_test_stream(
     strategy: NaivePytorchLightning,
     config: TrainConfig,
     benchmark: SplitCIFAR10,
     device: torch.device,
 ):
+    logger = strategy.train_logger
     vq_vae_model = strategy.model.to(device)
+    experience_step = strategy.experience_step
+
     test_dataset = ConcatDataset(
         [
             experience.dataset
-            for experience in benchmark.test_stream[: strategy.experience_step + 1]
+            for experience in benchmark.test_stream[: experience_step + 1]
         ]
     )
-    test_dataset = ClassificationDataset(
-        vq_vae_model=vq_vae_model, dataset=test_dataset
-    )
-    test_dataset = wrap_dataset_with_empty_indices(
-        test_dataset, num_neighbours=config.quantize_top_k
-    )
+    test_dataset = WrappedDataset(test_dataset, config.quantize_top_k, 0)
+
     datamodule = PLDataModule(
         batch_size=128,
         num_workers=config.num_workers,
@@ -166,18 +169,27 @@ def validate_classifier_on_test_stream(
         val_dataset=test_dataset,
     )
 
-    val_dataloader = datamodule.val_dataloader
+    val_dataloader = datamodule.val_dataloader()
     accuracies = []
     for batch in val_dataloader:
         data, targets, *_ = batch
 
-        x = data["images"].to(device)
-        targets["class"].to(device)
-        targets["time_tag"].to(device)
+        targets["class"] = targets["class"].to(device)
+        targets["time_tag"] = targets["time_tag"].to(device)
 
-        forward_output = vq_vae_model.forward(x)
+        x = data["images"].to(device)
+        y = targets["class"]
+
+        forward_output = vq_vae_model.forward(x, y)
         criterion_output = vq_vae_model.criterion(forward_output, targets)
 
         accuracies.append(criterion_output.clf_acc)
 
-    return torch.tensor(accuracies).mean()
+    accuracy = torch.tensor(accuracies).mean()
+    if isinstance(logger, WandbLogger):
+        logger.log_metrics(
+            {
+                "val/classification_accuracy/past_tasks": accuracy.cpu().item(),
+                "experience_step": strategy.experience_step,
+            }
+        )
