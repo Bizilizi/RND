@@ -367,10 +367,7 @@ class VQVMAEJoinedIgpt(CLModel):
 
     def forward(self, x, y=None) -> ForwardOutput:
         # prepare default values
-        latent_distances = None
         second_order_latent_distances = None
-        perplexity = torch.tensor(0.0, device=self.device)
-        vq_loss = torch.tensor(0.0, device=self.device)
         clf_logits = None
         image_emb = None
 
