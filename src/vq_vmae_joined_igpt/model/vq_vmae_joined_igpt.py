@@ -380,8 +380,7 @@ class VQVMAEJoinedIgpt(CLModel):
         )
 
         # Quantize features
-        if self._quantize_features:
-            # with torch.autocast(self._accelerator, dtype=torch.float32):
+        with torch.autocast(self._accelerator, dtype=torch.float32):
             (
                 vq_loss,
                 masked_features,
@@ -409,13 +408,8 @@ class VQVMAEJoinedIgpt(CLModel):
             _, second_order_features, _ = self.encoder(
                 x_recon, return_full_features=True
             )
-            if self._quantize_features:
-                # with torch.autocast(self._accelerator, dtype=torch.float32):
-                (
-                    *_,
-                    input_ids,
-                    second_order_latent_distances,
-                ) = self.feature_quantization(
+            with torch.autocast(self._accelerator, dtype=torch.float32):
+                (*_, second_order_latent_distances,) = self.feature_quantization(
                     second_order_features, return_distances=True
                 )
 
@@ -426,8 +420,7 @@ class VQVMAEJoinedIgpt(CLModel):
             clf_logits = self.clf_head(image_emb)
 
         # image gpt
-        input_ids = rearrange(input_ids, "t b k -> b (t k)")
-        input_ids = self._rand_mask_indices(input_ids)
+        input_ids = self._rand_mask_indices(z_indices)
 
         if self.supervised and y is not None:
             input_ids = self._extend_with_classes(y, input_ids)
