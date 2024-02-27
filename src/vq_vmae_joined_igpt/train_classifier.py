@@ -22,6 +22,7 @@ def train_classifier_on_all_classes(
     config: TrainConfig,
     benchmark: SplitCIFAR10,
     device: torch.device,
+    use_igpt: bool = False,
 ):
     vq_vae_model = strategy.model.to(device)
 
@@ -29,7 +30,7 @@ def train_classifier_on_all_classes(
         emb_dim=config.embedding_dim,
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
-        dataset_mode="all_cls",
+        dataset_mode="all_igpt_emb_cls" if use_igpt else "all_igpt_cls",
         num_epochs=config.max_epochs_lin_eval,
         batch_size=128,
     ).to(device)
@@ -38,14 +39,14 @@ def train_classifier_on_all_classes(
         [experience.dataset for experience in benchmark.train_stream]
     )
     train_dataset = ClassificationDataset(
-        vq_vae_model=vq_vae_model, dataset=train_dataset
+        vq_vae_model=vq_vae_model, dataset=train_dataset, use_igpt=use_igpt
     )
 
     test_dataset = ConcatDataset(
         [experience.dataset for experience in benchmark.test_stream]
     )
     test_dataset = ClassificationDataset(
-        vq_vae_model=vq_vae_model, dataset=test_dataset
+        vq_vae_model=vq_vae_model, dataset=test_dataset, use_igpt=use_igpt
     )
 
     datamodule = PLDataModule(
@@ -82,6 +83,7 @@ def train_classifier_on_observed_only_classes(
     config: TrainConfig,
     benchmark: SplitCIFAR10,
     device: torch.device,
+    use_igpt: bool = False,
 ):
     vq_vae_model = strategy.model.to(device)
 
@@ -89,7 +91,7 @@ def train_classifier_on_observed_only_classes(
         emb_dim=config.embedding_dim,
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
-        dataset_mode="observed_only_cls",
+        dataset_mode="observed_only_igpt_emb_cls" if use_igpt else "observed_only_cls",
         num_epochs=config.max_epochs_lin_eval,
         batch_size=128,
     ).to(device)
@@ -101,7 +103,7 @@ def train_classifier_on_observed_only_classes(
         ]
     )
     train_dataset = ClassificationDataset(
-        vq_vae_model=vq_vae_model, dataset=train_dataset
+        vq_vae_model=vq_vae_model, dataset=train_dataset, use_igpt=use_igpt
     )
 
     test_dataset = ConcatDataset(
@@ -111,7 +113,7 @@ def train_classifier_on_observed_only_classes(
         ]
     )
     test_dataset = ClassificationDataset(
-        vq_vae_model=vq_vae_model, dataset=test_dataset
+        vq_vae_model=vq_vae_model, dataset=test_dataset, use_igpt=use_igpt
     )
 
     datamodule = PLDataModule(

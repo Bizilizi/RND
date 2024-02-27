@@ -3,14 +3,10 @@ import dataclasses
 import math
 import typing as t
 from itertools import chain
-from torchvision.transforms import v2
 import lpips
 import torch
 from einops import rearrange, repeat
-from pytorch_metric_learning.distances import CosineSimilarity
-from pytorch_metric_learning.losses import ContrastiveLoss
 from torch import nn
-from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
 from transformers import ImageGPTConfig
 from src.vq_vmae_joined_igpt.model.image_gpt import ImageGPTForCausalImageModeling
@@ -20,7 +16,6 @@ from src.vq_vmae_joined_igpt.model.decoder import MAEDecoder
 from src.vq_vmae_joined_igpt.model.encoder import MAEEncoder
 from src.vq_vmae_joined_igpt.model.quiantizer import (
     VectorQuantizerEMA,
-    FeatureQuantizer,
 )
 
 if t.TYPE_CHECKING:
@@ -356,13 +351,13 @@ class VQVMAEJoinedIgpt(CLModel):
             reconstruction_loss=reconstruction_loss,
             past_cycle_consistency_loss=past_cycle_consistency_loss,
             current_cycle_consistency_loss=current_cycle_consistency_loss,
-            cycle_consistency_loss=cycle_consistency_loss,
-            clf_loss=clf_loss,
+            cycle_consistency_loss=cycle_consistency_loss * 2,
+            clf_loss=clf_loss * 1.5,
             clf_acc=clf_acc,
             feature_perplexity=forward_output.feature_perplexity,
             class_perplexity=forward_output.class_perplexity,
             perplexity=perplexity,
-            igpt_loss=igpt_loss,
+            igpt_loss=igpt_loss / 2,
         )
 
     def forward(self, x, y=None) -> ForwardOutput:
@@ -509,12 +504,12 @@ class VQVMAEJoinedIgpt(CLModel):
         loss = (
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss * 2
-            + criterion_output.igpt_loss / 2
+            + criterion_output.cycle_consistency_loss
+            + criterion_output.igpt_loss
         )
 
         if self.supervised:
-            loss += criterion_output.clf_loss * 1.5
+            loss += criterion_output.clf_loss
 
             self.log_with_postfix(
                 f"train/classification_loss",
@@ -529,6 +524,10 @@ class VQVMAEJoinedIgpt(CLModel):
         self.log_with_postfix(
             f"train/loss",
             loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/igpt_loss",
+            criterion_output.igpt_loss.cpu().item(),
         )
         self.log_with_postfix(
             f"train/vq_loss",
@@ -605,6 +604,10 @@ class VQVMAEJoinedIgpt(CLModel):
         self.log_with_postfix(
             f"val/loss",
             loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/igpt_loss",
+            criterion_output.igpt_loss.cpu().item(),
         )
         self.log_with_postfix(
             f"val/vq_loss",

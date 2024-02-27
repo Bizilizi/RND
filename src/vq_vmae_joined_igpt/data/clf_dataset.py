@@ -1,4 +1,5 @@
 import torch
+from einops import rearrange
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
@@ -11,6 +12,7 @@ class ClassificationDataset(Dataset):
         vq_vae_model: VQVMAEJoinedIgpt,
         dataset: Dataset,
         depth: int = 8,
+        use_igpt: bool = False,
     ):
         super().__init__()
 
@@ -20,6 +22,7 @@ class ClassificationDataset(Dataset):
         self.vq_vae_model = vq_vae_model
         self.dataset = dataset
         self.depth = depth
+        self.use_igp = use_igpt
 
         self._project_dataset(vq_vae_model, dataset)
 
@@ -29,6 +32,7 @@ class ClassificationDataset(Dataset):
             "embeddings": self.embeddings[item],
         }
 
+    @torch.no_grad()
     def _project_dataset(
         self,
         vq_vae: VQVMAEJoinedIgpt,
@@ -46,7 +50,23 @@ class ClassificationDataset(Dataset):
 
             with torch.no_grad():
                 _, full_features, _ = vq_vae.encoder(x)
-                image_emb = full_features.mean(dim=0)
+                if self.use_igp:
+                    (*_, z_indices, _) = vq_vae.feature_quantization(
+                        full_features, return_distances=True
+                    )
+                    z_indices = rearrange(z_indices, "t b k -> b (t k)")
+                    input_ids = vq_vae._rand_mask_indices(z_indices)
+
+                    if vq_vae.supervised and y is not None:
+                        input_ids = vq_vae._extend_with_classes(y, input_ids)
+
+                    input_ids = vq_vae._extend_with_sos_token(input_ids)
+                    igpt_output = vq_vae.image_gpt(
+                        input_ids=input_ids, output_hidden_states=True
+                    )
+                    image_emb = igpt_output.hidden_states[-1].mean(1)
+                else:
+                    image_emb = full_features.mean(dim=0)
 
                 self.targets.append(y.cpu())
                 self.embeddings.append(image_emb.cpu())

@@ -216,7 +216,9 @@ class VectorQuantizerEMA(nn.Module):
 
         # Loss
         e_latent_loss = F.mse_loss(quantized.detach(), inputs)
-        loss = self._commitment_cost * e_latent_loss
+        q_latent_loss = F.mse_loss(quantized, inputs.detach())
+
+        loss = q_latent_loss + self._commitment_cost * e_latent_loss
 
         # Straight Through Estimator
         quantized = inputs + (quantized - inputs).detach()

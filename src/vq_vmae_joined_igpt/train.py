@@ -172,6 +172,20 @@ def train_loop(
             )
         else:
             train_classifier_on_all_classes(
+                strategy=cl_strategy,
+                config=config,
+                benchmark=benchmark,
+                device=device,
+                use_igpt=True,
+            )
+            train_classifier_on_observed_only_classes(
+                strategy=cl_strategy,
+                config=config,
+                benchmark=benchmark,
+                device=device,
+                use_igpt=True,
+            )
+            train_classifier_on_all_classes(
                 strategy=cl_strategy, config=config, benchmark=benchmark, device=device
             )
             train_classifier_on_observed_only_classes(
