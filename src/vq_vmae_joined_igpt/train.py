@@ -209,7 +209,7 @@ def train_loop(
         distributed.barrier()
 
 
-def main(args):
+def main(args, submitit_state: t.Dict[str, str] = None):
     resume_arguments = torch.load(args.resume_from) if args.resume_from else None
     is_distributed = args.world_size > 1
     is_main_process = args.local_rank == 0
@@ -300,7 +300,7 @@ def main(args):
     distributed.barrier()
 
     # Pass new checkpoint_path to args so submitit can restore from it
-    args.checkpoint_path = config.checkpoint_path
+    submitit_state["checkpoint_path"] = config.checkpoint_path
 
     # Create benchmark
     benchmark = get_benchmark(config, target_dataset_dir)

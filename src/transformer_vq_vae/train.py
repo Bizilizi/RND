@@ -26,6 +26,7 @@ from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
+    validate_classifier_on_test_stream,
 )
 from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
 from src.transformer_vq_vae.utils.copy_dataset_to_tmp import copy_dataset_to_tmp
@@ -162,12 +163,20 @@ def train_loop(
 
         # Train classifier
         print(f"Train classifier..")
-        train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
+        if cl_strategy.model.supervised and local_rank == 0:
+            validate_classifier_on_test_stream(
+                strategy=cl_strategy,
+                config=config,
+                benchmark=benchmark,
+                device=device,
+            )
+        else:
+            train_classifier_on_all_classes(
+                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+            )
+            train_classifier_on_observed_only_classes(
+                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+            )
 
         distributed.barrier()
 
@@ -197,7 +206,7 @@ def train_loop(
         distributed.barrier()
 
 
-def main(args):
+def main(args, submitit_state: t.Dict[str, str] = None):
     resume_arguments = torch.load(args.resume_from) if args.resume_from else None
     is_distributed = args.world_size > 1
     is_main_process = args.local_rank == 0
@@ -288,7 +297,7 @@ def main(args):
     distributed.barrier()
 
     # Pass new checkpoint_path to args so submitit can restore from it
-    args.checkpoint_path = config.checkpoint_path
+    submitit_state["checkpoint_path"] = config.checkpoint_path
 
     # Create benchmark
     benchmark = get_benchmark(config, target_dataset_dir)

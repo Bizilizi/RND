@@ -69,6 +69,7 @@ def add_sumbitit_arguments(parser):
 class Trainer(object):
     def __init__(self, args):
         self.args = args
+        self.state = {}
 
     def __call__(self):
         import os
@@ -97,25 +98,23 @@ class Trainer(object):
         if self.args.sweep_id:
             wandb.agent(
                 self.args.sweep_id,
-                partial(entry_main, self.args),
+                partial(entry_main, self.args, self.state),
                 project="transformer-vq-vae",
             )
         else:
             # Otherwise just run entry main function
-            entry_main(self.args)
+            entry_main(self.args, self.state)
 
     def checkpoint(self):
         import submitit
         import pathlib
 
-        meta_file_path = (
-            pathlib.Path(self.args.checkpoint_path) / "checkpoint_metadata.ckpt"
-        )
+        checkpoint_path = self.state["checkpoint_path"]
+        meta_file_path = pathlib.Path(checkpoint_path) / "checkpoint_metadata.ckpt"
         if meta_file_path.exists():
             self.args.resume_from = str(meta_file_path)
-
-        empty_trainer = type(self)(self.args)
-        return submitit.helpers.DelayedSubmission(empty_trainer)
+            empty_trainer = type(self)(self.args)
+            return submitit.helpers.DelayedSubmission(empty_trainer)
 
     def _setup_gpu_args(self):
         import submitit

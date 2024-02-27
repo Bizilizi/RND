@@ -18,13 +18,13 @@ sbatch submit.sh python train.py \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type a40 \
+    --gpu_type a6000 \
     --batch_size 256 \
     --accumulate_grad_batches 1 \
-    --partition low-prio-gpu \
+    --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 igpt joined sup" \
+    --comment "cifar10 igpt joined ssup" \
     --group initial_tests \
     --dataset cifar10 \
     --num_tasks 5 \
