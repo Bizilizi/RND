@@ -24,7 +24,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 1000 voc size" \
+    --comment "cifar10 1024 voc size" \
     --group mae-stable-sampling \
     --dataset cifar10 \
     --num_tasks 5 \
@@ -75,7 +75,7 @@ python submitit_train.py \
     --max_epochs 600 \
     --min_epochs 200 \
     --num_epochs_schedule warmup \
-    --supervised True \
+    --supervised False \
     --devices 0, \
     --augment default \
     --max_epochs_igpt 10 \

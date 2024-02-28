@@ -145,8 +145,6 @@ def train_loop(
                     train_experience.dataset + bootstrapped_dataset
                 )
 
-                igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
-
         # Train VQ-VAE
         # We check whether we have a corresponding checkpoint for this CL step
         # If we have it, and it's not completed we continue training, otherwise we go further
@@ -300,7 +298,8 @@ def main(args, submitit_state: t.Dict[str, str] = None):
     distributed.barrier()
 
     # Pass new checkpoint_path to args so submitit can restore from it
-    submitit_state["checkpoint_path"] = config.checkpoint_path
+    if submitit_state:
+        submitit_state["checkpoint_path"] = config.checkpoint_path
 
     # Create benchmark
     benchmark = get_benchmark(config, target_dataset_dir)

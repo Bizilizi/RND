@@ -6,6 +6,8 @@ from itertools import chain
 import lpips
 import torch
 from einops import rearrange, repeat
+from pytorch_metric_learning.distances import LpDistance
+from pytorch_metric_learning.losses import ContrastiveLoss, TripletMarginLoss
 from torch import nn
 from torch.nn import functional as F
 from transformers import ImageGPTConfig
@@ -202,8 +204,10 @@ class VQVMAEJoinedIgpt(CLModel):
 
         if self.supervised:
             self.clf_head = nn.Linear(embedding_dim, num_classes)
+            self.triplet_loss = TripletMarginLoss()
         else:
             self.clf_head = None
+            self.triplet_loss = None
 
         self.experience_step = 0
         self.use_lpips = use_lpips
@@ -340,11 +344,13 @@ class VQVMAEJoinedIgpt(CLModel):
         )
 
         # igpt
-        igpt_output = forward_output.igpt_output
-        igpt_loss = F.cross_entropy(
-            igpt_output.logits[:, :-1].reshape(-1, igpt_output.logits.shape[-1]),
-            forward_output.input_ids[..., 1:].reshape(-1),
-        )
+        igpt_loss = torch.tensor(0.0, device=self.device)
+        if self.current_epoch >= self._num_epochs // 2:
+            igpt_output = forward_output.igpt_output
+            igpt_loss = F.cross_entropy(
+                igpt_output.logits[:, :-1].reshape(-1, igpt_output.logits.shape[-1]),
+                forward_output.input_ids[..., 1:].reshape(-1),
+            )
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,

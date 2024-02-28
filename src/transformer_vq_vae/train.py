@@ -297,7 +297,8 @@ def main(args, submitit_state: t.Dict[str, str] = None):
     distributed.barrier()
 
     # Pass new checkpoint_path to args so submitit can restore from it
-    submitit_state["checkpoint_path"] = config.checkpoint_path
+    if submitit_state:
+        submitit_state["checkpoint_path"] = config.checkpoint_path
 
     # Create benchmark
     benchmark = get_benchmark(config, target_dataset_dir)

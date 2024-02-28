@@ -28,6 +28,7 @@ from train_utils import add_arguments
 
 def ddp_wrapper(fn, local_rank, args):
     args.local_rank = local_rank
+    torch.cuda.set_device(local_rank)
     fn(args)
 
 
@@ -52,6 +53,7 @@ if __name__ == "__main__":
     else:
         assert False, "Unknown value '--model' parameter"
 
+    args.port = random.randint(1723, 65535)
     # Make it deterministic
     seed_everything(args.seed)
 
@@ -67,7 +69,6 @@ if __name__ == "__main__":
         devices = args.devices.rstrip(",").split(",")
 
         args.world_size = len(devices)
-        args.port = random.randint(1723, 65535)
 
         if args.world_size > 1:
             mp.spawn(

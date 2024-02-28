@@ -256,6 +256,7 @@ def main(args):
         min_epochs=config.min_epochs,
         best_model_path_prefix=None,
         plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
+        train_plugins=[],
     )
 
     # Run training process
