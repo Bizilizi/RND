@@ -14,7 +14,7 @@ sbatch submit.sh python train.py \
     --num_workers 12 \
     --future_samples_mode noiseg
 
-
+# no joined gpt
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
@@ -24,7 +24,51 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 igpt joined ssup" \
+    --comment "cifar10 1000 voc size" \
+    --group mae-stable-sampling \
+    --dataset cifar10 \
+    --num_tasks 5 \
+    --max_epochs 600 \
+    --min_epochs 200 \
+    --num_epochs_schedule warmup \
+    --supervised False \
+    --devices 0, \
+    --augment default \
+    --max_epochs_igpt 10 \
+    --save_model_every 25 \
+    --config src/transformer_vq_vae/configuration/train.ini \
+    --model transformer-vq-vae \
+    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --num_workers 8 \
+    --max_epochs_lin_eval 100 \
+    --num_random_past_samples 25000 \
+    --num_random_past_samples_schedule fixed \
+    --num_random_future_samples 0 \
+    --future_samples_mode noise \
+    --cycle_consistency_loss_weight_for_past 0 \
+    --cycle_consistency_loss_weight_for_current 0 \
+    --cycle_consistency_sigma 1 \
+    --past_samples_loss_weight 1 \
+    --current_samples_loss_weight 1 \
+    --future_samples_loss_weight 0 \
+    --separate_codebooks true \
+    --quantize_top_k 1 \
+    --num_embeddings 1024 \
+    --num_class_embeddings 4 \
+    --precision 16-mixed
+
+
+# joined gpt
+python submitit_train.py \
+    --cpus_per_task 8 \
+    --slurm_mem 96 \
+    --gpu_type a6000 \
+    --batch_size 256 \
+    --accumulate_grad_batches 1 \
+    --partition gpu \
+    --timeout 2880 \
+    --ngpus 1 \
+    --comment "cifar10 ccl weight" \
     --group initial_tests \
     --dataset cifar10 \
     --num_tasks 5 \
@@ -47,7 +91,7 @@ python submitit_train.py \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
-    --cycle_consistency_sigma 200 \
+    --cycle_consistency_sigma 1 \
     --past_samples_loss_weight 1 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \

@@ -177,9 +177,8 @@ def validate_classifier_on_test_stream(
         targets["time_tag"] = targets["time_tag"].to(device)
 
         x = data["images"].to(device)
-        y = targets["class"]
 
-        forward_output = vq_vae_model.forward(x, y)
+        forward_output = vq_vae_model.forward(x)
         criterion_output = vq_vae_model.criterion(forward_output, targets)
 
         accuracies.append(criterion_output.clf_acc)
