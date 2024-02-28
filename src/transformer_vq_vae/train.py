@@ -160,6 +160,7 @@ def train_loop(
         # We train two classifiers. One to predict all classes,
         # another to predict only observed so far classes.
         cl_strategy.model.freeze()
+        cl_strategy.model.eval()
 
         # Train classifier
         print(f"Train classifier..")
@@ -197,6 +198,7 @@ def train_loop(
 
         # Unfreeze model and move to the next experience
         cl_strategy.model.unfreeze()
+        cl_strategy.model.train()
         cl_strategy.experience_step += 1
 
         # If we resume, we resume only once

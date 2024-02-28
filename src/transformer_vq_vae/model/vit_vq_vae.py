@@ -3,12 +3,14 @@ import dataclasses
 import math
 import typing as t
 from itertools import chain
+
+from torchmetrics import RunningMean
 from torchvision.transforms import v2
 import lpips
 import torch
 from einops import rearrange
 from pytorch_metric_learning.distances import CosineSimilarity
-from pytorch_metric_learning.losses import ContrastiveLoss
+from pytorch_metric_learning.losses import ContrastiveLoss, TripletMarginLoss
 from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
@@ -158,9 +160,15 @@ class VitVQVae(CLModel):
         )
 
         if self.supervised:
-            self.clf_head = nn.Linear(embedding_dim, num_classes)
+            self.decay = 0.9
+            self.class_representatives = nn.Embedding(
+                num_classes, embedding_dim, _freeze=True
+            )
+            self.class_representatives.weight.data.normal_()
+            self.triplet_loss = TripletMarginLoss()
         else:
-            self.clf_head = None
+            self.class_representatives = None
+            self.triplet_loss = None
 
         self.experience_step = 0
         self.use_lpips = use_lpips
@@ -293,9 +301,31 @@ class VitVQVae(CLModel):
             )
 
         # Compute accuracy if classification head presents
-        if forward_output.clf_logits is not None:
-            clf_loss = F.cross_entropy(forward_output.clf_logits, y_cutmix_or_mixup)
-            clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
+        image_emb = forward_output.image_emb
+        if image_emb is not None:
+            clf_loss = self.triplet_loss(forward_output.image_emb, y_cutmix_or_mixup)
+
+            # clf accuracy
+            distances = (
+                torch.sum(image_emb**2, dim=1, keepdim=True)
+                + torch.sum(self.class_representatives.weight**2, dim=1)
+                - 2 * torch.matmul(image_emb, self.class_representatives.weight.t())
+            )
+            encoding_indices = torch.topk(
+                distances, k=1, dim=1, largest=False
+            ).indices.squeeze()
+            clf_acc = (y == encoding_indices).float().mean()
+
+            if self.training:
+                classes_in_batch = y.unique()
+                for class_idx in classes_in_batch:
+                    class_elements = y == class_idx
+
+                    class_embeddings = forward_output.image_emb[class_elements]
+                    self.class_representatives.weight[class_idx] = (
+                        self.class_representatives.weight[class_idx] * self.decay
+                        + (1 - self.decay) * class_embeddings.mean()
+                    )
 
         perplexity = forward_output.feature_perplexity + forward_output.class_perplexity
         cycle_consistency_loss = (
@@ -367,9 +397,9 @@ class VitVQVae(CLModel):
 
         # If the model has classification head we calculate image embedding
         # based on output of the encoder without masking random patches
-        if self.clf_head is not None:
+        if self.supervised:
             image_emb = full_features.mean(dim=0)
-            clf_logits = self.clf_head(image_emb)
+            clf_logits = None
 
         return ForwardOutput(
             # data
@@ -552,9 +582,6 @@ class VitVQVae(CLModel):
             # self.feature_quantization.parameters(),
             self.decoder.parameters(),
         ]
-
-        if self.supervised:
-            parameters.append(self.clf_head.parameters())
 
         optimizer = torch.optim.AdamW(
             chain(*parameters),
