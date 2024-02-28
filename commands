@@ -24,14 +24,14 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 1024 voc size" \
-    --group mae-stable-sampling \
+    --comment "cifar10 sup clustering" \
+    --group class-representatives \
     --dataset cifar10 \
     --num_tasks 5 \
     --max_epochs 600 \
     --min_epochs 200 \
     --num_epochs_schedule warmup \
-    --supervised False \
+    --supervised True \
     --devices 0, \
     --augment default \
     --max_epochs_igpt 10 \
