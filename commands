@@ -47,7 +47,7 @@ python submitit_train.py \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 0 \
     --cycle_consistency_loss_weight_for_current 0 \
-    --cycle_consistency_sigma 1 \
+    --cycle_consistency_sigma 100 \
     --past_samples_loss_weight 1 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 0 \

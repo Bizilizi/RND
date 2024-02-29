@@ -160,7 +160,7 @@ class VitVQVae(CLModel):
         )
 
         if self.supervised:
-            self.decay = 0.9
+            self.decay = 0.99
             self.class_representatives = nn.Embedding(
                 num_classes, embedding_dim, _freeze=True
             )
