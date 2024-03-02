@@ -74,7 +74,7 @@ def train_loop(
         test_experience.dataset = wrap_dataset_with_empty_indices(
             test_experience.dataset, num_neighbours=config.quantize_top_k
         )
-        igpt_train_dataset = train_experience.dataset + test_experience.dataset
+        igpt_train_dataset = train_experience.dataset
 
         # Model future at the very first step
         if cl_strategy.experience_step == 0 and config.num_random_future_samples != 0:
@@ -105,7 +105,6 @@ def train_loop(
                     sos_token=sos_token,
                     experience_step=cl_strategy.experience_step,
                     mask_token=mask_token,
-                    transform=transforms.Normalize((0.5, 0.5, 0.5), (1.0, 1.0, 1.0)),
                 )
 
                 train_experience.dataset = (
