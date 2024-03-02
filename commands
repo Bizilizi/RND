@@ -26,23 +26,23 @@ python submitit_train.py \
     --ngpus 1 \
     --comment "cifar10 qmae ssup" \
     --group qmae \
-    --dataset cifar10 \
-    --num_tasks 5 \
-    --max_epochs 600 \
-    --min_epochs 200 \
+    --dataset cifar100 \
+    --num_tasks 20 \
+    --max_epochs 1200 \
+    --min_epochs 300 \
     --num_epochs_schedule warmup \
     --supervised False \
     --devices 0, \
     --augment default \
-    --max_epochs_igpt 10 \
+    --max_epochs_igpt 20 \
     --save_model_every 25 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --num_workers 8 \
     --max_epochs_lin_eval 100 \
-    --num_random_past_samples 10000 \
-    --num_random_past_samples_schedule fixed \
+    --num_random_past_samples 40000 \
+    --num_random_past_samples_schedule schedule \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
     --cycle_consistency_loss_weight_for_past 1 \
@@ -98,5 +98,48 @@ python submitit_train.py \
     --separate_codebooks true \
     --quantize_top_k 1 \
     --num_embeddings 256 \
+    --num_class_embeddings 4 \
+    --precision 16-mixed
+
+# vq-vmae knn
+python submitit_train.py \
+    --cpus_per_task 8 \
+    --slurm_mem 96 \
+    --gpu_type a6000 \
+    --batch_size 256 \
+    --accumulate_grad_batches 1 \
+    --partition gpu \
+    --timeout 2880 \
+    --ngpus 1 \
+    --comment "vq-vmae knn" \
+    --group initial_tests \
+    --dataset cifar10 \
+    --num_tasks 5 \
+    --max_epochs 600 \
+    --min_epochs 200 \
+    --num_epochs_schedule warmup \
+    --supervised False \
+    --devices 0, \
+    --augment default \
+    --max_epochs_igpt 10 \
+    --save_model_every 25 \
+    --config src/transformer_vq_vae/configuration/train.ini \
+    --model vq-vmae-knn \
+    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --num_workers 8 \
+    --max_epochs_lin_eval 100 \
+    --num_random_past_samples 10000 \
+    --num_random_past_samples_schedule fixed \
+    --num_random_future_samples 0 \
+    --future_samples_mode noise \
+    --cycle_consistency_loss_weight_for_past 1 \
+    --cycle_consistency_loss_weight_for_current 0 \
+    --cycle_consistency_sigma 1 \
+    --past_samples_loss_weight 1 \
+    --current_samples_loss_weight 1 \
+    --future_samples_loss_weight 1 \
+    --separate_codebooks true \
+    --quantize_top_k 1 \
+    --num_embeddings 1024 \
     --num_class_embeddings 4 \
     --precision 16-mixed

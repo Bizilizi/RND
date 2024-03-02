@@ -337,6 +337,7 @@ def main(args, submitit_state: t.Dict[str, str] = None):
         max_epochs=epochs_schedule,
         min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,
+        best_model_monitor="val/classification_accuracy",
         plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
         train_plugins=get_train_plugins(config),
         resume_arguments=resume_arguments,

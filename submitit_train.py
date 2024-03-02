@@ -89,7 +89,7 @@ class Trainer(object):
             entry_main = transformer_vq_vae_main
         elif self.args.model == "vq-vmae-joined-igpt":
             entry_main = vq_vmae_joined_igpt_main
-        elif args.model == "vq-vmae-knn":
+        elif self.args.model == "vq-vmae-knn":
             entry_main = vq_vmae_knn_main
         else:
             assert False, "Unknown value '--model' parameter"

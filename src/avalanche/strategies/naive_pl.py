@@ -46,6 +46,7 @@ class NaivePytorchLightning(Naive):
         accumulate_grad_batches: t.Optional[int] = None,
         callbacks: t.Optional[t.Callable[[int], t.List[Callback]]] = None,
         precision: str = "32-true",
+        best_model_monitor: str = "val/reconstruction_loss",
         *args,
         **kwargs,
     ) -> None:
@@ -63,6 +64,7 @@ class NaivePytorchLightning(Naive):
         self.best_model_path_prefix = best_model_path_prefix
         self.train_plugins = train_plugins
         self.local_rank = local_rank
+        self.monitor = best_model_monitor
 
         # Modify callback to
         self.callbacks_factory = callbacks
@@ -98,7 +100,7 @@ class NaivePytorchLightning(Naive):
         if self.best_model_path_prefix:
             self.restore_best_model_callback = RestoreBestPerformingModel(
                 path_prefix=self.best_model_path_prefix,
-                monitor="val/classification_accuracy",
+                monitor=self.monitor,
                 mode="max",
                 every_n_epochs=self.validate_every_n,
                 verbose=False,
