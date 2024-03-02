@@ -24,7 +24,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 qmae ssup" \
+    --comment "cifar100 qmae ssup" \
     --group qmae \
     --dataset cifar100 \
     --num_tasks 20 \
@@ -140,6 +140,6 @@ python submitit_train.py \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \
     --quantize_top_k 1 \
-    --num_embeddings 1024 \
-    --num_class_embeddings 4 \
+    --num_embeddings 512 \
+    --num_class_embeddings 10 \
     --precision 16-mixed

@@ -61,7 +61,7 @@ class NaivePytorchLightning(Naive):
         self.strategy = strategy
         self.min_epochs = min_epochs
         self.max_epochs = max_epochs
-        self.best_model_path_prefix = best_model_path_prefix
+        self.best_model_path_prefix = None
         self.train_plugins = train_plugins
         self.local_rank = local_rank
         self.monitor = best_model_monitor
