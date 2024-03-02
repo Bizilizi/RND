@@ -10,20 +10,20 @@ from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
 from torchvision import transforms
 
-from src.transformer_vq_vae.callbacks.log_model import LogModelWightsCallback
-from src.transformer_vq_vae.callbacks.codebook_histogram import LogCodebookHistogram
-from src.transformer_vq_vae.callbacks.log_dataset import LogDataset
-from src.transformer_vq_vae.callbacks.training_reconstions_vis import (
+from src.vq_vmae_knn.callbacks.log_model import LogModelWightsCallback
+from src.vq_vmae_knn.callbacks.codebook_histogram import LogCodebookHistogram
+from src.vq_vmae_knn.callbacks.log_dataset import LogDataset
+from src.vq_vmae_knn.callbacks.training_reconstions_vis import (
     VisualizeTrainingReconstructions,
 )
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
+from src.vq_vmae_knn.configuration.config import TrainConfig
+from src.vq_vmae_knn.metrics.vq_vae_confusion_matrix import (
     vq_vae_confusion_matrix_metrics,
 )
-from src.transformer_vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
-from src.transformer_vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
-from src.transformer_vq_vae.plugins.mixed_precision_plugin import (
+from src.vq_vmae_knn.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
+from src.vq_vmae_knn.metrics.vq_vae_loss import vq_vae_loss_metrics
+from src.vq_vmae_knn.model.vit_vq_vae import VitVQVae
+from src.vq_vmae_knn.plugins.mixed_precision_plugin import (
     CustomMixedPrecisionPlugin,
 )
 

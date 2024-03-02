@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from tqdm.auto import tqdm
 
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.vq_vmae_knn.model.vit_vq_vae import VitVQVae
 
 
 class ClassificationDataset(Dataset):

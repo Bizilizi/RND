@@ -3,7 +3,7 @@ from einops import rearrange, repeat
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 from tqdm.auto import tqdm
 
-from src.transformer_vq_vae.model.encoder import take_indexes
+from src.vq_vmae_knn.model.encoder import take_indexes
 
 
 class ImageGPTDataset(Dataset):

@@ -7,9 +7,9 @@ from timm.models.layers import trunc_normal_
 from timm.models.vision_transformer import Block
 from torch import nn
 
-from src.transformer_vq_vae.model.encoder import take_indexes
-from src.transformer_vq_vae.model.image_gpt import ImageGPTConfig, ImageGPTModel
-from src.transformer_vq_vae.model.vit import VisionTransformer
+from src.vq_vmae_knn.model.encoder import take_indexes
+from src.vq_vmae_knn.model.image_gpt import ImageGPTConfig, ImageGPTModel
+from src.vq_vmae_knn.model.vit import VisionTransformer
 
 
 class GPTDecoder(nn.Module):

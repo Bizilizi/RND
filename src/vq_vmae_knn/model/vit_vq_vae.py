@@ -15,15 +15,15 @@ from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
 from src.avalanche.model.cl_model import CLModel
-from src.transformer_vq_vae.model.decoder import MAEDecoder
-from src.transformer_vq_vae.model.encoder import MAEEncoder
-from src.transformer_vq_vae.model.quiantizer import (
+from src.vq_vmae_knn.model.decoder import MAEDecoder
+from src.vq_vmae_knn.model.encoder import MAEEncoder
+from src.vq_vmae_knn.model.quiantizer import (
     VectorQuantizerEMA,
     FeatureQuantizer,
 )
 
 if t.TYPE_CHECKING:
-    from src.transformer_vq_vae.model.classification_head import EmbClassifier
+    from src.vq_vmae_knn.model.classification_head import EmbClassifier
 
 
 @dataclasses.dataclass
@@ -281,7 +281,7 @@ class VitVQVae(CLModel):
             indices = z_indices[past_data].long()
 
             past_cycle_consistency_loss = (
-                self.get_cycle_consistency_loss(distances, indices)
+                self.get_cycle_consistency_loss(distances[:, :1], indices[:, :1])
                 * self._past_cycle_consistency_weight
             )
 

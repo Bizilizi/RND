@@ -4,7 +4,7 @@ import shutil
 
 from torchvision.datasets.utils import download_and_extract_archive, extract_archive
 
-from src.transformer_vq_vae.configuration.config import TrainConfig
+from src.vq_vmae_knn.configuration.config import TrainConfig
 
 
 def copy_dataset_to_tmp(config: TrainConfig, target_dataset_dir):

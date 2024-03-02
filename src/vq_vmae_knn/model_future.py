@@ -3,12 +3,12 @@ from torch.utils.data import Dataset
 
 from avalanche.benchmarks.utils import make_classification_dataset
 
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.vq_vmae_knn.configuration.config import TrainConfig
+from src.vq_vmae_knn.model.vit_vq_vae import VitVQVae
 
 from einops import rearrange
 
-from src.transformer_vq_vae.utils.wrap_empty_indices import (
+from src.vq_vmae_knn.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
 )
 

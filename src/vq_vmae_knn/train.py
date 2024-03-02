@@ -11,26 +11,26 @@ from torchvision import transforms
 import wandb
 from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
+from src.vq_vmae_knn.callbacks.reconstruction_visualization_plugin import (
     ReconstructionVisualizationPlugin,
 )
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.init_scrips import (
+from src.vq_vmae_knn.configuration.config import TrainConfig
+from src.vq_vmae_knn.init_scrips import (
     get_callbacks,
     get_evaluation_plugin,
     get_model,
     get_train_plugins,
     get_benchmark,
 )
-from src.transformer_vq_vae.model_future import model_future_samples
-from src.transformer_vq_vae.train_classifier import (
+from src.vq_vmae_knn.model_future import model_future_samples
+from src.vq_vmae_knn.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
     validate_classifier_on_test_stream,
 )
-from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
-from src.transformer_vq_vae.utils.copy_dataset_to_tmp import copy_dataset_to_tmp
-from src.transformer_vq_vae.utils.wrap_empty_indices import (
+from src.vq_vmae_knn.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.vq_vmae_knn.utils.copy_dataset_to_tmp import copy_dataset_to_tmp
+from src.vq_vmae_knn.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
 )
 from src.utils.summary_table import log_summary_table_to_wandb

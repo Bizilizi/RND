@@ -5,7 +5,7 @@ from pytorch_lightning.utilities.types import DistributedDataParallel
 from torch.utils.data import DataLoader
 
 import wandb
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.vq_vmae_knn.model.vit_vq_vae import VitVQVae
 
 
 class LogCodebookHistogram(Callback):

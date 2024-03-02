@@ -7,10 +7,10 @@ from torch.utils.data import ConcatDataset
 from avalanche.benchmarks import SplitCIFAR10
 from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.data.clf_dataset import ClassificationDataset
-from src.transformer_vq_vae.model.classification_head import EmbClassifier
-from src.transformer_vq_vae.utils.wrap_empty_indices import (
+from src.vq_vmae_knn.configuration.config import TrainConfig
+from src.vq_vmae_knn.data.clf_dataset import ClassificationDataset
+from src.vq_vmae_knn.model.classification_head import EmbClassifier
+from src.vq_vmae_knn.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
     WrappedDataset,
 )

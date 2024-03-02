@@ -8,7 +8,7 @@ from pytorch_lightning.utilities.types import DistributedDataParallel
 from torchvision.utils import make_grid
 
 import wandb
-from src.transformer_vq_vae.model.vit_vq_vae import ForwardOutput, VitVQVae
+from src.vq_vmae_knn.model.vit_vq_vae import ForwardOutput, VitVQVae
 
 
 def chunks(lst, n):

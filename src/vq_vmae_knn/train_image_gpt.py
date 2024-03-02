@@ -13,16 +13,16 @@ from torchvision.io import read_image
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm, trange
 from transformers import ImageGPTConfig
-from src.transformer_vq_vae.model.image_gpt import ImageGPTForCausalImageModeling
+from src.vq_vmae_knn.model.image_gpt import ImageGPTForCausalImageModeling
 
 import wandb
 from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.data.bootstrapped_dataset import BootstrappedDataset
-from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
-from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from src.vq_vmae_knn.configuration.config import TrainConfig
+from src.vq_vmae_knn.data.bootstrapped_dataset import BootstrappedDataset
+from src.vq_vmae_knn.data.image_gpt_dataset import ImageGPTDataset
+from src.vq_vmae_knn.model.vit_vq_vae import VitVQVae
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 
