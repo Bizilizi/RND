@@ -32,7 +32,7 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --num_random_past_samples_schedule fixed \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
-    --cycle_consistency_loss_weight_for_past 1 \
+    --cycle_consistency_loss_weight_for_past 0 \
     --cycle_consistency_loss_weight_for_current 0 \
     --cycle_consistency_sigma 1 \
     --separate_codebooks true \

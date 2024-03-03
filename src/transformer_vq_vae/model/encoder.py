@@ -79,14 +79,18 @@ class MAEEncoder(torch.nn.Module):
         trunc_normal_(self.cls_token, std=0.02)
         trunc_normal_(self.pos_embedding, std=0.02)
 
-    def forward(self, img, return_full_features: bool = True):
+    def forward(self, img, return_full_features: bool = True, ratio=None):
         patches = self.patchify(img)
         patches = rearrange(patches, "b c h w -> (h w) b c")
         full_patches = patches + self.pos_embedding
 
         # randomly choose ratio of path masking
-        ratio = choice(self.mask_ratios, p=self.mask_ratios_probs)
-        self.shuffle.ratio = ratio
+        if ratio is None:
+            ratio = choice(self.mask_ratios, p=self.mask_ratios_probs)
+            self.shuffle.ratio = ratio
+        else:
+            self.shuffle.ratio = ratio
+
         masked_patches, forward_indexes, backward_indexes = self.shuffle(full_patches)
 
         masked_patches = torch.cat(

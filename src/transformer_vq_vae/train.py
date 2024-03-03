@@ -138,17 +138,6 @@ def train_loop(
         # another to predict only observed so far classes.
         cl_strategy.model.freeze()
 
-        # Train classifier
-        print(f"Train classifier..")
-        all_clf_head = train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-
-        cl_strategy.model.set_clf_head(all_clf_head)
-
         # Train new image gpt model
         print(f"Train igpt..")
         image_gpt = train_igpt(
@@ -162,11 +151,21 @@ def train_loop(
             image_gpt=image_gpt,
         )
 
+        # Train classifier
+        print(f"Train classifier..")
+        all_clf_head = train_classifier_on_all_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+        train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        ).to(device)
+
         # Evaluate VQ-VAE and linear classifier
-        cl_strategy.eval(benchmark.test_stream)
+        # cl_strategy.model.set_clf_head(all_clf_head)
+        # cl_strategy.eval(benchmark.test_stream)
+        # cl_strategy.model.reset_clf_head()
 
         # Reset linear classifier and unfreeze params
-        cl_strategy.model.reset_clf_head()
         cl_strategy.model.unfreeze()
 
         cl_strategy.experience_step += 1
