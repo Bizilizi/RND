@@ -4,7 +4,7 @@ import typing as t
 import torch
 from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 from pytorch_lightning import Callback
-from pytorch_lightning.callbacks import EarlyStopping
+from pytorch_lightning.callbacks import EarlyStopping, LearningRateMonitor
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
@@ -182,6 +182,7 @@ def get_callbacks(
                 log_every=100, num_images=1000, w1=10, name="rec_img_1000"
             ),
             LogCodebookHistogram(log_every=50),
+            LearningRateMonitor(logging_interval="step"),
         ]
     else:
         return lambda experience_step: [
@@ -192,6 +193,7 @@ def get_callbacks(
                 experience_step=experience_step,
                 log_to_wandb=False,
             ),
+            LearningRateMonitor(logging_interval="step"),
         ]
 
 

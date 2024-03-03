@@ -591,7 +591,7 @@ class VitVQVae(CLModel):
         )
 
         lr_func = lambda epoch: min(
-            (epoch + 1) / (200 + 1e-8),
+            (epoch + 1) / (self._num_epochs / 3 + 1e-8),
             0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
         )
         lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
