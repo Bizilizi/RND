@@ -165,7 +165,7 @@ class VitVQVae(CLModel):
                 "class_representatives",
                 torch.zeros((num_classes, embedding_dim)).normal_(),
             )
-            self.triplet_loss = TripletMarginLoss(margin=100)
+            self.triplet_loss = TripletMarginLoss()
         else:
             self.class_representatives = None
             self.triplet_loss = None
@@ -332,12 +332,12 @@ class VitVQVae(CLModel):
             past_cycle_consistency_loss + current_cycle_consistency_loss
         )
         return CriterionOutput(
-            vq_loss=forward_output.vq_loss * 10,
+            vq_loss=forward_output.vq_loss * 20,
             reconstruction_loss=reconstruction_loss,
             past_cycle_consistency_loss=past_cycle_consistency_loss,
             current_cycle_consistency_loss=current_cycle_consistency_loss,
             cycle_consistency_loss=cycle_consistency_loss,
-            clf_loss=clf_loss / 100,
+            clf_loss=clf_loss,
             clf_acc=clf_acc,
             feature_perplexity=forward_output.feature_perplexity,
             class_perplexity=forward_output.class_perplexity,
