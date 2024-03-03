@@ -61,7 +61,7 @@ class NaivePytorchLightning(Naive):
         self.strategy = strategy
         self.min_epochs = min_epochs
         self.max_epochs = max_epochs
-        self.best_model_path_prefix = None
+        self.best_model_path_prefix = best_model_path_prefix
         self.train_plugins = train_plugins
         self.local_rank = local_rank
         self.monitor = best_model_monitor
@@ -145,7 +145,7 @@ class NaivePytorchLightning(Naive):
         self.trainer.fit(self.model, datamodule=datamodule, ckpt_path=ckpt_path)
 
         self.resume_arguments = None
-        self.restore_best_model()
+        # self.restore_best_model()
 
     def update_model_experience(self) -> None:
         self.model.experience_step = self.experience_step
