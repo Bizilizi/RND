@@ -44,18 +44,20 @@ class BootstrappedDataset(Dataset):
             self.images = torch.cat([self.images, images], dim=0)
             self.indices = torch.cat([self.indices, latent_indices], dim=0)
 
+        self.targets.extend([-1] * images.shape[0])
+
     def __getitem__(self, item):
         image = self.images[item]
         if self.transform is not None:
             image = self.transform(image)
 
-        indices = self.images[item]
+        indices = self.indices[item]
 
         data = {
             "images": image,
             "indices": indices,
         }
-        targets = -1
+        targets = self.targets[item]
 
         return data, targets
 
