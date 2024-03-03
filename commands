@@ -115,8 +115,8 @@ python submitit_train.py \
     --group initial_tests \
     --dataset cifar10 \
     --num_tasks 5 \
-    --max_epochs 300 \
-    --min_epochs 300 \
+    --max_epochs 600 \
+    --min_epochs 600 \
     --num_epochs_schedule warmup \
     --supervised True \
     --devices 0, \
