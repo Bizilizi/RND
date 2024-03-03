@@ -105,20 +105,20 @@ python submitit_train.py \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type a6000 \
+    --gpu_type v100s \
     --batch_size 256 \
     --accumulate_grad_batches 1 \
-    --partition gpu \
+    --partition ddp-4way \
     --timeout 2880 \
-    --ngpus 1 \
+    --ngpus 2 \
     --comment "vq-vmae knn" \
     --group initial_tests \
     --dataset cifar10 \
     --num_tasks 5 \
-    --max_epochs 600 \
-    --min_epochs 200 \
+    --max_epochs 300 \
+    --min_epochs 300 \
     --num_epochs_schedule warmup \
-    --supervised False \
+    --supervised True \
     --devices 0, \
     --augment default \
     --max_epochs_igpt 10 \
@@ -135,7 +135,7 @@ python submitit_train.py \
     --cycle_consistency_loss_weight_for_past 1 \
     --cycle_consistency_loss_weight_for_current 0 \
     --cycle_consistency_sigma 1 \
-    --past_samples_loss_weight 1 \
+    --past_samples_loss_weight 0 \
     --current_samples_loss_weight 1 \
     --future_samples_loss_weight 1 \
     --separate_codebooks true \
