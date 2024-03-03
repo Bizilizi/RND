@@ -152,7 +152,7 @@ class NaivePytorchLightning(Naive):
         self.model.experience = self.experience
 
     def restore_best_model(self) -> None:
-        if self.experience_step > 0:
+        if self.experience_step > 0 and self.restore_best_model_callback is not None:
             list_with_best_model_path = [None]
             if self.local_rank == 0:
                 list_with_best_model_path[
