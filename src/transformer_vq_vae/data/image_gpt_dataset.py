@@ -8,7 +8,14 @@ from src.transformer_vq_vae.model.encoder import take_indexes
 
 class ImageGPTDataset(Dataset):
     def __init__(
-        self, vq_vae_model, dataset, sos_token, mask_token, ratio, top_k, num_workers=4
+        self,
+        vq_vae_model,
+        dataset,
+        sos_token,
+        mask_token,
+        ratio,
+        top_k,
+        num_workers=4,
     ):
         super().__init__()
 
@@ -43,50 +50,56 @@ class ImageGPTDataset(Dataset):
     ):
         # extract patches features
         encoder = self.vq_vae_model.encoder
-        masked_features, _, backward_indexes = encoder(
+        masked_features, full_features, backward_indexes = encoder(
             x[None].to(self.vq_vae_model.device),
-            return_full_features=False,
+            return_full_features=True,
             ratio=self.ratio,
         )
 
-        # quantize features
-        (
-            _,
-            quantized_features,
-            *_,
-            masked_input_ids,
-        ) = self.vq_vae_model.feature_quantization(masked_features)
+        if self.ratio == 1:
+            # quantize features
+            (
+                *_,
+                input_ids,
+            ) = self.vq_vae_model.feature_quantization(full_features)
+            input_ids = rearrange(input_ids, "t b k-> b (t k)")
+        else:
+            # quantize features
+            (
+                *_,
+                input_ids,
+            ) = self.vq_vae_model.feature_quantization(masked_features)
 
-        # fill masked patches with learned embedding
-        mask_token_id = torch.full(
-            (self.top_k,), self.mask_token, device=self.vq_vae_model.device
-        )
-        mask_token_id = rearrange(mask_token_id, "k -> 1 1 k")
+            # fill masked patches with learned embedding
+            mask_token_id = torch.full(
+                (self.top_k,), self.mask_token, device=self.vq_vae_model.device
+            )
+            mask_token_id = rearrange(mask_token_id, "k -> 1 1 k")
 
-        backward_indexes = torch.cat(
-            [
-                torch.zeros(1, backward_indexes.shape[1]).to(backward_indexes),
-                backward_indexes + 1,
-            ],
-            dim=0,
-        )
-        masked_input_ids = torch.cat(
-            [
-                masked_input_ids,
-                mask_token_id.expand(
-                    backward_indexes.shape[0] - masked_input_ids.shape[0],
-                    masked_input_ids.shape[1],
-                    -1,
-                ),
-            ],
-            dim=0,
-        )
-        masked_input_ids = take_indexes(masked_input_ids, backward_indexes)
+            backward_indexes = torch.cat(
+                [
+                    torch.zeros(1, backward_indexes.shape[1]).to(backward_indexes),
+                    backward_indexes + 1,
+                ],
+                dim=0,
+            )
+            input_ids = torch.cat(
+                [
+                    input_ids,
+                    mask_token_id.expand(
+                        backward_indexes.shape[0] - input_ids.shape[0],
+                        input_ids.shape[1],
+                        -1,
+                    ),
+                ],
+                dim=0,
+            )
+            input_ids = take_indexes(input_ids, backward_indexes)
 
-        # Transform to batch
-        masked_input_ids = rearrange(masked_input_ids, "t b k-> b (t k)")
+            # Transform to batch
+            input_ids = rearrange(input_ids, "t b k-> b (t k)")
 
-        return masked_input_ids
+        return input_ids
 
     @torch.no_grad()
     def _extend_with_sos_token(self, input_ids):
