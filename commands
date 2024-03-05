@@ -23,27 +23,27 @@ python submitit_train.py \
     --timeout 2880 \
     --ngpus 2 \
     --comment "cifar100" \
-    --config src/transformer_vq_vae/configuration/train.ini \
-    --model transformer-vq-vae \
     --group qmae_old \
     --dataset cifar100 \
+    --num_tasks 20 \
+    --max_epochs 1000 \
+    --min_epochs 300 \
+    --num_epochs_schedule v \
+    --batch_size 256 \
+    --accumulate_grad_batches 1 \
     --igpt_mask_ratio 1 \
-    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --current_samples_loss_weight 1 \
     --num_random_past_samples 25000 \
     --num_random_past_samples_schedule fixed \
     --cycle_consistency_loss_weight 1 \
     --cycle_consistency_sigma 1 \
+    --config src/transformer_vq_vae/configuration/train.ini \
+    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --model transformer-vq-vae \
+    --current_samples_loss_weight 1 \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
-    --batch_size 512 \
-    --accumulate_grad_batches 1 \
-    --num_epochs_schedule warmup \
-    --max_epochs 1000 \
-    --min_epochs 300 \
     --max_epochs_lin_eval 100\
     --num_workers 8 \
-    --num_tasks 20 \
     --num_embeddings 512 \
     --num_class_embeddings 4 \
     --precision 16-mixed
