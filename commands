@@ -22,12 +22,14 @@ python submitit_train.py \
     --partition ddp-4way \
     --timeout 2880 \
     --ngpus 2 \
-    --comment "cifar100" \
+    --comment "cifar100 gdumb" \
+    --supervised True \
+    --memory_buffer_size 20000 \
     --group qmae_old \
     --dataset cifar100 \
     --num_tasks 20 \
-    --max_epochs 2 \
-    --min_epochs 2 \
+    --max_epochs 1200 \
+    --min_epochs 400 \
     --num_epochs_schedule warmup \
     --batch_size 256 \
     --accumulate_grad_batches 1 \
@@ -39,10 +41,10 @@ python submitit_train.py \
     --config src/transformer_vq_vae/configuration/train.ini \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --model transformer-vq-vae \
-    --current_samples_loss_weight 1 \
+    --current_samples_loss_weight 1.5 \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
-    --max_epochs_lin_eval 2\
+    --max_epochs_lin_eval 100 \
     --num_workers 8 \
     --num_embeddings 512 \
     --num_class_embeddings 4 \
