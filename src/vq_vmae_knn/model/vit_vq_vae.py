@@ -585,27 +585,12 @@ class VitVQVae(CLModel):
 
         optimizer = torch.optim.AdamW(
             chain(*parameters),
-            lr=self._learning_rate * self._batch_size / 256,
+            lr=self._learning_rate,
             betas=(0.9, 0.95),
             weight_decay=self._weight_decay,
         )
 
-        lr_func = lambda epoch: min(
-            (epoch + 1) / (self._num_epochs / 3 + 1e-8),
-            0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
-        )
-        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-            optimizer, lr_lambda=lr_func, verbose=True
-        )
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": lr_scheduler,
-                "interval": "epoch",
-                "frequency": 1,
-            },
-        }
+        return optimizer
 
     def log_with_postfix(self, name: str, value: t.Any, *args, **kwargs):
         self.log_dict(
