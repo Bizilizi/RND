@@ -136,12 +136,17 @@ class VectorQuantizerEMA(nn.Module):
         self._embedding_dim = embedding_dim
         self._num_embeddings = num_embeddings
 
-        self._embedding = nn.Embedding(self._num_embeddings, self._embedding_dim)
+        self._embedding = nn.Embedding(
+            self._num_embeddings, self._embedding_dim, _freeze=True
+        )
         self._embedding.weight.data.normal_()
+
         self._commitment_cost = commitment_cost
 
         self.register_buffer("_ema_cluster_size", torch.zeros(num_embeddings))
-        self._ema_w = nn.Parameter(torch.Tensor(num_embeddings, self._embedding_dim))
+        self.register_buffer(
+            "_ema_w", torch.Tensor(num_embeddings, self._embedding_dim)
+        )
         self._ema_w.data.normal_()
 
         self._decay = decay
@@ -188,11 +193,13 @@ class VectorQuantizerEMA(nn.Module):
 
             dw = torch.matmul(encodings.t(), flat_input)
             self._ema_w = nn.Parameter(
-                self._ema_w * self._decay + (1 - self._decay) * dw
+                self._ema_w * self._decay + (1 - self._decay) * dw,
+                requires_grad=False,
             )
 
             self._embedding.weight = nn.Parameter(
-                self._ema_w / self._ema_cluster_size.unsqueeze(1)
+                self._ema_w / self._ema_cluster_size.unsqueeze(1),
+                requires_grad=False,
             )
 
         # Loss

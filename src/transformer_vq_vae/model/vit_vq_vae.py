@@ -80,6 +80,7 @@ class VitVQVae(CLModel):
         precision: str = "32-true",
         accelerator: str = "cuda",
         quantize_features: bool = True,
+        data_variance: float = 0.06328692405746414,
     ) -> None:
         super().__init__()
 
@@ -118,7 +119,7 @@ class VitVQVae(CLModel):
         self.cycle_consistency_power = cycle_consistency_power
         self.cycle_consistency_weight = cycle_consistency_weight
         self.use_lpips = use_lpips
-        self._data_variance = 0.06328692405746414
+        self._data_variance = data_variance
 
         if self.use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
@@ -382,6 +383,7 @@ class VitVQVae(CLModel):
             {
                 f"{name}/experience_step_{self.experience_step}": value,
             },
+            sync_dist=True,
             *args,
             **kwargs,
         )

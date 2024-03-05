@@ -37,6 +37,8 @@ class NaivePytorchLightning(Naive):
         train_plugins: t.List[t.Any],
         max_epochs: t.Union[int, t.List[int]],
         min_epochs: t.Union[int, t.List[int]],
+        local_rank: int,
+        is_distributed: bool,
         best_model_path_prefix: str = "",
         train_mb_num_workers: int = 2,
         initial_resume_from: t.Optional[str] = None,
@@ -56,11 +58,20 @@ class NaivePytorchLightning(Naive):
         self.accumulate_grad_batches = accumulate_grad_batches
         self.validate_every_n = validate_every_n
         self.accelerator = accelerator
-        self.devices = devices
+
         self.min_epochs = min_epochs
         self.max_epochs = max_epochs
         self.best_model_path_prefix = best_model_path_prefix
         self.train_plugins = train_plugins
+
+        # Distributed settings
+        if is_distributed:
+            self.devices = f"{local_rank},"
+            self.strategy = "ddp"
+        else:
+            self.devices = devices
+            self.strategy = "auto"
+
         # Modify callback to
         self.callbacks_factory = callbacks
         self.strategy_callbacks = [
@@ -114,6 +125,7 @@ class NaivePytorchLightning(Naive):
             check_val_every_n_epoch=self.validate_every_n,
             accelerator=self.accelerator,
             devices=self.devices,
+            strategy=self.strategy,
             logger=self.train_logger,
             max_epochs=max_epochs,
             min_epochs=min_epochs,

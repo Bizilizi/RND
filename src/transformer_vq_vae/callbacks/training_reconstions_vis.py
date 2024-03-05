@@ -4,6 +4,7 @@ import torch
 from einops import rearrange
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
+from pytorch_lightning.utilities.types import DistributedDataParallel
 from torchvision.utils import make_grid
 
 import wandb
@@ -40,8 +41,11 @@ class VisualizeTrainingReconstructions(Callback):
         if trainer.current_epoch % self.log_every != 0:
             return
 
-        experience_step = trainer.model.experience_step
-        model: VitVQVae = trainer.model
+        model = trainer.model
+        if isinstance(model, DistributedDataParallel):
+            model = model.module
+
+        experience_step = model.experience_step
         dataset = trainer.datamodule.train_dataset
 
         for logger in trainer.loggers:

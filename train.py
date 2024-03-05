@@ -1,5 +1,7 @@
 import argparse
-import logging
+import random
+
+import torch.multiprocessing as mp
 from functools import partial
 
 import torch
@@ -13,10 +15,20 @@ from src.vq_vae.train import main as vq_vae_main
 from src.transformer_vq_vae.train import main as transformer_vq_vae_main
 from train_utils import add_arguments
 
+
 # configure logging at the root level of Lightning
 # logging.getLogger("pytorch_lightning").setLevel(logging.ERROR)
-torch.multiprocessing.set_sharing_strategy("file_system")
+# torch.multiprocessing.set_sharing_strategy("file_system")
+
+
 # torch.set_float32_matmul_precision("medium")
+
+
+def ddp_wrapper(fn, local_rank, args):
+    args.local_rank = local_rank
+    torch.cuda.set_device(local_rank)
+    fn(args)
+
 
 if __name__ == "__main__":
 
@@ -37,6 +49,7 @@ if __name__ == "__main__":
     else:
         assert False, "Unknown value '--model' parameter"
 
+    args.port = random.randint(1723, 65535)
     # Make it deterministic
     seed_everything(args.seed)
 
@@ -49,4 +62,16 @@ if __name__ == "__main__":
         )
     else:
         # Otherwise just run entry main function
-        entry_main(args)
+        devices = args.devices.rstrip(",").split(",")
+
+        args.world_size = len(devices)
+
+        if args.world_size > 1:
+            mp.spawn(
+                partial(ddp_wrapper, entry_main),
+                args=(args,),
+                nprocs=args.world_size,
+                join=True,
+            )
+        else:
+            entry_main(args)

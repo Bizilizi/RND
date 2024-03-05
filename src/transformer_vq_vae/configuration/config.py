@@ -14,6 +14,8 @@ class TrainConfig(BaseTrainConfig):
     num_tasks: int
     num_epochs_schedule: str
     bootstrapped_dataset_path: str
+    dataset: str
+    dataset_variance: float
 
     use_lpips: bool
     mask_ratio: float

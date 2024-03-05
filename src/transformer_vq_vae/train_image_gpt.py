@@ -21,6 +21,7 @@ from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 class BootstrappedDataset(Dataset):
@@ -195,6 +196,7 @@ def learning_rate_schedule(warmup_steps, total_steps):
 
 
 def train_igpt(
+    *,
     strategy: NaivePytorchLightning,
     config: TrainConfig,
     train_dataset: Dataset,
@@ -204,6 +206,8 @@ def train_igpt(
     num_classes: int,
     n_layer: int = 12,
     image_gpt: ImageGPTForCausalImageModeling = None,
+    is_distributed: bool,
+    local_rank: int,
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
@@ -237,8 +241,12 @@ def train_igpt(
         vq_vae_model.device
     )
 
+    # Transfer models to corresponding device (DDP)
+    image_gpt = image_gpt.to(device)
+    if is_distributed:
+        image_gpt = DDP(image_gpt, device_ids=[local_rank], output_device=local_rank)
+
     vq_vae_model.to(device)
-    image_gpt.to(device)
     image_embeddings.to(device)
 
     train_dataset = ImageGPTDataset(
@@ -296,50 +304,66 @@ def train_igpt(
                 optimizer.zero_grad(set_to_none=True)
                 exp_lr_scheduler.step()
 
-            logger.log_metrics(
-                {
-                    f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
-                    "epoch": i,
-                },
-                step=i,
+            if local_rank == 0:
+                logger.log_metrics(
+                    {
+                        f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
+                        "epoch": i,
+                    },
+                    step=i,
+                )
+        # Generate sampled images at the end of the epoch
+        if local_rank == 0:
+            if is_distributed:
+                sampler = image_gpt.module
+            else:
+                sampler = image_gpt
+
+            sample = sample_images(
+                image_gpt=sampler,
+                vq_vae_model=vq_vae_model,
+                embedding=image_embeddings,
+                sos_token=sos_token,
+                return_grid_only=True,
+                temperature=config.temperature,
+                experience_step=strategy.experience_step,
+            ).cpu()
+
+            if isinstance(logger, WandbLogger):
+                logger.log_metrics(
+                    {
+                        f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
+                            sample.permute(1, 2, 0).numpy()
+                        ),
+                        "epoch": i,
+                    }
+                )
+            if isinstance(logger, TensorBoardLogger):
+                logger.experiment.add_image(
+                    f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
+                    sample / 255,
+                    i,
+                )
+
+        # Save igpt model on every epoch
+        if local_rank == 0:
+            if is_distributed:
+                state_dict = image_gpt.module.state_dict()
+            else:
+                state_dict = image_gpt.state_dict()
+
+            for k, v in state_dict.items():
+                state_dict[k] = v.cpu()
+
+            torch.save(
+                state_dict,
+                f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt",
             )
 
-            if step % 1000 == 0:
-                sample = sample_images(
-                    image_gpt=image_gpt,
-                    vq_vae_model=vq_vae_model,
-                    embedding=image_embeddings,
-                    sos_token=sos_token,
-                    return_grid_only=True,
-                    temperature=config.temperature,
-                    experience_step=strategy.experience_step,
-                ).cpu()
-
-                if isinstance(logger, WandbLogger):
-                    logger.log_metrics(
-                        {
-                            f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
-                                sample.permute(1, 2, 0).numpy()
-                            ),
-                            "epoch": i,
-                        }
-                    )
-                if isinstance(logger, TensorBoardLogger):
-                    logger.experiment.add_image(
-                        f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
-                        sample / 255,
-                        i,
-                    )
-
-            if step % 100 == 0:
-                model_ckpt_path = f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt"
-                state_dict = image_gpt.state_dict()
-                for k, v in state_dict.items():
-                    state_dict[k] = v.cpu()
-
-                torch.save(state_dict, model_ckpt_path)
-
-    return image_gpt
+    if is_distributed:
+        return image_gpt.module
+    else:
+        return image_gpt
 
 
 @torch.no_grad()

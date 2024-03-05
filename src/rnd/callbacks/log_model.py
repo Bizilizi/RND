@@ -11,6 +11,7 @@ import wandb
 class LogModelWightsCallback(Callback):
     def __init__(
         self,
+        local_rank: int,
         log_every=5,
         checkpoint_path: str = "checkpoints",
         model_prefix: str = "model",
@@ -26,24 +27,15 @@ class LogModelWightsCallback(Callback):
         self.model_description = model_description
         self.log_to_wandb = log_to_wandb
         self.experience_step = experience_step
+        self.local_rank = local_rank
 
     def save_model_weights(self, logger, trainer: "pl.Trainer"):
         if self.experience_step is not None:
             model_ckpt = f"{self.checkpoint_path}/{self.model_prefix}-exp-{self.experience_step}-ep-{self.state['epochs']}.ckpt"
         else:
             model_ckpt = f"{self.checkpoint_path}/{self.model_prefix}-ep-{self.state['epochs']}.ckpt"
+
         trainer.save_checkpoint(model_ckpt)
-
-        # log model to W&B
-        if isinstance(logger, WandbLogger) and self.log_to_wandb:
-            artifact = wandb.Artifact(
-                f"model-{logger.experiment.id}",
-                type="model",
-                description=self.model_description,
-            )
-            artifact.add_file(model_ckpt)
-
-            logger.experiment.log_artifact(artifact)
 
     def on_train_epoch_end(
         self,

@@ -5,6 +5,7 @@ import shutil
 from configparser import ConfigParser
 
 import torch
+from torch import distributed
 from torchvision import transforms
 
 import wandb
@@ -19,6 +20,7 @@ from src.transformer_vq_vae.init_scrips import (
     get_evaluation_plugin,
     get_model,
     get_train_plugins,
+    get_benchmark,
 )
 from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
@@ -26,6 +28,7 @@ from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_observed_only_classes,
 )
 from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.transformer_vq_vae.utils.copy_dataset import copy_dataset_to_tmp
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
 )
@@ -70,13 +73,18 @@ def get_num_random_past_samples(
 def train_loop(
     benchmark: SplitCIFAR10,
     cl_strategy: NaivePytorchLightning,
-    is_using_wandb: bool,
     config: TrainConfig,
     device: torch.device,
+    is_using_wandb: bool,
+    is_distributed: bool,
+    local_rank: int,
 ) -> None:
     """
     :return:
     """
+    if is_using_wandb:
+        log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
+
     image_gpt = None
     sos_token = config.num_class_embeddings + config.num_embeddings + 1
     mask_token = config.num_class_embeddings + config.num_embeddings
@@ -164,6 +172,8 @@ def train_loop(
             n_layer=config.num_gpt_layers,
             image_gpt=image_gpt,
             num_classes=benchmark.n_classes,
+            local_rank=local_rank,
+            is_distributed=is_distributed,
         )
 
         # Train classifier
@@ -183,11 +193,22 @@ def train_loop(
         cl_strategy.model.unfreeze()
         cl_strategy.experience_step += 1
 
-    if is_using_wandb:
-        log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
+        # Wait until the main process
+        distributed.barrier()
 
 
 def main(args):
+    is_distributed = args.world_size > 1
+    is_main_process = args.local_rank == 0
+
+    # Init pytorch distributed
+    distributed.init_process_group(
+        init_method=f"tcp://localhost:{args.port}",
+        world_size=args.world_size,
+        rank=args.local_rank,
+        group_name="cl_sync",
+    )
+
     # Reading configuration from ini file
     assert (
         args.config
@@ -218,10 +239,20 @@ def main(args):
     else:
         wandb_params = None
 
-    # Fix path params
+    # propagate run_id to other processes
     today = datetime.datetime.now()
-    run_id = wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
+    list_with_run_id = [None]
 
+    if is_main_process:
+        run_id = (
+            wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
+        )
+        list_with_run_id = [run_id]
+
+    distributed.broadcast_object_list(list_with_run_id)
+    run_id = list_with_run_id[0]
+
+    # Fix path params
     config.checkpoint_path += f"/{run_id}/model"
     config.best_model_prefix += f"/{run_id}/best_model"
     config.bootstrapped_dataset_path += f"/{run_id}/bootstrapped_dataset"
@@ -231,44 +262,20 @@ def main(args):
     Path(config.bootstrapped_dataset_path).mkdir(parents=True, exist_ok=True)
 
     # Moving dataset to tmp
-    datasets_dir = pathlib.Path(config.dataset_path)
     tmp = os.environ.get("TMPDIR", "/tmp")
-    target_dataset_dir = pathlib.Path(f"{tmp}/dzverev_data/")
-    target_dataset_dir.mkdir(exist_ok=True)
+    target_dataset_dir = pathlib.Path(f"{tmp}/dzverev_data/{config.dataset}")
+    target_dataset_dir.mkdir(exist_ok=True, parents=True)
 
-    zip_path = datasets_dir / "cifar-10-python.tar.gz"
-    dataset_path = datasets_dir / "cifar-10-batches-py"
+    if is_main_process:
+        copy_dataset_to_tmp(config, target_dataset_dir)
 
-    target_zip_path = target_dataset_dir / "cifar-10-python.tar.gz"
-    target_dataset_path = target_dataset_dir / "cifar-10-batches-py"
-
-    if zip_path.exists() and not target_zip_path.exists():
-        shutil.copy(str(zip_path), str(target_zip_path))
-
-    if dataset_path.exists() and not target_dataset_path.exists():
-        shutil.copytree(str(dataset_path), str(target_dataset_path))
+    # Wait until the dataset is loaded and unpacked
+    distributed.barrier()
 
     # Create benchmark
-    benchmark = SplitCIFAR10(
-        n_experiences=config.num_tasks,
-        return_task_id=True,
-        shuffle=True,
-        dataset_root=target_dataset_dir,
-        train_transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-            ]
-        ),
-        eval_transform=transforms.Compose(
-            [
-                transforms.ToTensor(),
-                transforms.Normalize((0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)),
-            ]
-        ),
-    )
+    benchmark = get_benchmark(config, target_dataset_dir)
 
-    device = get_device(config)
+    device = get_device(config, args.local_rank)
     model = get_model(config, device)
 
     # Create evaluation plugin and train/val loggers
@@ -276,6 +283,7 @@ def main(args):
     evaluation_plugin = get_evaluation_plugin(
         benchmark, eval_plugin_loggers, is_using_wandb
     )
+
     epochs_schedule = get_epochs_schedule(config)
     cl_strategy = NaivePytorchLightning(
         precision=config.precision,
@@ -294,12 +302,14 @@ def main(args):
         train_epochs=config.max_epochs,
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
-        callbacks=get_callbacks(config),
+        callbacks=get_callbacks(config, args.local_rank),
         max_epochs=epochs_schedule,
         min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,
         plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
         train_plugins=get_train_plugins(config),
+        is_distributed=is_distributed,
+        local_rank=args.local_rank,
     )
 
     # Run training process
@@ -308,9 +318,13 @@ def main(args):
         train_loop(
             benchmark=benchmark,
             cl_strategy=cl_strategy,
-            is_using_wandb=is_using_wandb,
             config=config,
             device=device,
+            is_using_wandb=is_using_wandb,
+            is_distributed=is_distributed,
+            local_rank=args.local_rank,
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")
+
+    distributed.destroy_process_group()

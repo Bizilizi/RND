@@ -5,6 +5,7 @@ import typing as t
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning import loggers as pl_loggers
+from pytorch_lightning.loggers.logger import DummyLogger
 
 import wandb
 from avalanche.logging import InteractiveLogger
@@ -86,6 +87,41 @@ def add_arguments(parser):
         help="wandb sweep id",
         default=None,
     )
+    parser.add_argument(
+        "--dev",
+        nargs="?",
+        type=bool,
+        help="local wandb development",
+        default=None,
+    )
+    parser.add_argument(
+        "--local_rank",
+        nargs="?",
+        type=int,
+        help="train local rank",
+        default=0,
+    )
+    parser.add_argument(
+        "--global_rank",
+        nargs="?",
+        type=int,
+        help="train gloabal rank",
+        default=0,
+    )
+    parser.add_argument(
+        "--world_size",
+        nargs="?",
+        type=int,
+        help="train world size",
+        default=1,
+    )
+    parser.add_argument(
+        "--port",
+        nargs="?",
+        type=int,
+        help="dist port",
+        default=1723,
+    )
 
     return parser
 
@@ -101,7 +137,7 @@ def get_loggers(
 
     # Create Evaluation plugin
     evaluation_loggers = []
-    if config.evaluation_logger == "wandb":
+    if config.evaluation_logger == "wandb" and wandb_params:
         evaluation_loggers.append(
             InteractiveWandBLogger(
                 project_name=wandb_params["project"],
@@ -114,7 +150,7 @@ def get_loggers(
         evaluation_loggers.append(InteractiveLogger())
 
     # Create avalanche strategy
-    if config.train_logger == "wandb":
+    if config.train_logger == "wandb" and wandb_params:
 
         train_logger = pl_loggers.WandbLogger(
             project=wandb_params["project"],
@@ -126,14 +162,14 @@ def get_loggers(
     elif config.train_logger == "tensorboard":
         train_logger = pl_loggers.TensorBoardLogger(save_dir=config.logging_path)
     else:
-        train_logger = None
+        train_logger = DummyLogger()
 
     return train_logger, evaluation_loggers
 
 
-def get_device(config):
-    if config.accelerator == "gpu":
-        return torch.device("cuda")
+def get_device(config, local_rank):
+    if config.accelerator in ["gpu", "cuda"]:
+        return torch.device(f"cuda:{local_rank}")
     else:
         return torch.device(config.accelerator)
 
@@ -144,11 +180,12 @@ def get_wandb_params(args, config):
     """
 
     wandb_params = dict(
-        project=args.project if args.project is not None else args.model.upper(),
+        project=args.project if args.project is not None else args.model.lower(),
         id=args.run_id,
         entity="vgg-continual-learning",
         group=args.group,
         dir=args.wandb_dir,
+        resume="allow",
     )
     wandb.init(**wandb_params)
 
