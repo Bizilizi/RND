@@ -61,7 +61,7 @@ class BootstrappedDataset(Dataset):
         data = {
             "images": image,
             "indices": self.indices[item],
-            "time_index": self.time_indices[item],
+            "time_index": self.time_indices[item].item(),
         }
         targets = self.targets[item]
 
