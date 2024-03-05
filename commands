@@ -30,11 +30,12 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --future_samples_mode noise \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
-    --max_epochs 2 \
-    --min_epochs 2 \
-    --max_epochs_lin_eval 2\
+    --num_epochs_schedule warmup \
+    --max_epochs 600 \
+    --min_epochs 300 \
+    --max_epochs_lin_eval 100\
     --num_workers 8 \
     --num_tasks 5 \
     --num_embeddings 512 \
-    --num_class_embeddings 128 \
+    --num_class_embeddings 4 \
     --precision 16-mixed

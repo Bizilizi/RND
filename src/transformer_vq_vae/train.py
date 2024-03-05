@@ -36,6 +36,23 @@ from train_utils import get_device, get_loggers, get_wandb_params
 from pathlib import Path
 
 
+def get_epochs_schedule(config: TrainConfig):
+    if config.num_epochs_schedule == "fixed":
+        return config.max_epochs
+
+    if config.num_epochs_schedule == "schedule":
+        schedule = torch.linspace(
+            config.max_epochs, config.min_epochs, config.num_tasks
+        )
+        return schedule.tolist()
+
+    if config.num_epochs_schedule == "warmup":
+        schedule = [config.min_epochs] * config.num_tasks
+        schedule[0] = config.max_epochs
+
+        return schedule
+
+
 def get_num_random_past_samples(
     config: TrainConfig, cl_strategy: NaivePytorchLightning
 ):
@@ -259,7 +276,7 @@ def main(args):
     evaluation_plugin = get_evaluation_plugin(
         benchmark, eval_plugin_loggers, is_using_wandb
     )
-
+    epochs_schedule = get_epochs_schedule(config)
     cl_strategy = NaivePytorchLightning(
         precision=config.precision,
         accelerator=config.accelerator,
@@ -278,8 +295,8 @@ def main(args):
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
         callbacks=get_callbacks(config),
-        max_epochs=config.max_epochs,
-        min_epochs=config.min_epochs,
+        max_epochs=epochs_schedule,
+        min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,
         plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
         train_plugins=get_train_plugins(config),
