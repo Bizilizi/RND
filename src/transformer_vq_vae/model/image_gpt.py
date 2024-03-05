@@ -693,7 +693,7 @@ class ImageGPTModel(ImageGPTPreTrainedModel):
 
         self.embed_dim = config.hidden_size
 
-        self.wte = nn.Embedding(config.vocab_size, self.embed_dim, max_norm=1)
+        self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
         self.wpe = nn.Embedding(config.max_position_embeddings, self.embed_dim)
 
         self.drop = nn.Dropout(config.embd_pdrop)

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader, Dataset
 from torchvision.io import read_image
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm, trange
-from transformers import ImageGPTConfig, ImageGPTForCausalImageModeling
+from transformers import ImageGPTConfig
 
 import wandb
 from avalanche.benchmarks.utils import make_classification_dataset
@@ -20,6 +20,7 @@ from avalanche.benchmarks.utils.classification_dataset import ClassificationData
 from src.avalanche.strategies import NaivePytorchLightning
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.data.image_gpt_dataset import ImageGPTDataset
+from src.transformer_vq_vae.model.image_gpt import ImageGPTForCausalImageModeling
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 from torch.nn.parallel import DistributedDataParallel as DDP
 

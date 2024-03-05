@@ -26,9 +26,9 @@ python submitit_train.py \
     --group qmae_old \
     --dataset cifar100 \
     --num_tasks 20 \
-    --max_epochs 1000 \
-    --min_epochs 300 \
-    --num_epochs_schedule v \
+    --max_epochs 2 \
+    --min_epochs 2 \
+    --num_epochs_schedule warmup \
     --batch_size 256 \
     --accumulate_grad_batches 1 \
     --igpt_mask_ratio 1 \
@@ -42,7 +42,7 @@ python submitit_train.py \
     --current_samples_loss_weight 1 \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
-    --max_epochs_lin_eval 100\
+    --max_epochs_lin_eval 2\
     --num_workers 8 \
     --num_embeddings 512 \
     --num_class_embeddings 4 \
