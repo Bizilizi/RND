@@ -169,7 +169,7 @@ def bootstrap_past_samples(
         bootstrapped_dataset.add_data(
             images=images.cpu(),
             latent_indices=latent_indices.cpu(),
-            time_indices=time_indices,
+            time_indices=time_indices.cpu(),
         )
 
     dataset = make_classification_dataset(
