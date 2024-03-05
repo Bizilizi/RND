@@ -572,10 +572,6 @@ class VitVQVae(CLModel):
             "forward_output": forward_output,
         }
 
-    def on_train_epoch_end(self):
-        sch = self.lr_schedulers()
-        sch.step()
-
     def configure_optimizers(self):
         parameters = [
             self.encoder.parameters(),
