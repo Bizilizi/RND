@@ -16,7 +16,9 @@ class TrainConfig(BaseTrainConfig):
     bootstrapped_dataset_path: str
     dataset: str
     dataset_variance: float
+    memory_buffer_size: int
 
+    supervised: bool
     use_lpips: bool
     mask_ratio: float
     weight_decay: float

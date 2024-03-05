@@ -26,9 +26,11 @@ from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
+    train_classifier_on_random_memory,
 )
 from src.transformer_vq_vae.train_image_gpt import bootstrap_past_samples, train_igpt
 from src.transformer_vq_vae.utils.copy_dataset import copy_dataset_to_tmp
+from src.transformer_vq_vae.utils.gdumb import extend_memory
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
 )
@@ -89,9 +91,20 @@ def train_loop(
     sos_token = config.num_class_embeddings + config.num_embeddings + 1
     mask_token = config.num_class_embeddings + config.num_embeddings
 
+    # G-Dumb like memory
+    random_memory = []
+    num_random_memorised_samples = config.memory_buffer_size // config.num_tasks
+
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
+        if config.supervised:
+            extend_memory(
+                random_memory,
+                train_experience.dataset,
+                num_random_memorised_samples,
+            )
+
         train_experience.dataset = wrap_dataset_with_empty_indices(
             train_experience.dataset, time_index=cl_strategy.experience_step
         )
@@ -100,64 +113,33 @@ def train_loop(
         )
         igpt_train_dataset = train_experience.dataset
 
-        # Model future at the very first step
-        if cl_strategy.experience_step == 0 and config.num_random_future_samples != 0:
-            print(f"Model future samples..")
-            future_dataset = model_future_samples(
-                vq_vae_model=cl_strategy.model,
-                num_images=(
-                    config.num_random_future_samples * (4 - cl_strategy.experience_step)
-                ),
-                mode=config.future_samples_mode,
-            )
+        # Bootstrap old data
+        if (
+            cl_strategy.experience_step != 0
+            and image_gpt is not None
+            and config.num_random_past_samples != 0
+        ):
+            print(f"Bootstrap vae model..")
 
-            train_experience.dataset = train_experience.dataset + future_dataset
-        # Bootstrap old data and modeled future samples
-        if cl_strategy.experience_step != 0 and image_gpt is not None:
             image_gpt.to(device)
             cl_strategy.model.to(device)
 
-            if config.num_random_past_samples != 0:
-                print(f"Bootstrap vae model..")
-                bootstrapped_dataset = bootstrap_past_samples(
-                    image_gpt=image_gpt,
-                    vq_vae_model=cl_strategy.model,
-                    num_images=get_num_random_past_samples(config, cl_strategy),
-                    dataset_path=config.bootstrapped_dataset_path,
-                    config=config,
-                    sos_token=sos_token,
-                    experience_step=cl_strategy.experience_step,
-                    mask_token=mask_token,
-                )
+            bootstrapped_dataset = bootstrap_past_samples(
+                image_gpt=image_gpt,
+                vq_vae_model=cl_strategy.model,
+                num_images=get_num_random_past_samples(config, cl_strategy),
+                dataset_path=config.bootstrapped_dataset_path,
+                config=config,
+                sos_token=sos_token,
+                experience_step=cl_strategy.experience_step,
+                mask_token=mask_token,
+            )
 
-                train_experience.dataset = (
-                    train_experience.dataset + bootstrapped_dataset
-                )
-
-                igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
-
-            if config.num_random_future_samples != 0:
-                print(f"Model future samples..")
-                future_dataset = model_future_samples(
-                    vq_vae_model=cl_strategy.model,
-                    num_images=(
-                        config.num_random_future_samples
-                        * (4 - cl_strategy.experience_step)
-                    ),
-                    mode=config.future_samples_mode,
-                )
-
-                train_experience.dataset = train_experience.dataset + future_dataset
+            train_experience.dataset = train_experience.dataset + bootstrapped_dataset
+            igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
 
         # Train VQ-VAE
-        # if cl_strategy.experience_step != 0:
-        #     cl_strategy.device = torch.device("cpu")
-
         cl_strategy.train(train_experience, [test_experience])
-
-        # Train linear classifier, but before we freeze model params
-        # We train two classifiers. One to predict all classes,
-        # another to predict only observed so far classes.
         cl_strategy.model.freeze()
 
         # Train new image gpt model
@@ -176,20 +158,27 @@ def train_loop(
             is_distributed=is_distributed,
         )
 
-        # Train classifier
+        # Train linear classifiers
         print(f"Train classifier..")
-        all_clf_head = train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        ).to(device)
+        if config.supervised:
+            # Extend random memory in GDumb like way
+            train_classifier_on_random_memory(
+                random_memory=random_memory,
+                strategy=cl_strategy,
+                benchmark=benchmark,
+                config=config,
+            )
+        else:
+            # We train two classifiers. One to predict all classes,
+            # another to predict only observed so far classes.
+            train_classifier_on_all_classes(
+                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+            )
+            train_classifier_on_observed_only_classes(
+                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+            )
 
-        # # Evaluate VQ-VAE and linear classifier
-        # cl_strategy.model.set_clf_head(all_clf_head)
-        # cl_strategy.eval(benchmark.test_stream)
-        # cl_strategy.model.reset_clf_head()
-
+        # Finish CL step
         cl_strategy.model.unfreeze()
         cl_strategy.experience_step += 1
 
