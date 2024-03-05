@@ -68,12 +68,12 @@ def train_loop(
         benchmark.train_stream, benchmark.test_stream
     ):
         train_experience.dataset = wrap_dataset_with_empty_indices(
-            train_experience.dataset
+            train_experience.dataset, time_index=cl_strategy.experience_step
         )
         test_experience.dataset = wrap_dataset_with_empty_indices(
-            test_experience.dataset
+            test_experience.dataset, time_index=cl_strategy.experience_step
         )
-        igpt_train_dataset = train_experience.dataset + test_experience.dataset
+        igpt_train_dataset = train_experience.dataset
 
         # Model future at the very first step
         if cl_strategy.experience_step == 0 and config.num_random_future_samples != 0:
@@ -146,6 +146,7 @@ def train_loop(
             mask_token=mask_token,
             n_layer=config.num_gpt_layers,
             image_gpt=image_gpt,
+            num_classes=benchmark.n_classes,
         )
 
         # Train classifier

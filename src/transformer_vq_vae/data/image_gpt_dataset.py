@@ -25,9 +25,12 @@ class ImageGPTDataset(Dataset):
 
     def __getitem__(self, item):
         data, y, *_ = self.dataset[item]
+
         image = data["images"].to(self.vq_vae_model.device)
+        time_index = data["time_index"]
 
         input_ids = self._project_image(image)
+        input_ids = self._extend_with_time_index(input_ids, time_index)
         input_ids = self._extend_with_sos_token(input_ids)
 
         return {
@@ -97,5 +100,20 @@ class ImageGPTDataset(Dataset):
         )
 
         input_ids = torch.cat([sos_tokens, input_ids], dim=0)
+
+        return input_ids
+
+    @torch.no_grad()
+    def _extend_with_time_index(
+        self,
+        input_ids,
+        time_index,
+    ):
+        time_index_tokens = torch.tensor(
+            [time_index + 1 + self.sos_token],
+            device=input_ids.device,
+        )
+
+        input_ids = torch.cat([time_index_tokens, input_ids], dim=0)
 
         return input_ids

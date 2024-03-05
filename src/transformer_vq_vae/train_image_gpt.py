@@ -1,4 +1,5 @@
 import os
+import random
 
 import math
 import pathlib
@@ -24,7 +25,10 @@ from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
 
 class BootstrappedDataset(Dataset):
     def __init__(
-        self, dataset_path: str, experience_step: int, transform: t.Optional[t.Any]
+        self,
+        dataset_path: str,
+        experience_step: int,
+        transform: t.Optional[t.Any],
     ):
         super().__init__()
 
@@ -34,15 +38,18 @@ class BootstrappedDataset(Dataset):
 
         self.images = None
         self.indices = None
+        self.time_indices = None
         self.targets = []
 
-    def add_data(self, images, latent_indices):
+    def add_data(self, images, latent_indices, time_indices):
         if self.images is None:
             self.images = images
             self.indices = latent_indices
+            self.time_indices = time_indices
         else:
             self.images = torch.cat([self.images, images], dim=0)
             self.indices = torch.cat([self.indices, latent_indices], dim=0)
+            self.time_indices = torch.cat([self.time_indices, time_indices], dim=0)
 
         self.targets.extend([-1] * images.shape[0])
 
@@ -51,11 +58,10 @@ class BootstrappedDataset(Dataset):
         if self.transform is not None:
             image = self.transform(image)
 
-        indices = self.indices[item]
-
         data = {
             "images": image,
-            "indices": indices,
+            "indices": self.indices[item],
+            "time_index": self.time_indices[item],
         }
         targets = self.targets[item]
 
@@ -83,7 +89,8 @@ def init_token_embeddings(
     )
 
     image_gpt.transformer.wte.weight.data[
-        config.num_class_embeddings : -2
+        config.num_class_embeddings : config.num_class_embeddings
+        + config.num_embeddings
     ] = (
         vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
     )
@@ -140,25 +147,29 @@ def bootstrap_past_samples(
     num_images_per_batch = min(128, num_images)
 
     bootstrapped_dataset = BootstrappedDataset(
-        dataset_path=dataset_path, experience_step=experience_step, transform=transform
+        dataset_path=dataset_path,
+        experience_step=experience_step,
+        transform=transform,
     )
     image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
         vq_vae_model.device
     )
 
     for _ in range(num_images // num_images_per_batch):
-        images, latent_indices = sample_images(
+        images, latent_indices, time_indices = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
             temperature=config.temperature,
             num_images=num_images_per_batch,
+            experience_step=experience_step,
         )
 
         bootstrapped_dataset.add_data(
             images=images.cpu(),
             latent_indices=latent_indices.cpu(),
+            time_indices=time_indices,
         )
 
     dataset = make_classification_dataset(
@@ -190,12 +201,13 @@ def train_igpt(
     device: torch.device,
     sos_token: int,
     mask_token: int,
+    num_classes: int,
     n_layer: int = 12,
     image_gpt: ImageGPTForCausalImageModeling = None,
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = config.num_class_embeddings + config.num_embeddings + 2
+    vocab_size = config.num_class_embeddings + config.num_embeddings + 2 + num_classes
 
     configuration = ImageGPTConfig(
         **{
@@ -208,7 +220,7 @@ def train_igpt(
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
-            "n_positions": 16 * 16 + 2,
+            "n_positions": 16 * 16 + 3,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,
@@ -300,6 +312,7 @@ def train_igpt(
                     sos_token=sos_token,
                     return_grid_only=True,
                     temperature=config.temperature,
+                    experience_step=strategy.experience_step,
                 ).cpu()
 
                 if isinstance(logger, WandbLogger):
@@ -335,6 +348,7 @@ def sample_images(
     vq_vae_model,
     embedding,
     sos_token,
+    experience_step,
     temperature=1.23,
     num_images=8 * 4 * 10,
     return_grid_only=False,
@@ -345,19 +359,31 @@ def sample_images(
     device = vq_vae_model.device
     decoder = vq_vae_model.decoder
 
-    context = torch.full(
-        (num_images, 1), sos_token, device=device
-    )  # initialize with SOS token
+    time_indices = torch.tensor(
+        random.choices(list(range(experience_step + 1)), k=num_images), device=device
+    )
+
+    labels_tokens = sos_token + 1 + time_indices
+    sos_tokens = torch.full((num_images,), sos_token, device=device)
+
+    context = torch.cat(
+        [
+            rearrange(sos_tokens, "n -> n 1"),
+            rearrange(labels_tokens, "n -> n 1"),
+        ],
+        dim=1,
+    )
+
     igpt_output = image_gpt.generate(
         input_ids=context,
-        max_length=16 * 16 + 2,
+        max_length=16 * 16 + 3,
         temperature=temperature,
         do_sample=True,
         top_k=45,
         top_p=0.9,
     )
-    igpt_output = igpt_output[:, 1:]
-    igpt_output[igpt_output == sos_token] = 0
+    igpt_output = igpt_output[:, 2:]
+    igpt_output[igpt_output >= sos_token] = 0
 
     quantized = rearrange(embedding(igpt_output), "b t c -> t b c")
     features = quantized + decoder.pos_embedding
@@ -379,4 +405,4 @@ def sample_images(
 
         return grid_image
     else:
-        return x_recon, igpt_output
+        return x_recon, igpt_output, time_indices
