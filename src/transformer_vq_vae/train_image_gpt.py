@@ -163,7 +163,7 @@ def bootstrap_past_samples(
             sos_token=sos_token,
             temperature=config.temperature,
             num_images=num_images_per_batch,
-            experience_step=experience_step,
+            experience_step=experience_step - 1,
         )
 
         bootstrapped_dataset.add_data(
