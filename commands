@@ -15,10 +15,18 @@ sbatch submit.sh python train.py \
     --future_samples_mode noise
 
 
-TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
+python submitit_train.py \
+    --cpus_per_task 8 \
+    --slurm_mem 96 \
+    --gpu_type v100s \
+    --partition ddp-4way \
+    --timeout 2880 \
+    --ngpus 2 \
+    --comment "cifar100" \
     --config src/transformer_vq_vae/configuration/train.ini \
     --model transformer-vq-vae \
     --group qmae_old \
+    --dataset cifar100 \
     --igpt_mask_ratio 1 \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --current_samples_loss_weight 1 \
@@ -31,11 +39,11 @@ TIMM_FUSED_ATTN=1 sbatch submit.sh python train.py \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --num_epochs_schedule warmup \
-    --max_epochs 600 \
+    --max_epochs 1000 \
     --min_epochs 300 \
     --max_epochs_lin_eval 100\
     --num_workers 8 \
-    --num_tasks 5 \
+    --num_tasks 20 \
     --num_embeddings 512 \
     --num_class_embeddings 4 \
     --precision 16-mixed
