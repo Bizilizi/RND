@@ -22,7 +22,7 @@ python submitit_train.py \
     --partition ddp-2way \
     --timeout 2880 \
     --ngpus 2 \
-    --comment "cifar10 gdumb" \
+    --comment "cifar10 gdumb masked sampl" \
     --supervised True \
     --memory_buffer_size 20000 \
     --group qmae_old \
@@ -33,7 +33,7 @@ python submitit_train.py \
     --num_epochs_schedule warmup \
     --batch_size 256 \
     --accumulate_grad_batches 1 \
-    --igpt_mask_ratio 1 \
+    --igpt_mask_ratio 0.02 \
     --num_random_past_samples 25000 \
     --num_random_past_samples_schedule fixed \
     --cycle_consistency_loss_weight 1 \
