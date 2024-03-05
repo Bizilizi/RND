@@ -353,7 +353,6 @@ class VitVQVae(CLModel):
         optimizer = torch.optim.AdamW(
             chain(
                 self.encoder.parameters(),
-                # self.feature_quantization.parameters(),
                 self.decoder.parameters(),
             ),
             lr=self._learning_rate * self._batch_size / 256,
@@ -361,8 +360,9 @@ class VitVQVae(CLModel):
             weight_decay=self._weight_decay,
         )
 
+        warmup = min(200, self._num_epochs // 3)
         lr_func = lambda epoch: min(
-            (epoch + 1) / (self._num_epochs / 3 + 1e-8),
+            (epoch + 1) / (warmup + 1e-8),
             0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
         )
         lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
