@@ -18,18 +18,18 @@ sbatch submit.sh python train.py \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type a6000 \
-    --partition gpu \
+    --gpu_type v100s \
+    --partition ddp-4way \
     --timeout 2880 \
-    --ngpus 1 \
-    --comment "cifar100 gdumb masked sampl" \
+    --ngpus 2 \
+    --comment "cifar10 ssup masked sampl" \
     --supervised False \
     --memory_buffer_size 20000 \
     --group qmae_old \
-    --dataset cifar100 \
-    --num_tasks 20 \
+    --dataset cifar10 \
+    --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 1200 \
+    --max_epochs 1000 \
     --min_epochs 200 \
     --igpt_num_epochs_max 15 \
     --igpt_num_epochs_min 10 \

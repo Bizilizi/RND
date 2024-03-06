@@ -84,7 +84,7 @@ def train_loop(
     """
     :return:
     """
-    if is_using_wandb:
+    if is_using_wandb and local_rank == 0:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
     image_gpt = None
