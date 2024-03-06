@@ -387,3 +387,9 @@ class VitVQVae(CLModel):
             *args,
             **kwargs,
         )
+
+    def unfreeze(self) -> None:
+        super().unfreeze()
+
+        for param in self.feature_quantization.parameters():
+            param.requires_grad = False
