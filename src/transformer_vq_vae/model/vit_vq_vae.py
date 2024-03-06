@@ -77,6 +77,7 @@ class VitVQVae(CLModel):
         cycle_consistency_weight=1,
         cycle_consistency_sigma: float = 1,
         current_samples_loss_weight=2,
+        past_samples_loss_weight=1,
         precision: str = "32-true",
         accelerator: str = "cuda",
         quantize_features: bool = True,
@@ -95,6 +96,7 @@ class VitVQVae(CLModel):
         self._precision_dtype = torch.half if precision == "16-mixed" else torch.float32
         self._accelerator = accelerator
         self._current_samples_loss_weight = current_samples_loss_weight
+        self._past_samples_loss_weight = past_samples_loss_weight
         self._num_epochs = num_epochs
         self._batch_size = batch_size
         self._cycle_consistency_sigma = cycle_consistency_sigma
@@ -171,9 +173,15 @@ class VitVQVae(CLModel):
         current_data = y >= 0
 
         # Compute reconstruction loss
-        reconstruction_loss = self.get_reconstruction_loss(
-            x_recon[current_data], x_data[current_data], y[current_data]
-        )
+        if current_data.any():
+            reconstruction_loss = self.get_reconstruction_loss(
+                x_recon[current_data], x_data[current_data], y[current_data]
+            )
+
+        if self._past_samples_loss_weight != 0 and past_data.any():
+            reconstruction_loss += self.get_reconstruction_loss(
+                x_recon[past_data], x_data[past_data], y[past_data]
+            )
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:
