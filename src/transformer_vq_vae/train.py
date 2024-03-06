@@ -215,7 +215,10 @@ def main(args):
         or config.evaluation_logger == "wandb"
         or args.run_id
     )
-    if is_using_wandb:
+    if is_using_wandb and is_main_process:
+        if args.dev:
+            os.environ["WANDB_MODE"] = "offline"
+
         wandb_params = get_wandb_params(args, config)
 
         wandb.run.name = args.experiment_name or (
@@ -229,10 +232,10 @@ def main(args):
         wandb_params = None
 
     # propagate run_id to other processes
-    today = datetime.datetime.now()
     list_with_run_id = [None]
 
     if is_main_process:
+        today = datetime.datetime.now()
         run_id = (
             wandb_params["id"] if wandb_params else today.strftime("%Y_%m_%d_%H_%M")
         )
