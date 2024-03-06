@@ -65,6 +65,7 @@ class NaivePytorchLightning(Naive):
         self.max_epochs = max_epochs
         self.best_model_path_prefix = best_model_path_prefix
         self.train_plugins = train_plugins
+        self.local_rank = local_rank
 
         # Modify callback to
         self.callbacks_factory = callbacks
