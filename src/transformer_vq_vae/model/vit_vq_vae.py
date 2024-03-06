@@ -171,10 +171,9 @@ class VitVQVae(CLModel):
         current_data = y >= 0
 
         # Compute reconstruction loss
-        if current_data.any():
-            reconstruction_loss = self.get_reconstruction_loss(
-                x_recon[current_data], x_data[current_data], y[current_data]
-            )
+        reconstruction_loss = self.get_reconstruction_loss(
+            x_recon[current_data], x_data[current_data], y[current_data]
+        )
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:

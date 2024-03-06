@@ -18,22 +18,22 @@ sbatch submit.sh python train.py \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type a40 \
-    --partition ddp-2way \
+    --gpu_type a6000 \
+    --partition gpu \
     --timeout 2880 \
-    --ngpus 2 \
-    --comment "cifar10 gdumb masked sampl" \
-    --supervised True \
+    --ngpus 1 \
+    --comment "cifar100 gdumb masked sampl" \
+    --supervised False \
     --memory_buffer_size 20000 \
     --group qmae_old \
-    --dataset cifar10 \
-    --num_tasks 5 \
+    --dataset cifar100 \
+    --num_tasks 20 \
     --num_epochs_schedule warmup \
-    --max_epochs 2 \
-    --min_epochs 2 \
-    --igpt_num_epochs_max 2 \
-    --igpt_num_epochs_min 2 \
-    --max_epochs_lin_eval 2 \
+    --max_epochs 1200 \
+    --min_epochs 200 \
+    --igpt_num_epochs_max 15 \
+    --igpt_num_epochs_min 10 \
+    --max_epochs_lin_eval 100 \
     --batch_size 256 \
     --accumulate_grad_batches 1 \
     --igpt_mask_ratio 0.02 \
