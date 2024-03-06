@@ -9,6 +9,8 @@ from pytorch_lightning.profilers import AdvancedProfiler
 from avalanche.benchmarks import CLExperience
 from avalanche.training import Naive
 from avalanche.training.templates.base import ExpSequence
+from torch import distributed
+
 from src.avalanche.callbacks.lightning_training_to_avalanche import (
     PLTrainLoopToAvalancheTrainLoopCallback,
 )
@@ -145,9 +147,15 @@ class NaivePytorchLightning(Naive):
             self.model.load_state_dict(state_dict)
 
     def restore_best_model(self) -> None:
-        if self.experience_step > 0 and self.restore_best_model_callback:
-            state_dict = torch.load(self.restore_best_model_callback.best_model_path)[
-                "state_dict"
-            ]
+        if self.experience_step > 0 and self.restore_best_model_callback is not None:
+            list_with_best_model_path = [None]
+            if self.local_rank == 0:
+                list_with_best_model_path[
+                    0
+                ] = self.restore_best_model_callback.best_model_path
+
+            distributed.broadcast_object_list(list_with_best_model_path)
+            best_model_path = list_with_best_model_path[0]
+
+            state_dict = torch.load(best_model_path)["state_dict"]
             self.model.load_state_dict(state_dict)
-            os.remove(self.restore_best_model_callback.best_model_path)
