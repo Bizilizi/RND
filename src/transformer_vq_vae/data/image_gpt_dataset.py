@@ -30,7 +30,7 @@ class ImageGPTDataset(Dataset):
         time_index = data["time_index"]
 
         input_ids = self._project_image(image)
-        input_ids = self._extend_with_time_index(input_ids, time_index)
+        # input_ids = self._extend_with_time_index(input_ids, time_index)
         input_ids = self._extend_with_sos_token(input_ids)
 
         return {

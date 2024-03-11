@@ -6,17 +6,12 @@ from itertools import chain
 
 import lpips
 import torch
-from pytorch_metric_learning.distances import CosineSimilarity
-from pytorch_metric_learning.losses import ContrastiveLoss
-from torch import nn
-from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
 
 from src.avalanche.model.cl_model import CLModel
 from src.transformer_vq_vae.model.decoder import MAEDecoder
 from src.transformer_vq_vae.model.encoder import MAEEncoder
 from src.transformer_vq_vae.model.quiantizer import (
-    VectorQuantizerEMA,
     FeatureQuantizer,
 )
 

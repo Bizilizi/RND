@@ -212,7 +212,7 @@ def train_igpt(
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = config.num_class_embeddings + config.num_embeddings + 2 + num_classes
+    vocab_size = config.num_class_embeddings + config.num_embeddings + 2
 
     configuration = ImageGPTConfig(
         **{
@@ -225,7 +225,7 @@ def train_igpt(
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
-            "n_positions": 16 * 16 + 3,
+            "n_positions": 16 * 16 + 2,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,
@@ -389,24 +389,19 @@ def sample_images(
     labels_tokens = sos_token + 1 + time_indices
     sos_tokens = torch.full((num_images,), sos_token, device=device)
 
-    context = torch.cat(
-        [
-            rearrange(sos_tokens, "n -> n 1"),
-            rearrange(labels_tokens, "n -> n 1"),
-        ],
-        dim=1,
-    )
-
+    context = torch.full(
+        (num_images, 1), sos_token, device=device
+    )  # initialize with SOS token
     igpt_output = image_gpt.generate(
         input_ids=context,
-        max_length=16 * 16 + 3,
+        max_length=16 * 16 + 2,
         temperature=temperature,
         do_sample=True,
         top_k=45,
         top_p=0.9,
     )
-    igpt_output = igpt_output[:, 2:]
-    igpt_output[igpt_output >= sos_token] = 0
+    igpt_output = igpt_output[:, 1:]
+    igpt_output[igpt_output == sos_token] = 0
 
     quantized = rearrange(embedding(igpt_output), "b t c -> t b c")
     features = quantized + decoder.pos_embedding

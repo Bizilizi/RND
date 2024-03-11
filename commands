@@ -39,7 +39,7 @@ python submitit_train.py \
     --igpt_mask_ratio 0.02 \
     --num_random_past_samples 25000 \
     --num_random_past_samples_schedule fixed \
-    --cycle_consistency_loss_weight 1 \
+    --cycle_consistency_loss_weight 0 \
     --cycle_consistency_sigma 1 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
