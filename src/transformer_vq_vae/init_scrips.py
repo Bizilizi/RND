@@ -53,6 +53,8 @@ def get_cl_strategy(
     model,
     benchmark,
     device,
+    resume_from,
+    local_rank,
     is_using_wandb,
     is_distributed
 ):
@@ -69,7 +71,7 @@ def get_cl_strategy(
         validate_every_n=config.validate_every_n,
         accumulate_grad_batches=config.accumulate_grad_batches,
         train_logger=cl_strategy_logger,
-        initial_resume_from=args.resume_from,
+        initial_resume_from=resume_from,
         model=model,
         device=device,
         optimizer=model.configure_optimizers()["optimizer"],
@@ -79,15 +81,17 @@ def get_cl_strategy(
         train_epochs=config.max_epochs,
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
-        callbacks=get_callbacks(config, args.local_rank),
+        callbacks=get_callbacks(config, local_rank),
         max_epochs=epochs_schedule,
         min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,
         plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
         train_plugins=get_train_plugins(config),
         is_distributed=is_distributed,
-        local_rank=args.local_rank,
+        local_rank=local_rank,
     )
+
+    return cl_strategy
 
 
 def get_benchmark(config: TrainConfig, target_dataset_dir):
