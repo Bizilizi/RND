@@ -247,6 +247,7 @@ def main(args):
     cl_strategy = get_cl_strategy(
         config=config,
         args=args,
+        wandb_params=wandb_params,
         model=model,
         benchmark=benchmark,
         device=device,
