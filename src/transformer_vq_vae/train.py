@@ -1,28 +1,20 @@
 import datetime
 import os
 import pathlib
-import shutil
 from configparser import ConfigParser
 
 import torch
 from torch import distributed
-from torchvision import transforms
 
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
 from src.avalanche.strategies import NaivePytorchLightning
-from src.transformer_vq_vae.callbacks.reconstruction_visualization_plugin import (
-    ReconstructionVisualizationPlugin,
-)
 from src.transformer_vq_vae.configuration.config import TrainConfig
 from src.transformer_vq_vae.init_scrips import (
-    get_callbacks,
-    get_evaluation_plugin,
     get_model,
-    get_train_plugins,
     get_benchmark,
+    get_cl_strategy,
 )
-from src.transformer_vq_vae.model_future import model_future_samples
 from src.transformer_vq_vae.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
@@ -36,7 +28,7 @@ from src.transformer_vq_vae.utils.wrap_empty_indices import (
 )
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
-from train_utils import get_device, get_loggers, get_wandb_params
+from train_utils import get_device, get_wandb_params
 
 from pathlib import Path
 
@@ -265,43 +257,18 @@ def main(args):
     distributed.barrier()
 
     # Create benchmark
-    benchmark = get_benchmark(config, target_dataset_dir)
-
     device = get_device(config, args.local_rank)
+
+    benchmark = get_benchmark(config, target_dataset_dir)
     model = get_model(config, device)
-
-    # Create evaluation plugin and train/val loggers
-    cl_strategy_logger, eval_plugin_loggers = get_loggers(config, model, wandb_params)
-    evaluation_plugin = get_evaluation_plugin(
-        benchmark, eval_plugin_loggers, is_using_wandb
-    )
-
-    epochs_schedule = get_epochs_schedule(config)
-    cl_strategy = NaivePytorchLightning(
-        precision=config.precision,
-        accelerator=config.accelerator,
-        devices=config.devices,
-        validate_every_n=config.validate_every_n,
-        accumulate_grad_batches=config.accumulate_grad_batches,
-        train_logger=cl_strategy_logger,
-        initial_resume_from=args.resume_from,
+    cl_strategy = get_cl_strategy(
+        config=config,
+        args=args,
         model=model,
+        benchmark=benchmark,
         device=device,
-        optimizer=model.configure_optimizers()["optimizer"],
-        criterion=model.criterion,
-        train_mb_size=config.batch_size,
-        train_mb_num_workers=config.num_workers,
-        train_epochs=config.max_epochs,
-        eval_mb_size=config.batch_size,
-        evaluator=evaluation_plugin,
-        callbacks=get_callbacks(config, args.local_rank),
-        max_epochs=epochs_schedule,
-        min_epochs=epochs_schedule,
-        best_model_path_prefix=config.best_model_prefix,
-        plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
-        train_plugins=get_train_plugins(config),
+        is_using_wandb=is_using_wandb,
         is_distributed=is_distributed,
-        local_rank=args.local_rank,
     )
 
     # Run training process
