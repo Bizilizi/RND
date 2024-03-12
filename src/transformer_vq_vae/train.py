@@ -33,23 +33,6 @@ from train_utils import get_device, get_wandb_params
 from pathlib import Path
 
 
-def get_epochs_schedule(config: TrainConfig):
-    if config.num_epochs_schedule == "fixed":
-        return config.max_epochs
-
-    if config.num_epochs_schedule == "schedule":
-        schedule = torch.linspace(
-            config.max_epochs, config.min_epochs, config.num_tasks
-        )
-        return schedule.tolist()
-
-    if config.num_epochs_schedule == "warmup":
-        schedule = [config.min_epochs] * config.num_tasks
-        schedule[0] = config.max_epochs
-
-        return schedule
-
-
 def get_num_random_past_samples(
     config: TrainConfig, cl_strategy: NaivePytorchLightning
 ):

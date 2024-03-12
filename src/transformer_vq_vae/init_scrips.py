@@ -4,7 +4,6 @@ import typing as t
 import torch
 from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
 from pytorch_lightning import Callback
-from pytorch_lightning.callbacks import EarlyStopping
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
@@ -26,15 +25,36 @@ from src.transformer_vq_vae.metrics.vq_vae_confusion_matrix import (
 from src.transformer_vq_vae.metrics.vq_vae_forgetting import vq_vae_forgetting_metrics
 from src.transformer_vq_vae.metrics.vq_vae_loss import vq_vae_loss_metrics
 from src.transformer_vq_vae.model.vit_vq_vae import VitVQVae
-from src.transformer_vq_vae.plugins.mixed_precision_plugin import (
-    CustomMixedPrecisionPlugin,
-)
-from src.transformer_vq_vae.train import get_epochs_schedule
 from train_utils import get_loggers
 
 
+def get_epochs_schedule(config: TrainConfig):
+    if config.num_epochs_schedule == "fixed":
+        return config.max_epochs
+
+    if config.num_epochs_schedule == "schedule":
+        schedule = torch.linspace(
+            config.max_epochs, config.min_epochs, config.num_tasks
+        )
+        return schedule.tolist()
+
+    if config.num_epochs_schedule == "warmup":
+        schedule = [config.min_epochs] * config.num_tasks
+        schedule[0] = config.max_epochs
+
+        return schedule
+
+
 def get_cl_strategy(
-    *, config, args, model, benchmark, device, is_using_wandb, is_distributed
+    *,
+    config,
+    args,
+    wandb_params,
+    model,
+    benchmark,
+    device,
+    is_using_wandb,
+    is_distributed
 ):
     cl_strategy_logger, eval_plugin_loggers = get_loggers(config, model, wandb_params)
     evaluation_plugin = get_evaluation_plugin(
