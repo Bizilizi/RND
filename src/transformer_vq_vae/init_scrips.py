@@ -48,7 +48,6 @@ def get_epochs_schedule(config: TrainConfig):
 def get_cl_strategy(
     *,
     config,
-    args,
     wandb_params,
     model,
     benchmark,

@@ -246,11 +246,12 @@ def main(args):
     model = get_model(config, device)
     cl_strategy = get_cl_strategy(
         config=config,
-        args=args,
         wandb_params=wandb_params,
         model=model,
         benchmark=benchmark,
         device=device,
+        resume_from=args.resume_from,
+        local_rank=args.local_rank,
         is_using_wandb=is_using_wandb,
         is_distributed=is_distributed,
     )
