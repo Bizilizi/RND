@@ -66,9 +66,6 @@ def bootstrap_past_samples(
     )
 
     for i in range(num_images // num_images_per_batch):
-        c_time_indices = time_indices[
-            i * num_images_per_batch : (i + 1) * num_images_per_batch
-        ]
         images, latent_indices, sampled_time_indices = sample_images(
             image_gpt=image_gpt,
             vq_vae_model=vq_vae_model,
@@ -77,7 +74,11 @@ def bootstrap_past_samples(
             temperature=config.temperature,
             num_images=num_images_per_batch,
             experience_step=experience_step,
-            time_indices=c_time_indices,
+            time_indices=time_indices[
+                i * num_images_per_batch : (i + 1) * num_images_per_batch
+            ]
+            if time_indices
+            else None,
         )
 
         bootstrapped_dataset.add_data(
