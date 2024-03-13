@@ -375,6 +375,7 @@ def sample_images(
     temperature=1.23,
     num_images=8 * 4 * 10,
     return_grid_only=False,
+    time_indices=None,
 ):
     image_gpt.eval()
     vq_vae_model.eval()
@@ -382,9 +383,11 @@ def sample_images(
     device = vq_vae_model.device
     decoder = vq_vae_model.decoder
 
-    time_indices = torch.tensor(
-        random.choices(list(range(experience_step + 1)), k=num_images), device=device
-    )
+    if time_indices is None:
+        time_indices = torch.tensor(
+            random.choices(list(range(experience_step + 1)), k=num_images),
+            device=device,
+        )
 
     labels_tokens = sos_token + 1 + time_indices
     sos_tokens = torch.full((num_images,), sos_token, device=device)
