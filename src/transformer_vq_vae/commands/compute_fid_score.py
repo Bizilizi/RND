@@ -113,7 +113,6 @@ def calculate_fid_score(
     sos_token = config.num_class_embeddings + config.num_embeddings + 1
     mask_token = config.num_class_embeddings + config.num_embeddings
 
-    print(f"exp_step: {exp_step}")
     model.load_state_dict(
         torch.load(
             f"/scratch/shared/beegfs/dzverev/artifacts/{run_id}/model/model-exp-{exp_step}-ep-{m_ep}.ckpt",
