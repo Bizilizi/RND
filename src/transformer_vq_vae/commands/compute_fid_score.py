@@ -306,15 +306,3 @@ def calculate_fid_score_for_all_cl_steps(run_id):
         )
 
     wandb.finish()
-
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Model trainer")
-    parser.add_argument(
-        "--run_id",
-        type=str,
-        help="Id of wandb run",
-    )
-    args = parser.parse_args()
-
-    calculate_fid_score_for_all_cl_steps(args.run_id)
