@@ -244,6 +244,7 @@ def calculate_fid_score_for_all_cl_steps(run_id, num_images):
     fid_scores = []
     m_eps = [900, 300, 300, 300, 300]
 
+    print("Compute score for all tasks")
     for experience_step in trange(len(benchmark.train_stream)):
         fid_scores.append(
             calculate_fid_score(
@@ -270,6 +271,7 @@ def calculate_fid_score_for_all_cl_steps(run_id, num_images):
     )
 
     for task_id in trange(len(benchmark.train_stream)):
+        print(f"Compute score per task: {task_id}")
 
         task_fid_scores = []
         for experience_step in trange(
