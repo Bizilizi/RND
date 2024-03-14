@@ -16,8 +16,10 @@ if __name__ == "__main__":
         type=str,
         help="name of the command",
     )
-
+    parser.add_argument(
+        "--num_images", type=int, help="Number of images", default=25000
+    )
     args = parser.parse_args()
 
     if args.command == "fid_score":
-        calculate_fid_score_for_all_cl_steps(args.run_id)
+        calculate_fid_score_for_all_cl_steps(args.run_id, args.num_images)

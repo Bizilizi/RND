@@ -187,7 +187,7 @@ def calculate_fid_score(
     )
 
 
-def calculate_fid_score_for_all_cl_steps(run_id):
+def calculate_fid_score_for_all_cl_steps(run_id, num_images):
     ini_config = ConfigParser()
     ini_config.read("./src/transformer_vq_vae/configuration/train.ini")
 
@@ -256,7 +256,7 @@ def calculate_fid_score_for_all_cl_steps(run_id):
                 exp_step=experience_step,
                 m_ep=m_eps[experience_step],
                 i_ep=9,
-                num_images=25000,
+                num_images=num_images,
             )
         )
 
@@ -287,7 +287,7 @@ def calculate_fid_score_for_all_cl_steps(run_id):
                     task_id=task_id,
                     m_ep=m_eps[experience_step],
                     i_ep=9,
-                    num_images=200,
+                    num_images=num_images,
                 )
             )
 
