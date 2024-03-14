@@ -287,7 +287,7 @@ def calculate_fid_score_for_all_cl_steps(run_id):
                     task_id=task_id,
                     m_ep=m_eps[experience_step],
                     i_ep=9,
-                    num_images=25000,
+                    num_images=200,
                 )
             )
 
