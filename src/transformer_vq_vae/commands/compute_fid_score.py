@@ -77,7 +77,7 @@ def bootstrap_past_samples(
             time_indices=time_indices[
                 i * num_images_per_batch : (i + 1) * num_images_per_batch
             ]
-            if time_indices
+            if time_indices is not None
             else None,
         )
 
