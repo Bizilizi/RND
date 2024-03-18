@@ -31,8 +31,10 @@ python submitit_train.py \
     --num_epochs_schedule warmup \
     --max_epochs 1000 \
     --min_epochs 200 \
-    --igpt_num_epochs_max 15 \
-    --igpt_num_epochs_min 10 \
+    --igpt_num_epochs_max 50 \
+    --igpt_num_epochs_min 50 \
+    --igpt_accumulate_grad_batches 4 \
+    --igpt_batch_size 64 \
     --max_epochs_lin_eval 100 \
     --batch_size 256 \
     --accumulate_grad_batches 1 \
