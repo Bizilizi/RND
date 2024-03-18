@@ -5,9 +5,9 @@ import wandb
 from torch.utils.data import Dataset, DataLoader
 import torch
 from tqdm.auto import trange
-from src.transformer_vq_vae.configuration.config import TrainConfig
-from src.transformer_vq_vae.init_scrips import get_benchmark, get_model
-from src.transformer_vq_vae.utils.wrap_empty_indices import (
+from src.qmae_latent_extension.configuration.config import TrainConfig
+from src.qmae_latent_extension.init_scrips import get_benchmark, get_model
+from src.qmae_latent_extension.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
 )
 from train_utils import get_device
@@ -86,9 +86,9 @@ def calculate_cka_score(
     return cka.export()
 
 
-def calculate_cka_score_for_all_cl_steps(run_id, batch_size, max_epochs, min_epochs):
+def calculate_cka_score_for_all_cl_steps(run_id, batch_size):
     ini_config = ConfigParser()
-    ini_config.read("./src/transformer_vq_vae/configuration/train.ini")
+    ini_config.read("./src/qmae_latent_extension/configuration/train.ini")
 
     config = TrainConfig.construct_typed_config(ini_config)
 
@@ -111,13 +111,7 @@ def calculate_cka_score_for_all_cl_steps(run_id, batch_size, max_epochs, min_epo
     benchmark = get_benchmark(config, target_dataset_dir)
     model_1 = get_model(config, device)
     model_2 = get_model(config, device)
-    m_eps = [
-        max_epochs,
-        min_epochs,
-        min_epochs,
-        min_epochs,
-        min_epochs,
-    ]
+    m_eps = [900, 300, 300, 300, 300]
 
     for task_id in trange(len(benchmark.train_stream)):
         print(f"Compute score per task: {task_id}")

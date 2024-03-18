@@ -22,10 +22,17 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_images", type=int, help="Number of images", default=25000
     )
-    parser.add_argument("--batch_size", type=int, help="Number of images", default=512)
+    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--max_epochs", type=int, default=900)
+    parser.add_argument("--min_epochs", type=int, default=300)
     args = parser.parse_args()
 
     if args.command == "fid_score":
         calculate_fid_score_for_all_cl_steps(args.run_id, args.num_images)
     elif args.command == "cka_score":
-        calculate_cka_score_for_all_cl_steps(args.run_id, args.batch_size)
+        calculate_cka_score_for_all_cl_steps(
+            args.run_id,
+            args.batch_size,
+            args.max_epochs,
+            args.min_epochs,
+        )

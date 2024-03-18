@@ -1,18 +1,8 @@
-sbatch submit.sh python train.py \
-    --config src/vq_vae/configuration/train.ini \
-    --model vq-vae \
-    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --max_epochs 220 \
-    --max_epochs_igpt 300 \
-    --max_epochs_lin_eval 250 \
-    --num_random_future_samples 2000 \
-    --num_random_past_samples 7000 \
-    --downstream_loss_weight 0 \
-    --evaluation_logger wandb \
-    --train_logger wandb \
-    --group igpt-bootstrap \
-    --num_workers 12 \
-    --future_samples_mode noise
+sbatch -J cka_scores_ck3cu9qx submit.sh \
+    python commands.py \
+    --command cka_score \
+    --batch_size 128 \
+    --run_id ck3cu9qx
 
 
 python submitit_train.py \
