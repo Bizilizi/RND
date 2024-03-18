@@ -1,5 +1,8 @@
 import argparse
 
+from src.transformer_vq_vae.commands.compute_cka_score import (
+    calculate_cka_score_for_all_cl_steps,
+)
 from src.transformer_vq_vae.commands.compute_fid_score import (
     calculate_fid_score_for_all_cl_steps,
 )
@@ -19,7 +22,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--num_images", type=int, help="Number of images", default=25000
     )
+    parser.add_argument("--batch_size", type=int, help="Number of images", default=512)
     args = parser.parse_args()
 
     if args.command == "fid_score":
         calculate_fid_score_for_all_cl_steps(args.run_id, args.num_images)
+    elif args.command == "cka_score":
+        calculate_cka_score_for_all_cl_steps(args.run_id, args.batch_size)

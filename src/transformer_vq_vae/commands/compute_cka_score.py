@@ -86,7 +86,7 @@ def calculate_cka_score(
     return cka.export()
 
 
-def calculate_fid_score_for_all_cl_steps(run_id, batch_size):
+def calculate_cka_score_for_all_cl_steps(run_id, batch_size):
     ini_config = ConfigParser()
     ini_config.read("./src/transformer_vq_vae/configuration/train.ini")
 
