@@ -111,6 +111,7 @@ def calculate_cka_score_for_all_cl_steps(run_id, batch_size):
     benchmark = get_benchmark(config, target_dataset_dir)
     model_1 = get_model(config, device)
     model_2 = get_model(config, device)
+    m_eps = [900, 300, 300, 300, 300]
 
     for task_id in trange(len(benchmark.train_stream)):
         print(f"Compute score per task: {task_id}")
@@ -130,8 +131,8 @@ def calculate_cka_score_for_all_cl_steps(run_id, batch_size):
                     task_id=task_id,
                     device=device,
                     run_id=run_id,
-                    m_ep_1=900,
-                    m_ep_2=300,
+                    m_ep_1=m_eps[task_id],
+                    m_ep_2=m_eps[experience_step],
                     batch_size=batch_size,
                 )["CKA"][0]
                 .cpu()
