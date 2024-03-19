@@ -13,6 +13,7 @@ from src.utils.train_script import parse_arguments
 from src.vae_ft.train import main as vae_ft_main
 from src.vq_vae.train import main as vq_vae_main
 from src.transformer_vq_vae.train import main as transformer_vq_vae_main
+from src.qmae_latent_extension.train import main as qmae_latent_extension_main
 from train_utils import add_arguments
 
 
@@ -46,6 +47,8 @@ if __name__ == "__main__":
         entry_main = vq_vae_main
     elif args.model == "transformer-vq-vae":
         entry_main = transformer_vq_vae_main
+    elif args.model == "qmae-latent-extension":
+        entry_main = qmae_latent_extension_main
     else:
         assert False, "Unknown value '--model' parameter"
 

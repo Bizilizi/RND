@@ -114,8 +114,8 @@ def calculate_fid_score(
 ):
     ## WARNING: BER CAREFUL WITH CALCULATION OF THESE
     ## HAVE TO BE CONSISTENT WITH TRAINING SCRIPT
-    sos_token = config.num_class_embeddings + config.num_embeddings + 1
-    mask_token = config.num_class_embeddings + config.num_embeddings
+    sos_token = config.num_embeddings + 1
+    mask_token = config.num_embeddings
 
     model.load_state_dict(
         torch.load(
@@ -216,9 +216,7 @@ def calculate_fid_score_for_all_cl_steps(run_id, num_images):
     benchmark = get_benchmark(config, target_dataset_dir)
     model = get_model(config, device)
 
-    vocab_size = (
-        config.num_class_embeddings + config.num_embeddings + 2 + benchmark.n_classes
-    )
+    vocab_size = config.num_embeddings + 2 + benchmark.n_classes
     configuration = ImageGPTConfig(
         **{
             "activation_function": "quick_gelu",

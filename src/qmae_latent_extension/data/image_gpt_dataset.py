@@ -53,6 +53,7 @@ class ImageGPTDataset(Dataset):
             (
                 *_,
                 input_ids,
+                _,
             ) = self.vq_vae_model.feature_quantization(full_features)
             input_ids = rearrange(input_ids, "(t b) 1 -> t b", b=x.shape[0]).squeeze()
         else:
@@ -60,6 +61,7 @@ class ImageGPTDataset(Dataset):
             (
                 *_,
                 input_ids,
+                _,
             ) = self.vq_vae_model.feature_quantization(masked_features)
             input_ids = rearrange(input_ids, "(t b) 1 -> t b 1", b=x.shape[0])
 

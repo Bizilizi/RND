@@ -6,6 +6,7 @@ from src.avalanche.configuration.config import BaseTrainConfig
 class TrainConfig(BaseTrainConfig):
     # Model
     num_embeddings: int
+    num_embeddings_per_step: int
     embedding_dim: int
     commitment_cost: float
     decay: float

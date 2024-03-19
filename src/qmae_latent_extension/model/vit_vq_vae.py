@@ -34,6 +34,7 @@ class ForwardOutput:
     quantized: torch.Tensor
     latent_distances: torch.Tensor
     perplexity: torch.Tensor
+    avg_probs: torch.Tensor
 
     image_emb: torch.Tensor
     clf_logits: torch.Tensor
@@ -55,6 +56,7 @@ class VitVQVae(CLModel):
     def __init__(
         self,
         num_embeddings,
+        num_embeddings_per_step,
         embedding_dim,
         commitment_cost,
         mask_token_id: int,
@@ -107,7 +109,11 @@ class VitVQVae(CLModel):
             encoder_head,
         )
         self.feature_quantization = VectorQuantizerEMA(
-            num_embeddings, embedding_dim, commitment_cost, decay
+            num_embeddings,
+            num_embeddings_per_step,
+            embedding_dim,
+            commitment_cost,
+            decay,
         )
         self.decoder = MAEDecoder(
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
@@ -216,9 +222,6 @@ class VitVQVae(CLModel):
 
     def forward(self, x) -> ForwardOutput:
         # prepare default values
-        latent_distances = None
-        perplexity = torch.tensor(0.0, device=self.device)
-        vq_loss = torch.tensor(0.0, device=self.device)
         clf_logits = None
         image_emb = None
 
@@ -227,17 +230,18 @@ class VitVQVae(CLModel):
             x, return_full_features=True
         )
 
-        if self._quantize_features:
-            with torch.autocast(self._accelerator, dtype=torch.float32):
-                (
-                    vq_loss,
-                    masked_features,
-                    perplexity,
-                    *_,
-                ) = self.feature_quantization(masked_features)
-                (*_, latent_distances) = self.feature_quantization(
-                    full_features, return_distances=True
-                )
+        with torch.autocast(self._accelerator, dtype=torch.float32):
+            (
+                vq_loss,
+                masked_features,
+                perplexity,
+                _,
+                avg_probs,
+                *_,
+            ) = self.feature_quantization(masked_features)
+            (*_, latent_distances) = self.feature_quantization(
+                full_features, return_distances=True
+            )
 
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
@@ -259,6 +263,7 @@ class VitVQVae(CLModel):
             clf_logits=clf_logits,
             mask=mask,
             latent_distances=latent_distances,
+            avg_probs=avg_probs,
         )
 
     def training_step(self, batch, batch_idx):

@@ -133,7 +133,7 @@ class NaivePytorchLightning(Naive):
         )
 
         self.trainer.fit(self.model, datamodule=datamodule)
-        self.restore_best_model()
+        # self.restore_best_model()
 
     def update_model_experience(self) -> None:
         self.model.experience_step = self.experience_step

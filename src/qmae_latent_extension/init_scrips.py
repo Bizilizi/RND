@@ -10,6 +10,7 @@ from avalanche.training.plugins import EvaluationPlugin
 from torchvision import transforms
 
 from src.avalanche.strategies import NaivePytorchLightning
+from src.qmae_latent_extension.callbacks.codebook_histogram import LogCodebookHistogram
 from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.qmae_latent_extension.callbacks.log_dataset import LogDataset
 from src.qmae_latent_extension.callbacks.reconstruction_visualization_plugin import (
@@ -165,6 +166,7 @@ def get_evaluation_plugin(
 def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
     vae = VitVQVae(
         num_embeddings=config.num_embeddings,
+        num_embeddings_per_step=config.num_embeddings_per_step,
         embedding_dim=config.embedding_dim,
         commitment_cost=config.commitment_cost,
         decay=config.decay,
@@ -176,7 +178,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         ),
         weight_decay=config.weight_decay,
         mask_ratio=config.mask_ratio,
-        mask_token_id=config.num_class_embeddings + config.num_embeddings,
+        mask_token_id=config.num_embeddings,
         use_lpips=config.use_lpips,
         precision=config.precision,
         accelerator=config.accelerator,
@@ -215,6 +217,7 @@ def get_callbacks(
         VisualizeTrainingReconstructions(
             log_every=100, num_images=1000, w1=10, name="rec_img_1000"
         ),
+        LogCodebookHistogram(log_every=1),
     ]
 
 

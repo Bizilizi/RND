@@ -81,21 +81,13 @@ def init_token_embeddings(
 ) -> None:
     """
     Initialize image gpt token embeddings with vq_vae embeddings.
-    We copy data for the first config.num_class_embeddings + config.num_embeddings from
+    We copy data for the first config.num_embeddings from
     VQ-Vae model, and the rest of two, corresponds to mask_token and sos_token
     """
-    image_gpt.transformer.wte.weight.data[
-        : config.num_class_embeddings
-    ] = (
-        vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
-    )
 
     image_gpt.transformer.wte.weight.data[
-        config.num_class_embeddings : config.num_class_embeddings
-        + config.num_embeddings
-    ] = (
-        vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
-    )
+        : vq_vae_model.feature_quantization.num_embeddings
+    ] = vq_vae_model.feature_quantization._embedding.weight.data.clone()
     image_gpt.transformer.wte.weight.data[
         mask_token
     ] = vq_vae_model.decoder.mask_token.data.clone()
@@ -112,21 +104,15 @@ def get_image_embedding(
 
     Be careful, id of mask_token have to match with index of image_embeddings.weight.data[-1]
     """
+    num_embeddings = vq_vae_model.feature_quantization.num_embeddings
 
-    image_embeddings = torch.nn.Embedding(
-        config.num_class_embeddings + config.num_embeddings + 1, config.embedding_dim
-    ).to(vq_vae_model.device)
+    image_embeddings = torch.nn.Embedding(num_embeddings + 1, config.embedding_dim).to(
+        vq_vae_model.device
+    )
 
     image_embeddings.weight.data[
-        : config.num_class_embeddings
-    ] = (
-        vq_vae_model.feature_quantization.class_quantization._embedding.weight.data.clone()
-    )
-    image_embeddings.weight.data[
-        config.num_class_embeddings : -1
-    ] = (
-        vq_vae_model.feature_quantization.feature_quantization._embedding.weight.data.clone()
-    )
+        :num_embeddings
+    ] = vq_vae_model.feature_quantization._embedding.weight.data.clone()
     image_embeddings.weight.data[
         mask_token
     ] = vq_vae_model.decoder.mask_token.data.clone()
@@ -211,7 +197,7 @@ def train_igpt(
 ):
     vq_vae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = config.num_embeddings + 2 + config.num_tasks
+    vocab_size = vq_vae_model.feature_quantization.num_embeddings + 2 + config.num_tasks
 
     configuration = ImageGPTConfig(
         **{
@@ -236,7 +222,7 @@ def train_igpt(
     )
     image_gpt = image_gpt or ImageGPTForCausalImageModeling(configuration)
 
-    init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
+    # init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
     image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
         vq_vae_model.device
     )
@@ -295,7 +281,8 @@ def train_igpt(
                     masked_input_ids[..., 1:].reshape(-1),
                 )
                 grad_scaler.scale(loss).backward()
-
+            ## RMOVE
+            break
             if step % config.igpt_accumulate_grad_batches == 0:
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
@@ -310,6 +297,8 @@ def train_igpt(
                     },
                     step=i,
                 )
+        # REMOVE
+        break
         # Generate sampled images at the end of the epoch
         if local_rank == 0:
             if is_distributed:

@@ -1,32 +1,34 @@
-sbatch -J cka_scores_ck3cu9qx submit.sh \
+sbatch -J cka_scores_1z0vahmb submit.sh \
     python commands.py \
     --command cka_score \
     --batch_size 128 \
-    --run_id ck3cu9qx
+    --max_epochs 600 \
+    --min_epochs 600 \
+    --run_id 1z0vahmb
 
 
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type v100s \
-    --partition ddp-4way \
+    --gpu_type a6000 \
+    --partition gpu \
     --timeout 2880 \
-    --ngpus 2 \
+    --ngpus 1 \
     --comment "cifar10 ssup masked sampl" \
     --supervised False \
     --memory_buffer_size 20000 \
     --group qmae_old \
-    --dataset cifar10 \
+    --dataset cifar100 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
     --max_epochs 1000 \
     --min_epochs 200 \
-    --igpt_num_epochs_max 50 \
-    --igpt_num_epochs_min 50 \
+    --igpt_num_epochs_max 20 \
+    --igpt_num_epochs_min 20 \
     --igpt_accumulate_grad_batches 4 \
     --igpt_batch_size 64 \
     --max_epochs_lin_eval 100 \
-    --batch_size 256 \
+    --batch_size 512 \
     --accumulate_grad_batches 1 \
     --igpt_mask_ratio 0.02 \
     --num_random_past_samples 25000 \
