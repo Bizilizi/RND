@@ -73,13 +73,6 @@ def train_loop(
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
-        if config.supervised:
-            extend_memory(
-                random_memory,
-                train_experience.dataset,
-                num_random_memorised_samples,
-            )
-
         train_experience.dataset = wrap_dataset_with_empty_indices(
             train_experience.dataset, time_index=cl_strategy.experience_step
         )
@@ -135,23 +128,14 @@ def train_loop(
 
         # Train linear classifiers
         print(f"Train classifier..")
-        if config.supervised:
-            # Extend random memory in GDumb like way
-            train_classifier_on_random_memory(
-                random_memory=random_memory,
-                strategy=cl_strategy,
-                benchmark=benchmark,
-                config=config,
-            )
-        else:
-            # We train two classifiers. One to predict all classes,
-            # another to predict only observed so far classes.
-            train_classifier_on_all_classes(
-                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-            )
-            train_classifier_on_observed_only_classes(
-                strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-            )
+        # We train two classifiers. One to predict all classes,
+        # another to predict only observed so far classes.
+        train_classifier_on_all_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        )
+        train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        )
 
         # Finish CL step
         cl_strategy.model.unfreeze()
