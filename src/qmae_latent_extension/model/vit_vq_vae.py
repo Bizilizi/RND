@@ -217,15 +217,15 @@ class VitVQVae(CLModel):
             cycle_consistency_loss = F.cross_entropy(q_logits, q_indices)
 
         # Compute triplet loss
-        # triplet_loss = self.triplet_loss(
-        #     forward_output.image_emb, forward_output.past_data_mask
-        # )
+        triplet_loss = self.triplet_loss(
+            forward_output.image_emb, forward_output.past_data_mask
+        )
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
             cycle_consistency_loss=cycle_consistency_loss,
-            triplet_loss=None,
+            triplet_loss=triplet_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
             perplexity=forward_output.perplexity,
@@ -293,7 +293,7 @@ class VitVQVae(CLModel):
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
             + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
-            # + criterion_output.triplet_loss
+            + criterion_output.triplet_loss
         )
 
         # LOGGING
@@ -301,10 +301,10 @@ class VitVQVae(CLModel):
             f"train/loss",
             loss.cpu().item(),
         )
-        # self.log_with_postfix(
-        #     f"train/triplet_loss",
-        #     criterion_output.triplet_loss.cpu().item(),
-        # )
+        self.log_with_postfix(
+            f"train/triplet_loss",
+            criterion_output.triplet_loss.cpu().item(),
+        )
         self.log_with_postfix(
             f"train/vq_loss",
             criterion_output.vq_loss.cpu().item(),
@@ -343,7 +343,7 @@ class VitVQVae(CLModel):
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
             + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
-            # + criterion_output.triplet_loss
+            + criterion_output.triplet_loss
         )
 
         # LOGGING
@@ -351,10 +351,10 @@ class VitVQVae(CLModel):
             f"val/loss",
             loss.cpu().item(),
         )
-        # self.log_with_postfix(
-        #     f"val/triplet_loss",
-        #     criterion_output.triplet_loss.cpu().item(),
-        # )
+        self.log_with_postfix(
+            f"val/triplet_loss",
+            criterion_output.triplet_loss.cpu().item(),
+        )
         self.log_with_postfix(
             f"val/vq_loss",
             criterion_output.vq_loss.cpu().item(),
