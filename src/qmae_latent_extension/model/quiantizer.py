@@ -75,7 +75,7 @@ class VectorQuantizerEMA(nn.Module):
         self._ema_cluster_size.requires_grad = False
 
         # Set new embedding num
-        self.num_frozen_embeddings = self.num_embeddings
+        # self.num_frozen_embeddings = self.num_embeddings
         self.num_embeddings = self.num_embeddings + self._num_embeddings_per_step
 
     def forward(self, inputs, return_distances=False):
