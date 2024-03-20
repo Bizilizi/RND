@@ -14,10 +14,10 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 ms balanced " \
+    --comment "cifar10 ms latent ext " \
     --supervised False \
     --memory_buffer_size 20000 \
-    --group qmae_old \
+    --group qmae_latent_ext \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \

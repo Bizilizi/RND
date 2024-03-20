@@ -7,7 +7,7 @@ from itertools import chain
 import lpips
 import torch
 from pytorch_metric_learning.distances import CosineSimilarity
-from pytorch_metric_learning.losses import ContrastiveLoss
+from pytorch_metric_learning.losses import ContrastiveLoss, TripletMarginLoss
 from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
@@ -129,6 +129,8 @@ class VitVQVae(CLModel):
         if self.use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
 
+        self.triplet_loss = TripletMarginLoss()
+
     def get_reconstruction_loss(
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
     ):
@@ -210,6 +212,10 @@ class VitVQVae(CLModel):
             q_indices = q_indices[q_indices != self._mask_token_id]
 
             cycle_consistency_loss = F.cross_entropy(q_logits, q_indices)
+
+        # Compute triplet loss
+        if ():
+            self.triplet_loss(forward_output.image_emb, y_cutmix_or_mixup)
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,

@@ -7,6 +7,7 @@ from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
 from avalanche.training.plugins import EvaluationPlugin
+from pytorch_lightning.callbacks import LearningRateMonitor
 from torchvision import transforms
 
 from src.avalanche.strategies import NaivePytorchLightning
@@ -202,6 +203,7 @@ def get_callbacks(
         #         mode="min",
         #         patience=50,
         #     ),
+        LearningRateMonitor(logging_interval="epoch"),
         LogModelWightsCallback(
             local_rank=local_rank,
             log_every=100,

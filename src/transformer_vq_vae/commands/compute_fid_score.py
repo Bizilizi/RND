@@ -187,7 +187,7 @@ def calculate_fid_score(
     )
 
 
-def calculate_fid_score_for_all_cl_steps(run_id, num_images):
+def calculate_fid_score_for_all_cl_steps(run_id, num_images, max_epochs, min_epochs):
     ini_config = ConfigParser()
     ini_config.read("./src/transformer_vq_vae/configuration/train.ini")
 
@@ -242,7 +242,13 @@ def calculate_fid_score_for_all_cl_steps(run_id, num_images):
     image_gpt.to(device)
 
     fid_scores = []
-    m_eps = [900, 300, 300, 300, 300]
+    m_eps = [
+        max_epochs,
+        min_epochs,
+        min_epochs,
+        min_epochs,
+        min_epochs,
+    ]
 
     print("Compute score for all tasks")
     for experience_step in trange(len(benchmark.train_stream)):

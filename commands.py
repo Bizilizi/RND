@@ -28,7 +28,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.command == "fid_score":
-        calculate_fid_score_for_all_cl_steps(args.run_id, args.num_images)
+        calculate_fid_score_for_all_cl_steps(
+            args.run_id,
+            args.num_images,
+            args.max_epochs,
+            args.min_epochs,
+        )
     elif args.command == "cka_score":
         calculate_cka_score_for_all_cl_steps(
             args.run_id,
