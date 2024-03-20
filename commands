@@ -16,13 +16,13 @@ sbatch -J fid_scores_1z0vahmb submit.sh \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type a6000 \
-    --batch_size 512 \
-    --accumulate_grad_batches 1 \
-    --partition gpu \
+    --gpu_type v100s \
+    --batch_size 256 \
+    --accumulate_grad_batches 2 \
+    --partition ddp-4way \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 ms l-ext" \
+    --comment "cifar10 ms l-ext frozen" \
     --group qmae_latent_ext \
     --model qmae-latent-extension \
     --config src/qmae_latent_extension/configuration/train.ini \
