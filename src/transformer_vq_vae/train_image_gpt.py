@@ -237,7 +237,7 @@ def train_igpt(
     )
     image_gpt = image_gpt or ImageGPTForCausalImageModeling(configuration)
 
-    init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
+    # init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
     image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
         vq_vae_model.device
     )
