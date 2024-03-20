@@ -189,6 +189,7 @@ def main(args):
         )
         wandb_params["name"] = wandb.run.name
         wandb_params["id"] = wandb.run.id
+        wandb.run.summary["slurm_job_id"] = os.environ.get("SLURM_JOB_ID", -1)
     else:
         wandb_params = None
 

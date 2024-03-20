@@ -8,7 +8,7 @@ from torch import distributed
 
 import wandb
 from lightning_fabric import seed_everything
-
+from src.qmae_latent_extension.train import main as qmae_latent_extension_main
 from train_utils import add_arguments as add_train_arguments
 from src.rnd.train import main as rnd_main
 from src.utils.train_script import parse_arguments
@@ -85,6 +85,8 @@ class Trainer(object):
             entry_main = vq_vae_main
         elif self.args.model == "transformer-vq-vae":
             entry_main = transformer_vq_vae_main
+        elif self.args.model == "qmae-latent-extension":
+            entry_main = qmae_latent_extension_main
         else:
             assert False, "Unknown value '--model' parameter"
 

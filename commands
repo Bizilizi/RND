@@ -16,14 +16,15 @@ sbatch -J fid_scores_1z0vahmb submit.sh \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type a6000 \
-    --partition gpu \
+    --gpu_type v100s \
+    --batch_size 256 \
+    --accumulate_grad_batches 2 \
+    --partition ddp-4way \
     --timeout 2880 \
     --ngpus 1 \
     --comment "cifar10 ms latent ext " \
-    --supervised False \
-    --memory_buffer_size 20000 \
     --group qmae_latent_ext \
+    --model transformer-vq-vae \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
@@ -34,8 +35,6 @@ python submitit_train.py \
     --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 64 \
     --max_epochs_lin_eval 100 \
-    --batch_size 512 \
-    --accumulate_grad_batches 1 \
     --igpt_mask_ratio 0.02 \
     --num_random_past_samples 25000 \
     --num_random_past_samples_schedule fixed \
@@ -43,11 +42,10 @@ python submitit_train.py \
     --cycle_consistency_sigma 1 \
     --config src/transformer_vq_vae/configuration/train.ini \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --model transformer-vq-vae \
     --current_samples_loss_weight 1.5 \
     --num_random_future_samples 0 \
     --future_samples_mode noise \
     --num_workers 8 \
-    --num_embeddings 512 \
-    --num_class_embeddings 4 \
+    --num_embeddings 256 \
+    --num_embeddings_per_step 256 \
     --precision 16-mixed
