@@ -18,6 +18,8 @@ class VectorQuantizerEMA(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.num_embeddings = num_embeddings
+        self.num_frozen_embeddings = 0
+
         self._num_embeddings_per_step = num_embeddings_per_step
 
         self._embedding = nn.Embedding(
@@ -73,6 +75,7 @@ class VectorQuantizerEMA(nn.Module):
         self._ema_cluster_size.requires_grad = False
 
         # Set new embedding num
+        self.num_frozen_embeddings = self.num_embeddings
         self.num_embeddings = self.num_embeddings + self._num_embeddings_per_step
 
     def forward(self, inputs, return_distances=False):
@@ -118,10 +121,10 @@ class VectorQuantizerEMA(nn.Module):
                 dw = torch.matmul(encodings.t(), flat_input)
                 self._ema_w = self._ema_w * self._decay + (1 - self._decay) * dw
 
-                self._embedding.weight = nn.Parameter(
-                    self._ema_w / self._ema_cluster_size.unsqueeze(1),
-                    requires_grad=False,
-                )
+                new_embeddings = self._ema_w / self._ema_cluster_size.unsqueeze(1)
+                self._embedding.weight.data[
+                    self.num_frozen_embeddings :
+                ] = new_embeddings[self.num_frozen_embeddings :]
 
         # Loss
         e_latent_loss = F.mse_loss(quantized.detach(), inputs)

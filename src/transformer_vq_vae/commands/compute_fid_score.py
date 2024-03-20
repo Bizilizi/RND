@@ -9,8 +9,10 @@ from avalanche.benchmarks.utils.classification_dataset import (
     ClassificationDataset,
     make_classification_dataset,
 )
+from einops import rearrange
 from torch.utils.data import Dataset, ConcatDataset
 import torch
+from torchvision.utils import make_grid
 from tqdm.auto import trange
 from transformers import ImageGPTConfig
 
@@ -20,7 +22,6 @@ from src.transformer_vq_vae.model.image_gpt import ImageGPTForCausalImageModelin
 from src.transformer_vq_vae.train_image_gpt import (
     BootstrappedDataset,
     get_image_embedding,
-    sample_images,
 )
 from src.transformer_vq_vae.utils.fid_score import calculate_fid_given_datasets
 from src.transformer_vq_vae.utils.wrap_empty_indices import (
@@ -39,6 +40,50 @@ class ImgDataset(Dataset):
     def __getitem__(self, item):
         x, *_ = self.dataset[item]
         return x["images"]
+
+
+@torch.no_grad()
+def sample_images(
+    image_gpt,
+    vq_vae_model,
+    embedding,
+    sos_token,
+    temperature=1.23,
+    num_images=8 * 4 * 10,
+    return_grid_only=False,
+):
+    image_gpt.eval()
+    vq_vae_model.eval()
+
+    device = vq_vae_model.device
+    decoder = vq_vae_model.decoder
+
+    context = torch.full(
+        (num_images, 1), sos_token, device=device
+    )  # initialize with SOS token
+    igpt_output = image_gpt.generate(
+        input_ids=context,
+        max_length=16 * 16 + 2,
+        temperature=temperature,
+        do_sample=True,
+        top_k=45,
+        top_p=0.9,
+    )
+    igpt_output = igpt_output[:, 1:]
+    igpt_output[igpt_output == sos_token] = 0
+
+    quantized = rearrange(embedding(igpt_output), "b t c -> t b c")
+    features = quantized + decoder.pos_embedding
+
+    features = rearrange(features, "t b c -> b t c")
+    features = decoder.transformer(features)
+    features = rearrange(features, "b t c -> t b c")
+    features = features[1:]  # remove global feature
+
+    patches = decoder.head(features)
+    x_recon = decoder.patch2img(patches)
+
+    return x_recon, igpt_output, torch.tensor([-1] * num_images)
 
 
 @torch.no_grad()
@@ -73,12 +118,6 @@ def bootstrap_past_samples(
             sos_token=sos_token,
             temperature=config.temperature,
             num_images=num_images_per_batch,
-            experience_step=experience_step,
-            time_indices=time_indices[
-                i * num_images_per_batch : (i + 1) * num_images_per_batch
-            ]
-            if time_indices is not None
-            else None,
         )
 
         bootstrapped_dataset.add_data(
@@ -212,9 +251,7 @@ def calculate_fid_score_for_all_cl_steps(run_id, num_images, max_epochs, min_epo
     benchmark = get_benchmark(config, target_dataset_dir)
     model = get_model(config, device)
 
-    vocab_size = (
-        config.num_class_embeddings + config.num_embeddings + 2 + benchmark.n_classes
-    )
+    vocab_size = config.num_class_embeddings + config.num_embeddings + 2
     configuration = ImageGPTConfig(
         **{
             "activation_function": "quick_gelu",
@@ -226,7 +263,7 @@ def calculate_fid_score_for_all_cl_steps(run_id, num_images, max_epochs, min_epo
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": 12,
-            "n_positions": 16 * 16 + 3,
+            "n_positions": 16 * 16 + 2,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,

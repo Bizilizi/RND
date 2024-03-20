@@ -1,11 +1,17 @@
-sbatch -J cka_scores_1z0vahmb submit.sh \
+sbatch -J cka_scores_2eu0srw6 submit.sh \
     python commands.py \
     --command cka_score \
     --batch_size 128 \
+    --max_epochs 1000 \
+    --min_epochs 200 \
+    --run_id 2eu0srw6
+
+sbatch -J fid_scores_1z0vahmb submit.sh \
+    python commands.py \
+    --command fid_score \
     --max_epochs 600 \
     --min_epochs 600 \
     --run_id 1z0vahmb
-
 
 python submitit_train.py \
     --cpus_per_task 8 \

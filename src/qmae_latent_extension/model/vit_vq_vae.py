@@ -40,12 +40,15 @@ class ForwardOutput:
     clf_logits: torch.Tensor
     mask: torch.Tensor
 
+    past_data_mask: torch.Tensor
+
 
 @dataclasses.dataclass
 class CriterionOutput:
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
     cycle_consistency_loss: torch.Tensor
+    triplet_loss: torch.Tensor
 
     clf_loss: torch.Tensor
     clf_acc: torch.Tensor
@@ -214,13 +217,15 @@ class VitVQVae(CLModel):
             cycle_consistency_loss = F.cross_entropy(q_logits, q_indices)
 
         # Compute triplet loss
-        if ():
-            self.triplet_loss(forward_output.image_emb, y_cutmix_or_mixup)
+        triplet_loss = self.triplet_loss(
+            forward_output.image_emb, forward_output.past_data_mask
+        )
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
             cycle_consistency_loss=cycle_consistency_loss,
+            triplet_loss=triplet_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
             perplexity=forward_output.perplexity,
@@ -229,7 +234,6 @@ class VitVQVae(CLModel):
     def forward(self, x) -> ForwardOutput:
         # prepare default values
         clf_logits = None
-        image_emb = None
 
         # Extract features from backbone
         masked_features, full_features, backward_indexes = self.encoder(
@@ -254,8 +258,8 @@ class VitVQVae(CLModel):
         # If the model has classification head
         # we calculate image embedding based on output of the encoder
         # without masking random patches
+        image_emb = full_features.mean(dim=0)
         if self.clf_head is not None:
-            image_emb = full_features[0]
             clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
@@ -270,6 +274,7 @@ class VitVQVae(CLModel):
             mask=mask,
             latent_distances=latent_distances,
             avg_probs=avg_probs,
+            past_data_mask=None,
         )
 
     def training_step(self, batch, batch_idx):
@@ -280,6 +285,7 @@ class VitVQVae(CLModel):
         forward_output = self.forward(x)
         forward_output.x_data = x
         forward_output.x_indices = data["indices"]
+        forward_output.past_data_mask = data["time_index"] < self.experience_step
 
         criterion_output = self.criterion(forward_output, y)
 
@@ -287,12 +293,17 @@ class VitVQVae(CLModel):
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
             + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            + criterion_output.triplet_loss
         )
 
         # LOGGING
         self.log_with_postfix(
             f"train/loss",
             loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/triplet_loss",
+            criterion_output.triplet_loss.cpu().item(),
         )
         self.log_with_postfix(
             f"train/vq_loss",
@@ -324,6 +335,7 @@ class VitVQVae(CLModel):
         forward_output = self.forward(x)
         forward_output.x_data = x
         forward_output.x_indices = data["indices"]
+        forward_output.past_data_mask = data["time_index"] < self.experience_step
 
         criterion_output = self.criterion(forward_output, y)
 
@@ -331,12 +343,17 @@ class VitVQVae(CLModel):
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
             + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            + criterion_output.triplet_loss
         )
 
         # LOGGING
         self.log_with_postfix(
             f"val/loss",
             loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/triplet_loss",
+            criterion_output.triplet_loss.cpu().item(),
         )
         self.log_with_postfix(
             f"val/vq_loss",

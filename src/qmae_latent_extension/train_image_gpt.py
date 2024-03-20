@@ -281,7 +281,8 @@ def train_igpt(
                     masked_input_ids[..., 1:].reshape(-1),
                 )
                 grad_scaler.scale(loss).backward()
-
+            # REMOVE
+            break
             if step % config.igpt_accumulate_grad_batches == 0:
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
@@ -296,7 +297,8 @@ def train_igpt(
                     },
                     step=i,
                 )
-
+        # REMOVE
+        break
         # Generate sampled images at the end of the epoch
         if local_rank == 0:
             if is_distributed:
