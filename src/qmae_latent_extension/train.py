@@ -63,11 +63,9 @@ def train_loop(
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
     image_gpt = None
-    sos_token = config.num_embeddings + 1
-    mask_token = config.num_embeddings
 
-    # G-Dumb like memory
-    random_memory = []
+    sos_token = cl_strategy.model.feature_quantization.num_embeddings + 1
+    mask_token = cl_strategy.model.feature_quantization.num_embeddings
 
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
@@ -109,6 +107,8 @@ def train_loop(
         # Train VQ-VAE
         if cl_strategy.experience_step > 0:
             cl_strategy.model.feature_quantization.extend_codebook()
+            sos_token = cl_strategy.model.feature_quantization.num_embeddings + 1
+            mask_token = cl_strategy.model.feature_quantization.num_embeddings
 
         cl_strategy.train(train_experience, [test_experience])
         cl_strategy.model.freeze()
@@ -132,12 +132,12 @@ def train_loop(
         print(f"Train classifier..")
         # We train two classifiers. One to predict all classes,
         # another to predict only observed so far classes.
-        # train_classifier_on_all_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # )
-        # train_classifier_on_observed_only_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # )
+        train_classifier_on_all_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        )
+        train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        )
 
         # Finish CL step
         cl_strategy.model.unfreeze()

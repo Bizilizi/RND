@@ -220,7 +220,7 @@ def train_igpt(
             "vocab_size": vocab_size,
         }
     )
-    image_gpt = image_gpt or ImageGPTForCausalImageModeling(configuration)
+    image_gpt = ImageGPTForCausalImageModeling(configuration)
 
     # init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
     image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
@@ -281,8 +281,7 @@ def train_igpt(
                     masked_input_ids[..., 1:].reshape(-1),
                 )
                 grad_scaler.scale(loss).backward()
-            ## RMOVE
-            break
+
             if step % config.igpt_accumulate_grad_batches == 0:
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
@@ -297,8 +296,7 @@ def train_igpt(
                     },
                     step=i,
                 )
-        # REMOVE
-        break
+
         # Generate sampled images at the end of the epoch
         if local_rank == 0:
             if is_distributed:
