@@ -14,18 +14,18 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 ssup masked sampl" \
+    --comment "cifar10 ms balanced " \
     --supervised False \
     --memory_buffer_size 20000 \
     --group qmae_old \
-    --dataset cifar100 \
+    --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 1000 \
-    --min_epochs 200 \
+    --max_epochs 600 \
+    --min_epochs 300 \
     --igpt_num_epochs_max 20 \
     --igpt_num_epochs_min 20 \
-    --igpt_accumulate_grad_batches 4 \
+    --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 64 \
     --max_epochs_lin_eval 100 \
     --batch_size 512 \
