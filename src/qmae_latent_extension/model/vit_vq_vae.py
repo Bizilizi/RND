@@ -359,12 +359,21 @@ class VitVQVae(CLModel):
             + criterion_output.current_cycle_consistency_loss
             * self.cycle_consistency_weight
             + criterion_output.triplet_loss
+            + criterion_output.clf_loss
         )
 
         # LOGGING
         self.log_with_postfix(
             f"train/loss",
             loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/clf_loss",
+            criterion_output.clf_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/clf_accuracy",
+            criterion_output.clf_acc.cpu().item(),
         )
         self.log_with_postfix(
             f"train/triplet_loss",
@@ -426,12 +435,21 @@ class VitVQVae(CLModel):
             + criterion_output.current_cycle_consistency_loss
             * self.cycle_consistency_weight
             + criterion_output.triplet_loss
+            + criterion_output.clf_loss
         )
 
         # LOGGING
         self.log_with_postfix(
             f"val/loss",
             loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/clf_loss",
+            criterion_output.clf_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/clf_accuracy",
+            criterion_output.clf_acc.cpu().item(),
         )
         self.log_with_postfix(
             f"val/triplet_loss",
