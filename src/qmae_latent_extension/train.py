@@ -70,6 +70,9 @@ def train_loop(
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
+        cl_strategy.model.calculate_class_maps(
+            torch.tensor(train_experience.dataset.targets).unique()
+        )
 
         train_experience.dataset = wrap_dataset_with_empty_indices(
             train_experience.dataset, time_index=cl_strategy.experience_step
@@ -107,6 +110,8 @@ def train_loop(
         # Train VQ-VAE
         if cl_strategy.experience_step > 0:
             cl_strategy.model.feature_quantization.extend_codebook()
+            cl_strategy.model.extend_clf_head()
+
             sos_token = cl_strategy.model.feature_quantization.num_embeddings + 1
             mask_token = cl_strategy.model.feature_quantization.num_embeddings
 

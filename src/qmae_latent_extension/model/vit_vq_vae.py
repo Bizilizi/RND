@@ -6,6 +6,7 @@ from itertools import chain
 
 import lpips
 import torch
+from einops import rearrange
 from pytorch_metric_learning.distances import CosineSimilarity
 from pytorch_metric_learning.losses import ContrastiveLoss, TripletMarginLoss
 from torch import nn
@@ -33,6 +34,7 @@ class ForwardOutput:
 
     quantized: torch.Tensor
     latent_distances: torch.Tensor
+    second_order_distances: torch.Tensor
     perplexity: torch.Tensor
     avg_probs: torch.Tensor
 
@@ -47,7 +49,8 @@ class ForwardOutput:
 class CriterionOutput:
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
-    cycle_consistency_loss: torch.Tensor
+    past_cycle_consistency_loss: torch.Tensor
+    current_cycle_consistency_loss: torch.Tensor
     triplet_loss: torch.Tensor
 
     clf_loss: torch.Tensor
@@ -122,10 +125,10 @@ class VitVQVae(CLModel):
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
         )
 
-        self.clf_head = None
         self.experience_step = 0
         self.cycle_consistency_power = cycle_consistency_power
         self.cycle_consistency_weight = cycle_consistency_weight
+
         self.use_lpips = use_lpips
         self._data_variance = data_variance
 
@@ -133,6 +136,11 @@ class VitVQVae(CLModel):
             self._lpips = lpips.LPIPS(net="vgg")
 
         self.triplet_loss = TripletMarginLoss()
+
+        self.clf_head = nn.Linear(embedding_dim, 2, bias=False)
+        self.register_buffer(
+            "old_clf_head", torch.zeros((0, embedding_dim), requires_grad=False)
+        )
 
     def get_reconstruction_loss(
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
@@ -159,23 +167,49 @@ class VitVQVae(CLModel):
 
         return reconstruction_loss
 
-    def set_clf_head(self, model: "EmbClassifier"):
-        self.__dict__["clf_head"] = model
+    def extend_clf_head(self):
+        self.old_clf_head = torch.cat(
+            [self.old_clf_head, self.clf_head.weight.data.clone()]
+        )
+        self.old_clf_head.requires_grad = False
 
-    def reset_clf_head(self):
-        self.clf_head = None
+        self.clf_head.weight.data.normal_()
+
+    def calculate_class_maps(self, current_classes: torch.Tensor):
+        self.classes_map = {cls_id: i for i, cls_id in enumerate(current_classes)}
+
+    def remap_y(self, y):
+        for cls_id, new_cls_id in self.classes_map.items():
+            y[y == cls_id] = new_cls_id
+
+        return y
+
+    def get_cycle_consistency_loss(self, distances, indices):
+        q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
+
+        q_logits = q_logits.flatten(0, 1)
+        q_indices = indices.flatten()
+
+        # Remove loss for mask token
+        q_logits = q_logits[q_indices != self._mask_token_id]
+        q_indices = q_indices[q_indices != self._mask_token_id]
+
+        return F.cross_entropy(q_logits, q_indices)
 
     def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
         # prepare default values
         clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
-        cycle_consistency_loss = torch.tensor(0.0, device=self.device)
+        past_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
+        current_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
         reconstruction_loss = torch.tensor(0.0, device=self.device)
 
         # unpack variables from forward output
         x_recon = forward_output.x_recon
         x_data = forward_output.x_data
         x_indices = forward_output.x_indices
+
         latent_distances = forward_output.latent_distances
+        second_order_distances = forward_output.second_order_distances
 
         past_data = y == -1
         current_data = y >= 0
@@ -193,8 +227,11 @@ class VitVQVae(CLModel):
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:
-            clf_loss = F.cross_entropy(forward_output.clf_logits, y)
-            clf_acc = (forward_output.clf_logits.argmax(dim=-1) == y).float().mean()
+            current_logits = forward_output.clf_logits[current_data]
+            current_y = y[current_data]
+
+            clf_loss = F.cross_entropy(current_logits, current_y)
+            clf_acc = (current_logits.argmax(dim=-1) == current_y).float().mean()
 
         # Compute consistency loss
         if (
@@ -202,19 +239,24 @@ class VitVQVae(CLModel):
             and self.cycle_consistency_weight != 0
             and past_data.any()
         ):
-            distances = forward_output.latent_distances[past_data]
+            distances = latent_distances[past_data]
             indices = x_indices[past_data].long()
 
-            q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
+            past_cycle_consistency_loss = self.get_cycle_consistency_loss(
+                distances, indices
+            )
 
-            q_logits = q_logits.flatten(0, 1)
-            q_indices = indices.flatten()
+        if (
+            second_order_distances is not None
+            and self.cycle_consistency_weight != 0
+            and current_data.any()
+        ):
+            distances = second_order_distances[current_data]
+            indices = x_indices[current_data].long()
 
-            # Remove loss for mask token
-            q_logits = q_logits[q_indices != self._mask_token_id]
-            q_indices = q_indices[q_indices != self._mask_token_id]
-
-            cycle_consistency_loss = F.cross_entropy(q_logits, q_indices)
+            current_cycle_consistency_loss = self.get_cycle_consistency_loss(
+                distances, indices
+            )
 
         # Compute triplet loss
         triplet_loss = self.triplet_loss(
@@ -224,7 +266,8 @@ class VitVQVae(CLModel):
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
-            cycle_consistency_loss=cycle_consistency_loss,
+            past_cycle_consistency_loss=past_cycle_consistency_loss,
+            current_cycle_consistency_loss=current_cycle_consistency_loss,
             triplet_loss=triplet_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
@@ -233,7 +276,7 @@ class VitVQVae(CLModel):
 
     def forward(self, x) -> ForwardOutput:
         # prepare default values
-        clf_logits = None
+        second_order_distances = None
 
         # Extract features from backbone
         masked_features, full_features, backward_indexes = self.encoder(
@@ -249,30 +292,46 @@ class VitVQVae(CLModel):
                 avg_probs,
                 *_,
             ) = self.feature_quantization(masked_features)
-            (*_, latent_distances) = self.feature_quantization(
-                full_features, return_distances=True
-            )
+            (
+                *_,
+                x_indices,
+                _,
+                latent_distances,
+            ) = self.feature_quantization(full_features, return_distances=True)
 
+        x_indices = rearrange(x_indices, "(b t) 1 -> b t", b=x.shape[0])
         x_recon, mask = self.decoder(masked_features, backward_indexes)
+
+        # To compute cycle consistency loss we apply encoder/quant again
+        if self.cycle_consistency_weight != 0:
+            _, second_order_features, _ = self.encoder(
+                x_recon, return_full_features=True
+            )
+            with torch.autocast(self._accelerator, dtype=torch.float32):
+                (*_, second_order_distances) = self.feature_quantization(
+                    second_order_features, return_distances=True
+                )
 
         # If the model has classification head
         # we calculate image embedding based on output of the encoder
         # without masking random patches
         image_emb = full_features.mean(dim=0)
-        if self.clf_head is not None:
-            clf_logits = self.clf_head(image_emb)
+        clf_logits = torch.cat(
+            [self.clf_head(image_emb), image_emb @ self.old_clf_head.T], dim=1
+        )
 
         return ForwardOutput(
             vq_loss=vq_loss,
             x_recon=x_recon,
             x_data=x,
-            x_indices=None,
+            x_indices=x_indices,
             quantized=masked_features,
             perplexity=perplexity,
             image_emb=image_emb,
             clf_logits=clf_logits,
             mask=mask,
             latent_distances=latent_distances,
+            second_order_distances=second_order_distances,
             avg_probs=avg_probs,
             past_data_mask=None,
         )
@@ -281,18 +340,24 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
+        past_data = y == -1
+        y = self.remap_y(y)
 
         forward_output = self.forward(x)
         forward_output.x_data = x
-        forward_output.x_indices = data["indices"]
         forward_output.past_data_mask = data["time_index"] < self.experience_step
+        if past_data.any():
+            forward_output.x_indices[past_data] = data["indices"][past_data]
 
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            + criterion_output.past_cycle_consistency_loss
+            * self.cycle_consistency_weight
+            + criterion_output.current_cycle_consistency_loss
+            * self.cycle_consistency_weight
             + criterion_output.triplet_loss
         )
 
@@ -318,8 +383,19 @@ class VitVQVae(CLModel):
             criterion_output.perplexity.cpu().item(),
         )
         self.log_with_postfix(
+            f"train/past_cycle_consistency_loss",
+            criterion_output.past_cycle_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/current_cycle_consistency_loss",
+            criterion_output.current_cycle_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
             f"train/cycle_consistency_loss",
-            criterion_output.cycle_consistency_loss.cpu().item(),
+            (
+                criterion_output.past_cycle_consistency_loss.cpu().item()
+                + criterion_output.current_cycle_consistency_loss.cpu().item()
+            ),
         )
 
         return {
@@ -331,18 +407,24 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
+        past_data = y == -1
+        y = self.remap_y(y)
 
         forward_output = self.forward(x)
         forward_output.x_data = x
-        forward_output.x_indices = data["indices"]
         forward_output.past_data_mask = data["time_index"] < self.experience_step
+        if past_data.any():
+            forward_output.x_indices[past_data] = data["indices"][past_data]
 
         criterion_output = self.criterion(forward_output, y)
 
         loss = (
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
-            + criterion_output.cycle_consistency_loss * self.cycle_consistency_weight
+            + criterion_output.past_cycle_consistency_loss
+            * self.cycle_consistency_weight
+            + criterion_output.current_cycle_consistency_loss
+            * self.cycle_consistency_weight
             + criterion_output.triplet_loss
         )
 
@@ -368,8 +450,19 @@ class VitVQVae(CLModel):
             criterion_output.perplexity.cpu().item(),
         )
         self.log_with_postfix(
+            f"val/past_cycle_consistency_loss",
+            criterion_output.past_cycle_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/current_cycle_consistency_loss",
+            criterion_output.current_cycle_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
             f"val/cycle_consistency_loss",
-            criterion_output.cycle_consistency_loss.cpu().item(),
+            (
+                criterion_output.past_cycle_consistency_loss.cpu().item()
+                + criterion_output.current_cycle_consistency_loss.cpu().item()
+            ),
         )
 
         return {
@@ -386,6 +479,7 @@ class VitVQVae(CLModel):
             chain(
                 self.encoder.parameters(),
                 self.decoder.parameters(),
+                self.clf_head.parameters(),
             ),
             lr=self._learning_rate * self._batch_size / 256,
             betas=(0.9, 0.95),
