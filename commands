@@ -1,10 +1,10 @@
-sbatch -J cka_scores_2eu0srw6 submit.sh \
+sbatch -J cka_scores_lppmdmbl submit.sh \
     python commands.py \
     --command cka_score \
     --batch_size 128 \
-    --max_epochs 1000 \
-    --min_epochs 200 \
-    --run_id 2eu0srw6
+    --max_epochs 600 \
+    --min_epochs 300 \
+    --run_id lppmdmbl
 
 sbatch -J fid_scores_1z0vahmb submit.sh \
     python commands.py \
@@ -17,12 +17,12 @@ python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
     --gpu_type v100s \
-    --batch_size 256 \
-    --accumulate_grad_batches 2 \
+    --batch_size 64 \
+    --accumulate_grad_batches 8 \
     --partition ddp-4way \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 ms l-ext frozen trip" \
+    --comment "cifar10 ms l-ext sup" \
     --group qmae_latent_ext \
     --model qmae-latent-extension \
     --config src/qmae_latent_extension/configuration/train.ini \

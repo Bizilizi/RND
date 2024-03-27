@@ -34,7 +34,6 @@ class ForwardOutput:
 
     quantized: torch.Tensor
     latent_distances: torch.Tensor
-    second_order_distances: torch.Tensor
     perplexity: torch.Tensor
     avg_probs: torch.Tensor
 
@@ -179,6 +178,10 @@ class VitVQVae(CLModel):
         self.classes_map = {cls_id: i for i, cls_id in enumerate(current_classes)}
 
     def remap_y(self, y):
+        """
+        This function maps original classes ids into [0, 1, num_classes // num_tasks]
+        This allows us to always train linear head in
+        """
         for cls_id, new_cls_id in self.classes_map.items():
             y[y == cls_id] = new_cls_id
 
@@ -209,7 +212,6 @@ class VitVQVae(CLModel):
         x_indices = forward_output.x_indices
 
         latent_distances = forward_output.latent_distances
-        second_order_distances = forward_output.second_order_distances
 
         past_data = y == -1
         current_data = y >= 0
@@ -246,18 +248,6 @@ class VitVQVae(CLModel):
                 distances, indices
             )
 
-        if (
-            second_order_distances is not None
-            and self.cycle_consistency_weight != 0
-            and current_data.any()
-        ):
-            distances = second_order_distances[current_data]
-            indices = x_indices[current_data].long()
-
-            current_cycle_consistency_loss = self.get_cycle_consistency_loss(
-                distances, indices
-            )
-
         # Compute triplet loss
         triplet_loss = self.triplet_loss(
             forward_output.image_emb, forward_output.past_data_mask
@@ -275,9 +265,6 @@ class VitVQVae(CLModel):
         )
 
     def forward(self, x) -> ForwardOutput:
-        # prepare default values
-        second_order_distances = None
-
         # Extract features from backbone
         masked_features, full_features, backward_indexes = self.encoder(
             x, return_full_features=True
@@ -302,16 +289,6 @@ class VitVQVae(CLModel):
         x_indices = rearrange(x_indices, "(b t) 1 -> b t", b=x.shape[0])
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
-        # To compute cycle consistency loss we apply encoder/quant again
-        if self.cycle_consistency_weight != 0:
-            _, second_order_features, _ = self.encoder(
-                x_recon, return_full_features=True
-            )
-            with torch.autocast(self._accelerator, dtype=torch.float32):
-                (*_, second_order_distances) = self.feature_quantization(
-                    second_order_features, return_distances=True
-                )
-
         # If the model has classification head
         # we calculate image embedding based on output of the encoder
         # without masking random patches
@@ -331,7 +308,6 @@ class VitVQVae(CLModel):
             clf_logits=clf_logits,
             mask=mask,
             latent_distances=latent_distances,
-            second_order_distances=second_order_distances,
             avg_probs=avg_probs,
             past_data_mask=None,
         )
@@ -339,8 +315,9 @@ class VitVQVae(CLModel):
     def training_step(self, batch, batch_idx):
         data, y, *_ = batch
 
-        x = data["images"]
         past_data = y == -1
+
+        x = data["images"]
         y = self.remap_y(y)
 
         forward_output = self.forward(x)
