@@ -63,6 +63,7 @@ class VitVQVae(CLModel):
         num_embeddings,
         num_embeddings_per_step,
         embedding_dim,
+        img_embedding_dim,
         commitment_cost,
         mask_token_id: int,
         num_epochs: int,
@@ -94,6 +95,7 @@ class VitVQVae(CLModel):
         self._learning_rate = learning_rate
         self._weight_decay = weight_decay
         self._embedding_dim = embedding_dim
+        self._img_embedding_dim = img_embedding_dim
         self._latent_sos_token = num_embeddings + 1
         self._mask_ratio = mask_ratio
         self._mask_token_id = mask_token_id
@@ -136,9 +138,14 @@ class VitVQVae(CLModel):
 
         self.triplet_loss = TripletMarginLoss()
 
-        self.clf_head = nn.Linear(embedding_dim, 2, bias=False)
+        self.selection_mask = nn.Parameter(
+            torch.ones((16 * 16 + 1, 1, 1)), requires_grad=True
+        )
+        self.projection_head = nn.Linear(embedding_dim, img_embedding_dim)
+
+        self.clf_head = nn.Linear(img_embedding_dim, 2, bias=False)
         self.register_buffer(
-            "old_clf_head", torch.zeros((0, embedding_dim), requires_grad=False)
+            "old_clf_head", torch.zeros((0, img_embedding_dim), requires_grad=False)
         )
 
     def get_reconstruction_loss(
@@ -292,7 +299,10 @@ class VitVQVae(CLModel):
         # If the model has classification head
         # we calculate image embedding based on output of the encoder
         # without masking random patches
-        image_emb = full_features.mean(dim=0)
+        image_emb = self.selection_mask * full_features
+        image_emb = image_emb.sum(dim=0)
+        image_emb = self.projection_head(image_emb)
+
         clf_logits = torch.cat(
             [self.clf_head(image_emb), image_emb @ self.old_clf_head.T], dim=1
         )
@@ -470,12 +480,13 @@ class VitVQVae(CLModel):
         sch.step()
 
     def configure_optimizers(self):
+        parameters = [
+            param
+            for name, param in self.named_parameters()
+            if name != "feature_quantization"
+        ]
         optimizer = torch.optim.AdamW(
-            chain(
-                self.encoder.parameters(),
-                self.decoder.parameters(),
-                self.clf_head.parameters(),
-            ),
+            parameters,
             lr=self._learning_rate * self._batch_size / 256,
             betas=(0.9, 0.95),
             weight_decay=self._weight_decay,

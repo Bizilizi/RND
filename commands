@@ -16,10 +16,10 @@ sbatch -J fid_scores_1z0vahmb submit.sh \
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
-    --gpu_type v100s \
-    --batch_size 64 \
-    --accumulate_grad_batches 8 \
-    --partition ddp-4way \
+    --gpu_type a6000 \
+    --batch_size 512 \
+    --accumulate_grad_batches 1 \
+    --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
     --comment "cifar10 ms l-ext sup" \

@@ -8,6 +8,7 @@ class TrainConfig(BaseTrainConfig):
     num_embeddings: int
     num_embeddings_per_step: int
     embedding_dim: int
+    img_embedding_dim: int
     commitment_cost: float
     decay: float
     quantize_features: bool

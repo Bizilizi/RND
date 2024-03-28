@@ -12,6 +12,9 @@ from torchvision import transforms
 
 from src.avalanche.strategies import NaivePytorchLightning
 from src.qmae_latent_extension.callbacks.codebook_histogram import LogCodebookHistogram
+from src.qmae_latent_extension.callbacks.projections_visualisations import (
+    VisualizeProjections,
+)
 from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.qmae_latent_extension.callbacks.log_dataset import LogDataset
 from src.qmae_latent_extension.callbacks.reconstruction_visualization_plugin import (
@@ -84,7 +87,7 @@ def get_cl_strategy(
         train_epochs=config.max_epochs,
         eval_mb_size=config.batch_size,
         evaluator=evaluation_plugin,
-        callbacks=get_callbacks(config, local_rank),
+        callbacks=get_callbacks(config, local_rank, benchmark),
         max_epochs=epochs_schedule,
         min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,
@@ -169,6 +172,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         num_embeddings=config.num_embeddings,
         num_embeddings_per_step=config.num_embeddings_per_step,
         embedding_dim=config.embedding_dim,
+        img_embedding_dim=config.img_embedding_dim,
         commitment_cost=config.commitment_cost,
         decay=config.decay,
         learning_rate=(
@@ -198,7 +202,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
 
 
 def get_callbacks(
-    config: TrainConfig, local_rank: int
+    config: TrainConfig, local_rank: int, benchmark
 ) -> t.Callable[[int], t.List[Callback]]:
     return lambda experience_step: [
         #     EarlyStopping(
@@ -206,6 +210,7 @@ def get_callbacks(
         #         mode="min",
         #         patience=50,
         #     ),
+        VisualizeProjections(benchmark, log_every=200),
         LearningRateMonitor(logging_interval="epoch"),
         LogModelWightsCallback(
             local_rank=local_rank,
