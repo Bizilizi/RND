@@ -58,19 +58,24 @@ class VisualizeProjections(Callback):
                 )
 
                 image_embs = []
+                classes = []
                 for x, y, _ in dataloader:
                     x = x.to(model.device)
                     forward_output = model.forward(x)
+
                     image_embs.append(forward_output.image_emb)
+                    classes.append(y)
 
                 image_embs = torch.cat(image_embs).cpu()
+                classes = torch.cat(classes).cpu()
 
                 if image_embs.shape[-1] != 2:
                     image_embs = umap.UMAP().fit_transform(image_embs)
 
                 image_embs = image_embs.tolist()
 
-                data_table = wandb.Table(columns=["x", "y"], data=image_embs)
+                data = torch.cat([image_embs, classes], dim=1)
+                data_table = wandb.Table(columns=["x", "y", "class"], data=data)
                 wandb.log(
                     {f"train/projections/experience_step_{experience_step}": data_table}
                 )
