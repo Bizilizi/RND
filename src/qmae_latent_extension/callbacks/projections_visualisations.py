@@ -68,6 +68,8 @@ class VisualizeProjections(Callback):
                 if image_embs.shape[-1] != 2:
                     image_embs = umap.UMAP().fit_transform(image_embs)
 
+                image_embs = image_embs.tolist()
+
                 data_table = wandb.Table(columns=["x", "y"], data=image_embs)
                 wandb.log(
                     {f"train/projections/experience_step_{experience_step}": data_table}
