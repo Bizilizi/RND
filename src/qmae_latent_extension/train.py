@@ -22,7 +22,6 @@ from src.qmae_latent_extension.train_classifier import (
 )
 from src.qmae_latent_extension.train_image_gpt import bootstrap_past_samples, train_igpt
 from src.qmae_latent_extension.utils.copy_dataset import copy_dataset_to_tmp
-from src.qmae_latent_extension.utils.gdumb import extend_memory
 from src.qmae_latent_extension.utils.wrap_empty_indices import (
     wrap_dataset_with_empty_indices,
 )
@@ -70,7 +69,7 @@ def train_loop(
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
-        cl_strategy.model.calculate_class_maps(
+        cl_strategy.model.extend_class_permutation(
             torch.tensor(train_experience.dataset.targets).unique()
         )
 

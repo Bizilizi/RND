@@ -143,10 +143,13 @@ class VitVQVae(CLModel):
         )
         self.projection_head = nn.Linear(embedding_dim, img_embedding_dim)
 
-        self.clf_head = nn.Linear(img_embedding_dim, 2, bias=False)
+        self.clf_head = nn.Parameter(
+            torch.randn((img_embedding_dim, 2)), requires_grad=True
+        )
         self.register_buffer(
             "old_clf_head", torch.zeros((0, img_embedding_dim), requires_grad=False)
         )
+        self.register_buffer("old_classes", torch.zeros((0), requires_grad=False))
 
     def get_reconstruction_loss(
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
@@ -174,25 +177,15 @@ class VitVQVae(CLModel):
         return reconstruction_loss
 
     def extend_clf_head(self):
-        self.old_clf_head = torch.cat(
-            [self.old_clf_head, self.clf_head.weight.data.clone()]
-        )
+        self.old_clf_head = torch.cat([self.clf_head.data.clone(), self.old_clf_head])
         self.old_clf_head.requires_grad = False
 
-        self.clf_head.weight.data.normal_()
+        self.clf_head.data.normal_()
 
-    def calculate_class_maps(self, current_classes: torch.Tensor):
-        self.classes_map = {cls_id: i for i, cls_id in enumerate(current_classes)}
-
-    def remap_y(self, y):
-        """
-        This function maps original classes ids into [0, 1, num_classes // num_tasks]
-        This allows us to always train linear head in
-        """
-        for cls_id, new_cls_id in self.classes_map.items():
-            y[y == cls_id] = new_cls_id
-
-        return y
+    def extend_class_permutation(self, current_classes: torch.Tensor):
+        self.old_classes = torch.cat(
+            [current_classes.to(self.device), self.old_classes]
+        ).int()
 
     def get_cycle_consistency_loss(self, distances, indices):
         q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
@@ -236,7 +229,9 @@ class VitVQVae(CLModel):
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:
-            current_logits = forward_output.clf_logits[current_data]
+            current_logits = forward_output.clf_logits[current_data][
+                ..., self.old_classes
+            ]
             current_y = y[current_data]
 
             clf_loss = F.cross_entropy(current_logits, current_y)
@@ -304,7 +299,7 @@ class VitVQVae(CLModel):
         image_emb = self.projection_head(image_emb)
 
         clf_logits = torch.cat(
-            [self.clf_head(image_emb), image_emb @ self.old_clf_head.T], dim=1
+            [image_emb @ self.clf_head.T, image_emb @ self.old_clf_head.T], dim=1
         )
 
         return ForwardOutput(
@@ -328,7 +323,6 @@ class VitVQVae(CLModel):
         past_data = y == -1
 
         x = data["images"]
-        y = self.remap_y(y)
 
         forward_output = self.forward(x)
         forward_output.x_data = x
@@ -404,7 +398,6 @@ class VitVQVae(CLModel):
 
         x = data["images"]
         past_data = y == -1
-        y = self.remap_y(y)
 
         forward_output = self.forward(x)
         forward_output.x_data = x
@@ -483,7 +476,12 @@ class VitVQVae(CLModel):
         parameters = [
             param
             for name, param in self.named_parameters()
-            if name != "feature_quantization"
+            if name
+            not in [
+                "feature_quantization",
+                "old_classes",
+                "old_clf_head",
+            ]
         ]
         optimizer = torch.optim.AdamW(
             parameters,

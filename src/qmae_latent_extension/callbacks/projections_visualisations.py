@@ -71,10 +71,9 @@ class VisualizeProjections(Callback):
 
                 if image_embs.shape[-1] != 2:
                     image_embs = umap.UMAP().fit_transform(image_embs)
+                    image_embs = torch.tensor(image_embs)
 
-                image_embs = image_embs.tolist()
-
-                data = torch.cat([image_embs, classes], dim=1)
+                data = torch.cat([image_embs, classes[..., None]], dim=1).tolist()
                 data_table = wandb.Table(columns=["x", "y", "class"], data=data)
                 wandb.log(
                     {f"train/projections/experience_step_{experience_step}": data_table}

@@ -105,7 +105,7 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
         return SplitCIFAR10(
             n_experiences=config.num_tasks,
             return_task_id=True,
-            shuffle=True,
+            fixed_class_order=list(range(10)),
             dataset_root=target_dataset_dir,
             train_transform=transforms.Compose(
                 [
