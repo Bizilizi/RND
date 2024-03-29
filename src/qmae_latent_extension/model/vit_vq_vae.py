@@ -135,6 +135,8 @@ class VitVQVae(CLModel):
 
         if self.use_lpips:
             self._lpips = lpips.LPIPS(net="vgg")
+            for param in self._lpips.parameters():
+                param.requires_grad = False
 
         self.triplet_loss = TripletMarginLoss()
 
@@ -473,18 +475,18 @@ class VitVQVae(CLModel):
         sch.step()
 
     def configure_optimizers(self):
-        parameters = [
-            param
-            for name, param in self.named_parameters()
-            if name
-            not in [
-                "feature_quantization",
-                "old_classes",
-                "old_clf_head",
-            ]
-        ]
         optimizer = torch.optim.AdamW(
-            parameters,
+            chain(
+                self.encoder.parameters(),
+                self.decoder.parameters(),
+                self.projection_head.parameters(),
+                nn.ParameterList(
+                    [
+                        self.clf_head,
+                        self.selection_mask,
+                    ]
+                ),
+            ),
             lr=self._learning_rate * self._batch_size / 256,
             betas=(0.9, 0.95),
             weight_decay=self._weight_decay,
