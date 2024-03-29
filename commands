@@ -32,7 +32,7 @@ python submitit_train.py \
     --max_epochs 600 \
     --min_epochs 300 \
     --embedding_dim 192 \
-    --img_embedding_dim 2 \
+    --img_embedding_dim 192 \
     --igpt_num_epochs_max 20 \
     --igpt_num_epochs_min 20 \
     --igpt_accumulate_grad_batches 1 \
@@ -40,7 +40,7 @@ python submitit_train.py \
     --max_epochs_lin_eval 100 \
     --igpt_mask_ratio 0.02 \
     --num_random_past_samples 25000 \
-    --num_random_past_samples_schedule fixed \
+    --num_random_past_samples_schedule schedule \
     --cycle_consistency_loss_weight 1 \
     --cycle_consistency_sigma 1 \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
