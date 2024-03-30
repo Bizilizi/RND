@@ -19,58 +19,11 @@ from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.classification_dataset import ClassificationDataset
 from src.avalanche.strategies import NaivePytorchLightning
 from src.qmae_latent_extension.configuration.config import TrainConfig
+from src.qmae_latent_extension.data.bootstrapped_dataset import BootstrappedDataset
 from src.qmae_latent_extension.data.image_gpt_dataset import ImageGPTDataset
 from src.qmae_latent_extension.model.image_gpt import ImageGPTForCausalImageModeling
 from src.qmae_latent_extension.model.vit_vq_vae import VitVQVae
 from torch.nn.parallel import DistributedDataParallel as DDP
-
-
-class BootstrappedDataset(Dataset):
-    def __init__(
-        self,
-        dataset_path: str,
-        experience_step: int,
-        transform: t.Optional[t.Any],
-    ):
-        super().__init__()
-
-        self.dataset_path = dataset_path
-        self.experience_step = experience_step
-        self.transform = transform
-
-        self.images = None
-        self.indices = None
-        self.time_indices = None
-        self.targets = []
-
-    def add_data(self, images, latent_indices, time_indices):
-        if self.images is None:
-            self.images = images
-            self.indices = latent_indices
-            self.time_indices = time_indices
-        else:
-            self.images = torch.cat([self.images, images], dim=0)
-            self.indices = torch.cat([self.indices, latent_indices], dim=0)
-            self.time_indices = torch.cat([self.time_indices, time_indices], dim=0)
-
-        self.targets.extend([-1] * images.shape[0])
-
-    def __getitem__(self, item):
-        image = self.images[item]
-        if self.transform is not None:
-            image = self.transform(image)
-
-        data = {
-            "images": image,
-            "indices": self.indices[item],
-            "time_index": self.time_indices[item].item(),
-        }
-        targets = self.targets[item]
-
-        return data, targets
-
-    def __len__(self):
-        return len(self.images)
 
 
 def init_token_embeddings(
@@ -123,41 +76,52 @@ def get_image_embedding(
 @torch.no_grad()
 def bootstrap_past_samples(
     image_gpt: ImageGPTForCausalImageModeling,
-    vq_vae_model: VitVQVae,
+    qmae_model: VitVQVae,
     num_images: int,
     experience_step: int,
+    classes_seen_in_past,
     dataset_path: str,
     config: TrainConfig,
-    sos_token: int,
-    mask_token: int,
     transform: t.Optional[t.Any] = None,
 ) -> ClassificationDataset:
     num_images_per_batch = min(128, num_images)
 
+    """
+    Token ids scheme:
+
+    { embeddings tokens } with size = num_embeddings 
+    { mask token }        with size = 1
+    { sos token }         with size = 1
+    { class tokens }      with size = num_classes
+    """
+    mask_token = qmae_model.feature_quantization.num_embeddings
+    sos_token = qmae_model.feature_quantization.num_embeddings + 1
+
     bootstrapped_dataset = BootstrappedDataset(
         dataset_path=dataset_path,
         experience_step=experience_step,
+        classes_seen_in_past=classes_seen_in_past,
         transform=transform,
     )
-    image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
-        vq_vae_model.device
+    image_embeddings = get_image_embedding(qmae_model, config, mask_token).to(
+        qmae_model.device
     )
 
     for _ in range(num_images // num_images_per_batch):
-        images, latent_indices, time_indices = sample_images(
+        images, latent_indices, labels = sample_images(
             image_gpt=image_gpt,
-            vq_vae_model=vq_vae_model,
+            vq_vae_model=qmae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
             temperature=config.temperature,
             num_images=num_images_per_batch,
-            experience_step=experience_step - 1,
+            classes_to_sample=classes_seen_in_past,
         )
 
         bootstrapped_dataset.add_data(
             images=images.cpu(),
             latent_indices=latent_indices.cpu(),
-            time_indices=time_indices.cpu(),
+            labels=labels.cpu(),
         )
 
     dataset = make_classification_dataset(
@@ -188,16 +152,39 @@ def train_igpt(
     config: TrainConfig,
     train_dataset: Dataset,
     device: torch.device,
-    sos_token: int,
-    mask_token: int,
+    classes_seen_so_far,
+    num_classes: int,
     n_layer: int = 12,
-    image_gpt: ImageGPTForCausalImageModeling = None,
     is_distributed: bool,
     local_rank: int,
 ):
-    vq_vae_model = strategy.model
+    qmae_model = strategy.model
     logger = strategy.train_logger
-    vocab_size = vq_vae_model.feature_quantization.num_embeddings + 2 + config.num_tasks
+
+    """
+    Token ids scheme:
+    
+    { embeddings tokens } with size = num_embeddings 
+    { mask token }        with size = 1
+    { sos token }         with size = 1
+    { class tokens }      with size = num_classes
+    """
+    mask_token = qmae_model.feature_quantization.num_embeddings
+    sos_token = qmae_model.feature_quantization.num_embeddings + 1
+
+    """
+    vocab_size = num_embeddings + mask_token + igpt_sos_token + num_classes
+    """
+    vocab_size = qmae_model.feature_quantization.num_embeddings + 2 + num_classes
+
+    """
+    Length of the token sequence:
+    
+    { patches tokens + encoder sos } with size = 16 * 16 + 1
+    { igpt sos token }               with size = 1
+    { class token }                  with size = 1
+    """
+    n_positions = 16 * 16 + 1 + 1 + 1
 
     configuration = ImageGPTConfig(
         **{
@@ -210,7 +197,7 @@ def train_igpt(
             "n_embd": config.embedding_dim,
             "n_head": 8,
             "n_layer": n_layer,
-            "n_positions": 16 * 16 + 3,
+            "n_positions": n_positions,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
             "scale_attn_by_inverse_layer_idx": False,
@@ -223,8 +210,8 @@ def train_igpt(
     image_gpt = ImageGPTForCausalImageModeling(configuration)
 
     # init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
-    image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
-        vq_vae_model.device
+    image_embeddings = get_image_embedding(qmae_model, config, mask_token).to(
+        qmae_model.device
     )
 
     # Transfer models to corresponding device (DDP)
@@ -232,11 +219,11 @@ def train_igpt(
     if is_distributed:
         image_gpt = DDP(image_gpt, device_ids=[local_rank], output_device=local_rank)
 
-    vq_vae_model.to(device)
+    qmae_model.to(device)
     image_embeddings.to(device)
 
     train_dataset = ImageGPTDataset(
-        vq_vae_model=vq_vae_model,
+        vq_vae_model=qmae_model,
         dataset=train_dataset,
         sos_token=sos_token,
         mask_token=mask_token,
@@ -306,12 +293,12 @@ def train_igpt(
 
             sample = sample_images(
                 image_gpt=sampler,
-                vq_vae_model=vq_vae_model,
+                vq_vae_model=qmae_model,
                 embedding=image_embeddings,
                 sos_token=sos_token,
                 return_grid_only=True,
                 temperature=config.temperature,
-                experience_step=strategy.experience_step,
+                classes_to_sample=classes_seen_so_far,
             ).cpu()
 
             if isinstance(logger, WandbLogger):
@@ -357,11 +344,10 @@ def sample_images(
     vq_vae_model,
     embedding,
     sos_token,
-    experience_step,
+    classes_to_sample,
     temperature=1.23,
     num_images=8 * 4 * 10,
     return_grid_only=False,
-    time_indices=None,
 ):
     image_gpt.eval()
     vq_vae_model.eval()
@@ -369,13 +355,11 @@ def sample_images(
     device = vq_vae_model.device
     decoder = vq_vae_model.decoder
 
-    if time_indices is None:
-        time_indices = torch.tensor(
-            random.choices(list(range(experience_step + 1)), k=num_images),
-            device=device,
-        )
+    labels = torch.tensor(
+        random.choices(classes_to_sample, k=num_images), device=device
+    )
 
-    labels_tokens = sos_token + 1 + time_indices
+    labels_tokens = sos_token + 1 + labels
     sos_tokens = torch.full((num_images,), sos_token, device=device)
 
     context = torch.cat(
@@ -417,4 +401,4 @@ def sample_images(
 
         return grid_image
     else:
-        return x_recon, igpt_output, time_indices
+        return x_recon, igpt_output, labels

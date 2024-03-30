@@ -49,7 +49,6 @@ class CriterionOutput:
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
     past_cycle_consistency_loss: torch.Tensor
-    current_cycle_consistency_loss: torch.Tensor
     triplet_loss: torch.Tensor
 
     clf_loss: torch.Tensor
@@ -205,7 +204,6 @@ class VitVQVae(CLModel):
         # prepare default values
         clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
         past_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
-        current_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
         reconstruction_loss = torch.tensor(0.0, device=self.device)
 
         # unpack variables from forward output
@@ -253,15 +251,15 @@ class VitVQVae(CLModel):
             )
 
         # Compute triplet loss
-        triplet_loss = self.triplet_loss(
-            forward_output.image_emb, forward_output.past_data_mask
-        )
+        # triplet_loss = self.triplet_loss(
+        #     forward_output.image_emb, forward_output.past_data_mask
+        # )
+        triplet_loss = None
 
         return CriterionOutput(
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
             past_cycle_consistency_loss=past_cycle_consistency_loss,
-            current_cycle_consistency_loss=current_cycle_consistency_loss,
             triplet_loss=triplet_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
@@ -339,9 +337,7 @@ class VitVQVae(CLModel):
             + criterion_output.reconstruction_loss
             + criterion_output.past_cycle_consistency_loss
             * self.cycle_consistency_weight
-            + criterion_output.current_cycle_consistency_loss
-            * self.cycle_consistency_weight
-            + criterion_output.triplet_loss
+            # + criterion_output.triplet_loss
             + criterion_output.clf_loss
         )
 
@@ -358,10 +354,10 @@ class VitVQVae(CLModel):
             f"train/clf_accuracy",
             criterion_output.clf_acc.cpu().item(),
         )
-        self.log_with_postfix(
-            f"train/triplet_loss",
-            criterion_output.triplet_loss.cpu().item(),
-        )
+        # self.log_with_postfix(
+        #     f"train/triplet_loss",
+        #     criterion_output.triplet_loss.cpu().item(),
+        # )
         self.log_with_postfix(
             f"train/vq_loss",
             criterion_output.vq_loss.cpu().item(),
@@ -374,20 +370,10 @@ class VitVQVae(CLModel):
             f"train/perplexity",
             criterion_output.perplexity.cpu().item(),
         )
-        self.log_with_postfix(
-            f"train/past_cycle_consistency_loss",
-            criterion_output.past_cycle_consistency_loss.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"train/current_cycle_consistency_loss",
-            criterion_output.current_cycle_consistency_loss.cpu().item(),
-        )
+
         self.log_with_postfix(
             f"train/cycle_consistency_loss",
-            (
-                criterion_output.past_cycle_consistency_loss.cpu().item()
-                + criterion_output.current_cycle_consistency_loss.cpu().item()
-            ),
+            criterion_output.past_cycle_consistency_loss.cpu().item(),
         )
 
         return {
@@ -414,9 +400,7 @@ class VitVQVae(CLModel):
             + criterion_output.reconstruction_loss
             + criterion_output.past_cycle_consistency_loss
             * self.cycle_consistency_weight
-            + criterion_output.current_cycle_consistency_loss
-            * self.cycle_consistency_weight
-            + criterion_output.triplet_loss
+            # + criterion_output.triplet_loss
             + criterion_output.clf_loss
         )
 
@@ -433,10 +417,10 @@ class VitVQVae(CLModel):
             f"val/clf_accuracy",
             criterion_output.clf_acc.cpu().item(),
         )
-        self.log_with_postfix(
-            f"val/triplet_loss",
-            criterion_output.triplet_loss.cpu().item(),
-        )
+        # self.log_with_postfix(
+        #     f"val/triplet_loss",
+        #     criterion_output.triplet_loss.cpu().item(),
+        # )
         self.log_with_postfix(
             f"val/vq_loss",
             criterion_output.vq_loss.cpu().item(),
@@ -450,19 +434,8 @@ class VitVQVae(CLModel):
             criterion_output.perplexity.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/past_cycle_consistency_loss",
-            criterion_output.past_cycle_consistency_loss.cpu().item(),
-        )
-        self.log_with_postfix(
-            f"val/current_cycle_consistency_loss",
-            criterion_output.current_cycle_consistency_loss.cpu().item(),
-        )
-        self.log_with_postfix(
             f"val/cycle_consistency_loss",
-            (
-                criterion_output.past_cycle_consistency_loss.cpu().item()
-                + criterion_output.current_cycle_consistency_loss.cpu().item()
-            ),
+            criterion_output.past_cycle_consistency_loss.cpu().item(),
         )
 
         return {

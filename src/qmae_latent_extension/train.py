@@ -63,9 +63,6 @@ def train_loop(
 
     image_gpt = None
 
-    sos_token = cl_strategy.model.feature_quantization.num_embeddings + 1
-    mask_token = cl_strategy.model.feature_quantization.num_embeddings
-
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
@@ -92,15 +89,20 @@ def train_loop(
             image_gpt.to(device)
             cl_strategy.model.to(device)
 
+            classes_seen_in_past = list(
+                set(train_experience.classes_seen_so_far).difference(
+                    train_experience.classes_in_this_experience
+                )
+            )
+
             bootstrapped_dataset = bootstrap_past_samples(
                 image_gpt=image_gpt,
-                vq_vae_model=cl_strategy.model,
+                qmae_model=cl_strategy.model,
                 num_images=get_num_random_past_samples(config, cl_strategy),
                 dataset_path=config.bootstrapped_dataset_path,
                 config=config,
-                sos_token=sos_token,
                 experience_step=cl_strategy.experience_step,
-                mask_token=mask_token,
+                classes_seen_in_past=classes_seen_in_past,
             )
 
             train_experience.dataset = train_experience.dataset + bootstrapped_dataset
@@ -110,9 +112,6 @@ def train_loop(
         if cl_strategy.experience_step > 0:
             cl_strategy.model.feature_quantization.extend_codebook()
             cl_strategy.model.extend_clf_head()
-
-            sos_token = cl_strategy.model.feature_quantization.num_embeddings + 1
-            mask_token = cl_strategy.model.feature_quantization.num_embeddings
 
         cl_strategy.train(train_experience, [test_experience])
         cl_strategy.model.freeze()
@@ -124,12 +123,11 @@ def train_loop(
             config=config,
             train_dataset=igpt_train_dataset,
             device=device,
-            sos_token=sos_token,
-            mask_token=mask_token,
             n_layer=config.num_gpt_layers,
-            image_gpt=image_gpt,
             local_rank=local_rank,
             is_distributed=is_distributed,
+            num_classes=benchmark.n_classes,
+            classes_seen_so_far=train_experience.classes_seen_so_far,
         )
 
         # Train linear classifiers

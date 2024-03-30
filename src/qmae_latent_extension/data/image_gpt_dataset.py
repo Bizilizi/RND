@@ -27,10 +27,9 @@ class ImageGPTDataset(Dataset):
         data, y, *_ = self.dataset[item]
 
         image = data["images"].to(self.vq_vae_model.device)
-        time_index = data["time_index"]
 
         input_ids = self._project_image(image)
-        input_ids = self._extend_with_time_index(input_ids, time_index)
+        input_ids = self._extend_with_class_token(input_ids, y)
         input_ids = self._extend_with_sos_token(input_ids)
 
         return {
@@ -106,16 +105,20 @@ class ImageGPTDataset(Dataset):
         return input_ids
 
     @torch.no_grad()
-    def _extend_with_time_index(
+    def _extend_with_class_token(
         self,
         input_ids,
-        time_index,
+        class_token,
     ):
-        time_index_tokens = torch.tensor(
-            [time_index + 1 + self.sos_token],
+        class_tokens = torch.tensor(
+            [self.sos_token + 1 + class_token],
             device=input_ids.device,
         )
+        """
+        Since classes start from 0, we need to shift them by 1 
+        to avoid clashing with igpt sos token.
+        """
 
-        input_ids = torch.cat([time_index_tokens, input_ids], dim=0)
+        input_ids = torch.cat([class_tokens, input_ids], dim=0)
 
         return input_ids

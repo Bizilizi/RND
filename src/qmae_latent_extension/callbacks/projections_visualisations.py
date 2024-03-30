@@ -37,44 +37,88 @@ class VisualizeProjections(Callback):
             model = model.module
 
         experience_step = model.experience_step
-        dataset_to_project = ConcatDataset(
-            [
-                experience.dataset
-                for experience in self.benchmark.train_stream[: experience_step + 1]
-            ]
-        )
+
+        for logger in trainer.loggers:
+            if isinstance(logger, WandbLogger):
+                # project real dataset
+                dataset_to_project = ConcatDataset(
+                    [
+                        experience.dataset
+                        for experience in self.benchmark.train_stream[
+                            : experience_step + 1
+                        ]
+                    ]
+                )
+
+                real_image_embs, real_classes = self.project_dataset(
+                    model, dataset_to_project
+                )
+
+                # project bootstrapped dataset
+                dataset_to_project = trainer.datamodule.train_dataset
+                bootstrapped_image_embs, bootstrapped_classes = self.project_dataset(
+                    model, dataset_to_project
+                )
+
+                real_data = torch.cat(
+                    [
+                        real_image_embs,
+                        real_classes[..., None],
+                        torch.ones(real_image_embs.shape[0], 1),  # is real flag
+                    ],
+                    dim=1,
+                )
+                bootstrapped_data = torch.cat(
+                    [
+                        bootstrapped_image_embs,
+                        bootstrapped_classes[..., None],
+                        torch.zeros(real_image_embs.shape[0], 1),  # is real flag
+                    ],
+                    dim=1,
+                )
+                data = torch.cat([real_data, bootstrapped_data], dim=0).tolist()
+                data = [
+                    [x, y, class_id, is_real, f"{class_id}_{'r' if is_real else 'b'}"]
+                    for x, y, class_id, is_real in data
+                ]
+
+                data_table = wandb.Table(
+                    columns=["x", "y", "class", "is_real", "full_class"], data=data
+                )
+                wandb.log(
+                    {f"train/projections/experience_step_{experience_step}": data_table}
+                )
+
+    def project_dataset(self, model, dataset_to_project):
         random_indices = torch.randperm(len(dataset_to_project))[
             : self.num_images
         ].int()
         dataset_to_project = Subset(dataset_to_project, random_indices)
 
-        for logger in trainer.loggers:
-            if isinstance(logger, WandbLogger):
-                dataloader = DataLoader(
-                    dataset_to_project,
-                    num_workers=8,
-                    batch_size=self.batch_size,
-                    shuffle=False,
-                )
+        dataloader = DataLoader(
+            dataset_to_project,
+            num_workers=8,
+            batch_size=self.batch_size,
+            shuffle=False,
+        )
 
-                image_embs = []
-                classes = []
-                for x, y, _ in dataloader:
-                    x = x.to(model.device)
-                    forward_output = model.forward(x)
+        image_embs = []
+        classes = []
+        for x, y, _ in dataloader:
+            if isinstance(x, dict):
+                x = x["images"]
 
-                    image_embs.append(forward_output.image_emb)
-                    classes.append(y)
+            x = x.to(model.device)
+            forward_output = model.forward(x)
 
-                image_embs = torch.cat(image_embs).cpu()
-                classes = torch.cat(classes).cpu()
+            image_embs.append(forward_output.image_emb)
+            classes.append(y)
 
-                if image_embs.shape[-1] != 2:
-                    image_embs = umap.UMAP().fit_transform(image_embs)
-                    image_embs = torch.tensor(image_embs)
+        image_embs = torch.cat(image_embs).cpu()
+        classes = torch.cat(classes).cpu()
 
-                data = torch.cat([image_embs, classes[..., None]], dim=1).tolist()
-                data_table = wandb.Table(columns=["x", "y", "class"], data=data)
-                wandb.log(
-                    {f"train/projections/experience_step_{experience_step}": data_table}
-                )
+        if image_embs.shape[-1] != 2:
+            image_embs = umap.UMAP().fit_transform(image_embs)
+            image_embs = torch.tensor(image_embs)
+
+        return image_embs, classes
