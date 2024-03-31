@@ -259,7 +259,15 @@ class VitVQVae(CLModel):
             perplexity=forward_output.perplexity,
         )
 
+    def get_image_embedding(self, full_features):
+        image_emb = self.selection_mask * full_features
+        image_emb = image_emb.sum(dim=0)
+        image_emb = self.projection_head(image_emb)
+
+        return image_emb
+
     def forward(self, x) -> ForwardOutput:
+
         # Extract features from backbone
         masked_features, full_features, backward_indexes = self.encoder(
             x, return_full_features=True
@@ -274,6 +282,7 @@ class VitVQVae(CLModel):
                 avg_probs,
                 *_,
             ) = self.feature_quantization(masked_features)
+
             (
                 *_,
                 x_indices,
@@ -284,13 +293,7 @@ class VitVQVae(CLModel):
         x_indices = rearrange(x_indices, "(b t) 1 -> b t", b=x.shape[0])
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
-        # If the model has classification head
-        # we calculate image embedding based on output of the encoder
-        # without masking random patches
-        image_emb = self.selection_mask * full_features
-        image_emb = image_emb.sum(dim=0)
-        image_emb = self.projection_head(image_emb)
-
+        image_emb = self.get_image_embedding(full_features)
         clf_logits = torch.cat(
             [image_emb @ self.old_clf_head.T, image_emb @ self.clf_head.T], dim=1
         )

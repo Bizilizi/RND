@@ -54,12 +54,7 @@ class VisualizeProjections(Callback):
                     model, dataset_to_project
                 )
 
-                # project bootstrapped dataset
-                dataset_to_project = trainer.datamodule.train_dataset
-                bootstrapped_image_embs, bootstrapped_classes = self.project_dataset(
-                    model, dataset_to_project
-                )
-
+                # Log real dataset
                 real_data = torch.cat(
                     [
                         real_image_embs,
@@ -68,25 +63,63 @@ class VisualizeProjections(Callback):
                     ],
                     dim=1,
                 )
-                bootstrapped_data = torch.cat(
-                    [
-                        bootstrapped_image_embs,
-                        bootstrapped_classes[..., None],
-                        torch.zeros(real_image_embs.shape[0], 1),  # is real flag
-                    ],
-                    dim=1,
+                wandb.log(
+                    {
+                        f"train/projections/real_data_experience_step_{experience_step}": wandb.Table(
+                            columns=["x", "y", "class", "is_real"],
+                            data=real_data.tolist(),
+                        )
+                    }
                 )
+
+                # project bootstrapped dataset
+                if experience_step > 0:
+                    dataset_to_project = trainer.datamodule.train_dataset
+                    (
+                        bootstrapped_image_embs,
+                        bootstrapped_classes,
+                    ) = self.project_dataset(model, dataset_to_project)
+
+                    # Log bootstrapped dataset
+                    bootstrapped_data = torch.cat(
+                        [
+                            bootstrapped_image_embs,
+                            bootstrapped_classes[..., None],
+                            torch.zeros(real_image_embs.shape[0], 1),  # is real flag
+                        ],
+                        dim=1,
+                    )
+                    wandb.log(
+                        {
+                            f"train/projections/bootstrapped_data_experience_step_{experience_step}": wandb.Table(
+                                columns=["x", "y", "class", "is_real"],
+                                data=bootstrapped_data.tolist(),
+                            )
+                        }
+                    )
+                else:
+                    bootstrapped_data = torch.zeros((0, 4))
+
+                # Log joined real and bootstrapped datasets
                 data = torch.cat([real_data, bootstrapped_data], dim=0).tolist()
                 data = [
-                    [x, y, class_id, is_real, f"{class_id}_{'r' if is_real else 'b'}"]
+                    [
+                        x,
+                        y,
+                        int(class_id),
+                        int(is_real),
+                        f"{int(class_id)}_{'r' if is_real else 'b'}",
+                    ]
                     for x, y, class_id, is_real in data
                 ]
 
-                data_table = wandb.Table(
-                    columns=["x", "y", "class", "is_real", "full_class"], data=data
-                )
                 wandb.log(
-                    {f"train/projections/experience_step_{experience_step}": data_table}
+                    {
+                        f"train/projections/all_data_experience_step_{experience_step}": wandb.Table(
+                            columns=["x", "y", "class", "is_real", "full_class"],
+                            data=data,
+                        )
+                    }
                 )
 
     def project_dataset(self, model, dataset_to_project):
@@ -107,12 +140,19 @@ class VisualizeProjections(Callback):
         classes = []
         for x, y, _ in dataloader:
             if isinstance(x, dict):
-                x = x["images"]
+                # Project only past bootstrapped data
+                past_data_mask = x["is_past_domain"] == 1
+
+                if past_data_mask.any():
+                    x = x["images"][past_data_mask]
+                else:
+                    continue
 
             x = x.to(model.device)
-            forward_output = model.forward(x)
+            _, full_features, _ = model.encoder(x)
+            image_emb = full_features.mean(dim=0)
 
-            image_embs.append(forward_output.image_emb)
+            image_embs.append(image_emb)
             classes.append(y)
 
         image_embs = torch.cat(image_embs).cpu()

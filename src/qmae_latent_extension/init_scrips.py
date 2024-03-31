@@ -12,6 +12,9 @@ from torchvision import transforms
 
 from src.avalanche.strategies import NaivePytorchLightning
 from src.qmae_latent_extension.callbacks.codebook_histogram import LogCodebookHistogram
+from src.qmae_latent_extension.callbacks.codebook_visualisations import (
+    VisualizeCodebook,
+)
 from src.qmae_latent_extension.callbacks.projections_visualisations import (
     VisualizeProjections,
 )
@@ -91,7 +94,7 @@ def get_cl_strategy(
         max_epochs=epochs_schedule,
         min_epochs=epochs_schedule,
         best_model_path_prefix=config.best_model_prefix,
-        plugins=[ReconstructionVisualizationPlugin(num_tasks_in_batch=2)],
+        plugins=[],
         train_plugins=get_train_plugins(config),
         is_distributed=is_distributed,
         local_rank=local_rank,
@@ -210,6 +213,7 @@ def get_callbacks(
         #         mode="min",
         #         patience=50,
         #     ),
+        VisualizeCodebook(log_every=50),
         VisualizeProjections(benchmark, log_every=50, num_images=100),
         LearningRateMonitor(logging_interval="epoch"),
         LogModelWightsCallback(

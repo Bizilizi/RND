@@ -40,7 +40,7 @@ class ClassificationDataset(Dataset):
 
             with torch.no_grad():
                 _, full_features, _ = vq_vae.encoder(x)
-                image_emb = full_features.mean(dim=0)
+                image_emb = vq_vae.get_image_embedding(full_features)
 
                 self.targets.append(y.cpu())
                 self.embeddings.append(image_emb.cpu())
