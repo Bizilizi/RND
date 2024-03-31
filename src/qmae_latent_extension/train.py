@@ -23,7 +23,7 @@ from src.qmae_latent_extension.train_classifier import (
 from src.qmae_latent_extension.train_image_gpt import bootstrap_past_samples, train_igpt
 from src.qmae_latent_extension.utils.copy_dataset import copy_dataset_to_tmp
 from src.qmae_latent_extension.utils.wrap_empty_indices import (
-    wrap_dataset_with_empty_indices,
+    wrap_dataset,
 )
 from src.utils.summary_table import log_summary_table_to_wandb
 from src.utils.train_script import overwrite_config_with_args
@@ -66,15 +66,12 @@ def train_loop(
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
-        cl_strategy.model.extend_class_permutation(
-            torch.tensor(train_experience.dataset.targets).unique()
-        )
 
-        train_experience.dataset = wrap_dataset_with_empty_indices(
-            train_experience.dataset, time_index=cl_strategy.experience_step
+        train_experience.dataset = wrap_dataset(
+            train_experience.dataset, is_past_domain=False
         )
-        test_experience.dataset = wrap_dataset_with_empty_indices(
-            test_experience.dataset, time_index=cl_strategy.experience_step
+        test_experience.dataset = wrap_dataset(
+            test_experience.dataset, is_past_domain=False
         )
         igpt_train_dataset = train_experience.dataset
 
@@ -99,9 +96,7 @@ def train_loop(
                 image_gpt=image_gpt,
                 qmae_model=cl_strategy.model,
                 num_images=get_num_random_past_samples(config, cl_strategy),
-                dataset_path=config.bootstrapped_dataset_path,
                 config=config,
-                experience_step=cl_strategy.experience_step,
                 classes_seen_in_past=classes_seen_in_past,
             )
 

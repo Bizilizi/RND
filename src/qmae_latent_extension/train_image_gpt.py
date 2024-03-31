@@ -78,9 +78,7 @@ def bootstrap_past_samples(
     image_gpt: ImageGPTForCausalImageModeling,
     qmae_model: VitVQVae,
     num_images: int,
-    experience_step: int,
     classes_seen_in_past,
-    dataset_path: str,
     config: TrainConfig,
     transform: t.Optional[t.Any] = None,
 ) -> ClassificationDataset:
@@ -97,12 +95,7 @@ def bootstrap_past_samples(
     mask_token = qmae_model.feature_quantization.num_embeddings
     sos_token = qmae_model.feature_quantization.num_embeddings + 1
 
-    bootstrapped_dataset = BootstrappedDataset(
-        dataset_path=dataset_path,
-        experience_step=experience_step,
-        classes_seen_in_past=classes_seen_in_past,
-        transform=transform,
-    )
+    bootstrapped_dataset = BootstrappedDataset(transform=transform)
     image_embeddings = get_image_embedding(qmae_model, config, mask_token).to(
         qmae_model.device
     )

@@ -28,7 +28,7 @@ from src.qmae_latent_extension.train_image_gpt import (
 )
 from src.qmae_latent_extension.utils.fid_score import calculate_fid_given_datasets
 from src.qmae_latent_extension.utils.wrap_empty_indices import (
-    wrap_dataset_with_empty_indices,
+    wrap_dataset,
 )
 from train_utils import get_device
 
@@ -153,9 +153,7 @@ def calculate_fid_score(
 
         real_dataset = ConcatDataset(
             [
-                wrap_dataset_with_empty_indices(
-                    experience.dataset, time_index=experience_step
-                )
+                wrap_dataset(experience.dataset, is_past_domain=experience_step)
                 for experience_step, experience in enumerate(
                     benchmark.train_stream[: exp_step + 1]
                 )
@@ -181,8 +179,8 @@ def calculate_fid_score(
         )
         bootstrapped_dataset = ImgDataset(bootstrapped_dataset)
 
-        real_dataset = wrap_dataset_with_empty_indices(
-            benchmark.train_stream[task_id].dataset, time_index=exp_step
+        real_dataset = wrap_dataset(
+            benchmark.train_stream[task_id].dataset, is_past_domain=exp_step
         )
         real_dataset = ImgDataset(real_dataset)
 

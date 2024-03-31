@@ -5,18 +5,18 @@ from avalanche.benchmarks.utils import make_classification_dataset
 
 
 class WrappedDataset(Dataset):
-    def __init__(self, dataset, time_index):
+    def __init__(self, dataset, is_past_domain: bool):
         super().__init__()
 
         self.dataset = dataset
-        self.time_index = time_index
+        self.is_past_domain = int(is_past_domain)
 
     def __getitem__(self, item):
         x, y, *_ = self.dataset[item]
         data = {
             "images": x,
             "indices": torch.zeros(16 * 16 + 1, dtype=torch.int64),
-            "time_index": self.time_index,
+            "is_past_domain": self.is_past_domain,
         }
 
         return data, y
@@ -25,12 +25,12 @@ class WrappedDataset(Dataset):
         return len(self.dataset)
 
 
-def wrap_dataset_with_empty_indices(dataset: ClassificationDataset, time_index):
+def wrap_dataset(dataset: ClassificationDataset, is_past_domain: bool = False):
     """
     Creates classification dataset compatible with Avalanche framework,
     Takes dataset tuple : (x, y, *_)
-    and wraps them into : ({"images": x, "indices": None} , y, *_)
+    and wraps them into : ({"images": x, "indices": None, "is_past_domain": 1/0 } , y, *_)
     """
 
-    wrapped_dataset = WrappedDataset(dataset, time_index)
+    wrapped_dataset = WrappedDataset(dataset, is_past_domain)
     return make_classification_dataset(wrapped_dataset, targets=dataset.targets)

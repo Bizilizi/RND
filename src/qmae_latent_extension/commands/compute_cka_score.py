@@ -8,7 +8,7 @@ from tqdm.auto import trange
 from src.qmae_latent_extension.configuration.config import TrainConfig
 from src.qmae_latent_extension.init_scrips import get_benchmark, get_model
 from src.qmae_latent_extension.utils.wrap_empty_indices import (
-    wrap_dataset_with_empty_indices,
+    wrap_dataset,
 )
 from train_utils import get_device
 from torch_cka import CKA
@@ -61,8 +61,8 @@ def calculate_cka_score(
     model_2.to(device)
 
     # create datasets
-    real_dataset = wrap_dataset_with_empty_indices(
-        benchmark.train_stream[task_id].dataset, time_index=task_id
+    real_dataset = wrap_dataset(
+        benchmark.train_stream[task_id].dataset, is_past_domain=task_id
     )
     real_dataset = ImgDataset(real_dataset)
     dataloader = DataLoader(

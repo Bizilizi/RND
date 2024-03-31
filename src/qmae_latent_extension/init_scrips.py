@@ -210,7 +210,7 @@ def get_callbacks(
         #         mode="min",
         #         patience=50,
         #     ),
-        VisualizeProjections(benchmark, log_every=200),
+        VisualizeProjections(benchmark, log_every=50, num_images=100),
         LearningRateMonitor(logging_interval="epoch"),
         LogModelWightsCallback(
             local_rank=local_rank,

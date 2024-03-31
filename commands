@@ -22,7 +22,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 2880 \
     --ngpus 1 \
-    --comment "cifar10 ms l-ext sup" \
+    --comment "cifar10 ms 192 dim" \
     --group qmae_latent_ext \
     --model qmae-latent-extension \
     --config src/qmae_latent_extension/configuration/train.ini \

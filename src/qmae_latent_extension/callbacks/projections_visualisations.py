@@ -90,8 +90,9 @@ class VisualizeProjections(Callback):
                 )
 
     def project_dataset(self, model, dataset_to_project):
+        experience_step = model.experience_step
         random_indices = torch.randperm(len(dataset_to_project))[
-            : self.num_images
+            : self.num_images * (experience_step + 1)
         ].int()
         dataset_to_project = Subset(dataset_to_project, random_indices)
 

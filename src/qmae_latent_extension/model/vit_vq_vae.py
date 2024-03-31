@@ -178,15 +178,10 @@ class VitVQVae(CLModel):
         return reconstruction_loss
 
     def extend_clf_head(self):
-        self.old_clf_head = torch.cat([self.clf_head.data.clone(), self.old_clf_head])
+        self.old_clf_head = torch.cat([self.old_clf_head, self.clf_head.data.clone()])
         self.old_clf_head.requires_grad = False
 
         self.clf_head.data.normal_()
-
-    def extend_class_permutation(self, current_classes: torch.Tensor):
-        self.old_classes = torch.cat(
-            [current_classes.to(self.device), self.old_classes]
-        ).int()
 
     def get_cycle_consistency_loss(self, distances, indices):
         q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
@@ -213,8 +208,8 @@ class VitVQVae(CLModel):
 
         latent_distances = forward_output.latent_distances
 
-        past_data = y == -1
-        current_data = y >= 0
+        past_data = forward_output.past_data_mask
+        current_data = ~forward_output.past_data_mask
 
         # Compute reconstruction loss
         if current_data.any():
@@ -222,16 +217,14 @@ class VitVQVae(CLModel):
                 x_recon[current_data], x_data[current_data], y[current_data]
             )
 
-        if self._past_samples_loss_weight != 0 and past_data.any():
-            reconstruction_loss += self.get_reconstruction_loss(
-                x_recon[past_data], x_data[past_data], y[past_data]
-            )
+        # if self._past_samples_loss_weight != 0 and past_data.any():
+        #     reconstruction_loss += self.get_reconstruction_loss(
+        #         x_recon[past_data], x_data[past_data], y[past_data]
+        #     )
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:
-            current_logits = forward_output.clf_logits[current_data][
-                ..., self.old_classes
-            ]
+            current_logits = forward_output.clf_logits[current_data]
             current_y = y[current_data]
 
             clf_loss = F.cross_entropy(current_logits, current_y)
@@ -299,7 +292,7 @@ class VitVQVae(CLModel):
         image_emb = self.projection_head(image_emb)
 
         clf_logits = torch.cat(
-            [image_emb @ self.clf_head.T, image_emb @ self.old_clf_head.T], dim=1
+            [image_emb @ self.old_clf_head.T, image_emb @ self.clf_head.T], dim=1
         )
 
         return ForwardOutput(
@@ -320,13 +313,13 @@ class VitVQVae(CLModel):
     def training_step(self, batch, batch_idx):
         data, y, *_ = batch
 
-        past_data = y == -1
-
         x = data["images"]
 
         forward_output = self.forward(x)
         forward_output.x_data = x
-        forward_output.past_data_mask = data["time_index"] < self.experience_step
+        forward_output.past_data_mask = data["is_past_domain"] == 1
+
+        past_data = forward_output.past_data_mask
         if past_data.any():
             forward_output.x_indices[past_data] = data["indices"][past_data]
 
@@ -385,11 +378,12 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
-        past_data = y == -1
 
         forward_output = self.forward(x)
         forward_output.x_data = x
-        forward_output.past_data_mask = data["time_index"] < self.experience_step
+        forward_output.past_data_mask = data["is_past_domain"] == 1
+
+        past_data = forward_output.past_data_mask
         if past_data.any():
             forward_output.x_indices[past_data] = data["indices"][past_data]
 
