@@ -244,7 +244,6 @@ def train_igpt(
     )
 
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
-    return image_gpt
     step = 0
     for i in trange(0, epoch_num):
         counter = i
