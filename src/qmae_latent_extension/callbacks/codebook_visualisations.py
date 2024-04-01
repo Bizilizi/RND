@@ -34,7 +34,8 @@ class VisualizeCodebook(Callback):
 
         for logger in trainer.loggers:
             if isinstance(logger, WandbLogger):
-                codebook = model.feature_quantization._embedding.weight.clone().cpu()
+                codebook = model.feature_quantization._embedding.weight.clone()
+                codebook = model.projection_head(codebook).cpu()
 
                 if codebook.shape[-1] != 2:
                     codebook = umap.UMAP().fit_transform(codebook)

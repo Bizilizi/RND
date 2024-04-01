@@ -70,7 +70,7 @@ def train_classifier_on_all_classes(
     vq_vae_model = strategy.model.to(device)
 
     clf_head = EmbClassifier(
-        emb_dim=config.embedding_dim,
+        emb_dim=config.img_embedding_dim,
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
         dataset_mode="all_cls",
@@ -123,7 +123,7 @@ def train_classifier_on_observed_only_classes(
     vq_vae_model = strategy.model.to(device)
 
     clf_head = EmbClassifier(
-        emb_dim=config.embedding_dim,
+        emb_dim=config.img_embedding_dim,
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
         dataset_mode="observed_only_cls",
