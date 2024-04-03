@@ -85,7 +85,9 @@ class VisualizeProjections(Callback):
                         [
                             bootstrapped_image_embs,
                             bootstrapped_classes[..., None],
-                            torch.zeros(real_image_embs.shape[0], 1),  # is real flag
+                            torch.zeros(
+                                bootstrapped_image_embs.shape[0], 1
+                            ),  # is real flag
                         ],
                         dim=1,
                     )

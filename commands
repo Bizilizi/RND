@@ -20,7 +20,7 @@ python submitit_train.py \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --partition gpu \
-    --timeout 2880 \
+    --timeout 5700 \
     --ngpus 1 \
     --comment "cifar10 ms 192 dim" \
     --group qmae_latent_ext \
