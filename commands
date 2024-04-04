@@ -39,8 +39,8 @@ python submitit_train.py \
     --igpt_batch_size 64 \
     --max_epochs_lin_eval 2 \
     --igpt_mask_ratio 0.02 \
-    --num_random_past_samples 25000 \
-    --num_random_past_samples_schedule schedule \
+    --num_random_past_samples 250 \
+    --num_random_past_samples_schedule fixed \
     --cycle_consistency_loss_weight 1 \
     --cycle_consistency_sigma 1 \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \

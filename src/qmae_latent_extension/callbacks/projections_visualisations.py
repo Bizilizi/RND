@@ -158,7 +158,7 @@ class VisualizeProjections(Callback):
 
             x = x.to(model.device)
             _, full_features, _ = model.encoder(x)
-            image_emb = full_features.mean(dim=0)
+            image_emb = model.get_image_embedding(full_features)
 
             image_embs.append(image_emb)
             classes.append(y)
@@ -167,7 +167,8 @@ class VisualizeProjections(Callback):
         classes = torch.cat(classes).cpu()
 
         if image_embs.shape[-1] != 2:
-            image_embs = umap.UMAP().fit_transform(image_embs)
+            n_neighbors = min(15, image_embs.shape[0] // 2)
+            image_embs = umap.UMAP(n_neighbors=n_neighbors).fit_transform(image_embs)
             image_embs = torch.tensor(image_embs)
 
         return image_embs, classes
