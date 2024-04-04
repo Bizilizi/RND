@@ -152,6 +152,7 @@ class VisualizeProjections(Callback):
 
                 if past_data_mask.any():
                     x = x["images"][past_data_mask]
+                    y = y[past_data_mask]
                 else:
                     continue
 

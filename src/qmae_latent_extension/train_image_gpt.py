@@ -242,7 +242,7 @@ def train_igpt(
             500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
         ),
     )
-
+    return image_gpt
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
     step = 0
     for i in trange(0, epoch_num):

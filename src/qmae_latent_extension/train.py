@@ -129,12 +129,12 @@ def train_loop(
         print(f"Train classifier..")
         # We train two classifiers. One to predict all classes,
         # another to predict only observed so far classes.
-        train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        )
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        )
+        # train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # )
+        # train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # )
 
         # Finish CL step
         cl_strategy.model.unfreeze()

@@ -29,15 +29,15 @@ python submitit_train.py \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 600 \
-    --min_epochs 300 \
+    --max_epochs 2 \
+    --min_epochs 2 \
     --embedding_dim 192 \
     --img_embedding_dim 2 \
-    --igpt_num_epochs_max 20 \
-    --igpt_num_epochs_min 20 \
+    --igpt_num_epochs_max 1 \
+    --igpt_num_epochs_min 1 \
     --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 64 \
-    --max_epochs_lin_eval 100 \
+    --max_epochs_lin_eval 2 \
     --igpt_mask_ratio 0.02 \
     --num_random_past_samples 25000 \
     --num_random_past_samples_schedule schedule \
