@@ -80,6 +80,11 @@ class VisualizeProjections(Callback):
                         bootstrapped_classes,
                     ) = self.project_dataset(model, dataset_to_project)
 
+                    print(
+                        bootstrapped_image_embs.shape,
+                        bootstrapped_classes[..., None].shape,
+                        torch.zeros(bootstrapped_image_embs.shape[0], 1).shape,
+                    )
                     # Log bootstrapped dataset
                     bootstrapped_data = torch.cat(
                         [
