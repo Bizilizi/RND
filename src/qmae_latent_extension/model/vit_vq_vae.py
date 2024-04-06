@@ -224,8 +224,8 @@ class VitVQVae(CLModel):
 
         # Compute accuracy if classification head presents
         if forward_output.clf_logits is not None:
-            current_logits = forward_output.clf_logits[current_data]
-            current_y = y[current_data]
+            current_logits = forward_output.clf_logits
+            current_y = y
 
             clf_loss = F.cross_entropy(current_logits, current_y)
             clf_acc = (current_logits.argmax(dim=-1) == current_y).float().mean()
@@ -261,7 +261,9 @@ class VitVQVae(CLModel):
 
     def get_image_embedding(self, full_features):
         image_emb = self.selection_mask * full_features
+        """ T x B x emb_dim"""
         image_emb = image_emb.sum(dim=0)
+        """ B x emb_dim"""
         image_emb = self.projection_head(image_emb)
 
         return image_emb
