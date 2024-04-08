@@ -80,11 +80,6 @@ class VisualizeProjections(Callback):
                         bootstrapped_classes,
                     ) = self.project_dataset(model, dataset_to_project)
 
-                    print(
-                        bootstrapped_image_embs.shape,
-                        bootstrapped_classes[..., None].shape,
-                        torch.zeros(bootstrapped_image_embs.shape[0], 1).shape,
-                    )
                     # Log bootstrapped dataset
                     bootstrapped_data = torch.cat(
                         [
@@ -131,21 +126,21 @@ class VisualizeProjections(Callback):
 
     def project_dataset(self, model, dataset_to_project):
         experience_step = model.experience_step
-        random_indices = torch.randperm(len(dataset_to_project))[
-            : self.num_images * (experience_step + 1)
-        ].int()
-        dataset_to_project = Subset(dataset_to_project, random_indices)
-
         dataloader = DataLoader(
             dataset_to_project,
             num_workers=8,
             batch_size=self.batch_size,
-            shuffle=False,
+            shuffle=True,
         )
 
         image_embs = []
         classes = []
+
+        count = 0
         for x, y, _ in dataloader:
+            if count >= self.num_images * (experience_step + 1):
+                break
+
             if isinstance(x, dict):
                 # Project only past bootstrapped data
                 past_data_mask = x["is_past_domain"] == 1
@@ -162,6 +157,8 @@ class VisualizeProjections(Callback):
 
             image_embs.append(image_emb)
             classes.append(y)
+
+            count += x.shape[0]
 
         image_embs = torch.cat(image_embs).cpu()
         classes = torch.cat(classes).cpu()
