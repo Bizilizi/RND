@@ -22,6 +22,7 @@ from src.qmae_latent_extension.train_classifier import (
 )
 from src.qmae_latent_extension.train_image_gpt import bootstrap_past_samples, train_igpt
 from src.qmae_latent_extension.utils.copy_dataset import copy_dataset_to_tmp
+from src.qmae_latent_extension.utils.gdumb import bootstrap_past_samples_from_benchmark
 from src.qmae_latent_extension.utils.wrap_empty_indices import (
     wrap_dataset,
 )
@@ -92,12 +93,17 @@ def train_loop(
                 )
             )
 
-            bootstrapped_dataset = bootstrap_past_samples(
-                image_gpt=image_gpt,
-                qmae_model=cl_strategy.model,
+            # bootstrapped_dataset = bootstrap_past_samples(
+            #     image_gpt=image_gpt,
+            #     qmae_model=cl_strategy.model,
+            #     num_images=get_num_random_past_samples(config, cl_strategy),
+            #     config=config,
+            #     classes_seen_in_past=classes_seen_in_past,
+            # )
+            bootstrapped_dataset = bootstrap_past_samples_from_benchmark(
                 num_images=get_num_random_past_samples(config, cl_strategy),
-                config=config,
-                classes_seen_in_past=classes_seen_in_past,
+                benchmark=benchmark,
+                experience_step=cl_strategy.experience_step - 1,
             )
 
             train_experience.dataset = train_experience.dataset + bootstrapped_dataset
@@ -113,28 +119,28 @@ def train_loop(
 
         # Train new image gpt model
         print(f"Train igpt..")
-        image_gpt = train_igpt(
-            strategy=cl_strategy,
-            config=config,
-            train_dataset=igpt_train_dataset,
-            device=device,
-            n_layer=config.num_gpt_layers,
-            local_rank=local_rank,
-            is_distributed=is_distributed,
-            num_classes=benchmark.n_classes,
-            classes_seen_so_far=train_experience.classes_seen_so_far,
-        )
+        # image_gpt = train_igpt(
+        #     strategy=cl_strategy,
+        #     config=config,
+        #     train_dataset=igpt_train_dataset,
+        #     device=device,
+        #     n_layer=config.num_gpt_layers,
+        #     local_rank=local_rank,
+        #     is_distributed=is_distributed,
+        #     num_classes=benchmark.n_classes,
+        #     classes_seen_so_far=train_experience.classes_seen_so_far,
+        # )
 
         # Train linear classifiers
         print(f"Train classifier..")
         # We train two classifiers. One to predict all classes,
         # another to predict only observed so far classes.
-        train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        )
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        )
+        # train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # )
+        # train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # )
 
         # Finish CL step
         cl_strategy.model.unfreeze()

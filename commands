@@ -49,5 +49,5 @@ python submitit_train.py \
     --future_samples_mode noise \
     --num_workers 8 \
     --num_embeddings 256 \
-    --num_embeddings_per_step 256 \
+    --num_embeddings_per_step 128 \
     --precision 16-mixed

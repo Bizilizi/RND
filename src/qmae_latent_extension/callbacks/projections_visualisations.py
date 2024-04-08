@@ -157,7 +157,7 @@ class VisualizeProjections(Callback):
                     continue
 
             x = x.to(model.device)
-            _, full_features, _ = model.encoder(x)
+            _, full_features, _ = model.encoder(x, return_full_features=True)
             image_emb = model.get_image_embedding(full_features)
 
             image_embs.append(image_emb)
