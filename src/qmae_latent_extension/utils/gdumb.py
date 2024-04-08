@@ -66,15 +66,13 @@ def bootstrap_past_samples_from_benchmark(
     benchmark,
     experience_step,
 ) -> ClassificationDataset:
-    num_images_per_batch = min(128, num_images)
-
     train_dataset = ConcatDataset(
         [
             experience.dataset
             for experience in benchmark.train_stream[: experience_step + 1]
         ]
     )
-    random_indices = torch.randperm(len(train_dataset))[:num_images_per_batch].int()
+    random_indices = torch.randperm(len(train_dataset))[:num_images].int()
 
     train_dataset = Subset(train_dataset, random_indices)
     train_dataset = DummyBootstrap(vq_vae_model=vq_vae_model, dataset=train_dataset)
