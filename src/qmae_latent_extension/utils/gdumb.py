@@ -1,10 +1,12 @@
 import random
 
 import torch
+from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.dataset_definitions import ClassificationDataset
 from einops import rearrange
 from torch.utils.data import Dataset, ConcatDataset, Subset
 
+from src.qmae_latent_extension.data import bootstrapped_dataset
 from src.qmae_latent_extension.utils.wrap_empty_indices import wrap_dataset
 
 
@@ -15,15 +17,12 @@ class DummyBootstrap(Dataset):
 
         self.vq_vae_model = vq_vae_model
         self.dataset = dataset
-        self.targets = dataset.targets
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, item):
-        data, y, *_ = self.dataset[item]
-
-        image = data["images"].to(self.vq_vae_model.device)
+        image, y, *_ = self.dataset[item]
 
         input_ids = self._project_image(image)
 
@@ -38,7 +37,8 @@ class DummyBootstrap(Dataset):
     @torch.no_grad()
     def _project_image(self, image):
         # extract pathes featues
-        x = image[None]
+        x = image[None].to(self.vq_vae_model.device)
+
         _, full_features, _ = self.vq_vae_model.encoder(
             x,
             return_full_features=True,
@@ -72,9 +72,18 @@ def bootstrap_past_samples_from_benchmark(
             for experience in benchmark.train_stream[: experience_step + 1]
         ]
     )
+    targets = torch.cat(
+        [
+            torch.tensor(experience.dataset.targets)
+            for experience in benchmark.train_stream[: experience_step + 1]
+        ]
+    )
     random_indices = torch.randperm(len(train_dataset))[:num_images].int()
 
     train_dataset = Subset(train_dataset, random_indices)
     train_dataset = DummyBootstrap(vq_vae_model=vq_vae_model, dataset=train_dataset)
+    train_dataset = make_classification_dataset(
+        train_dataset, targets=targets[random_indices]
+    )
 
     return train_dataset
