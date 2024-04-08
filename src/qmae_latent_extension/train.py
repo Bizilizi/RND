@@ -119,28 +119,28 @@ def train_loop(
 
         # Train new image gpt model
         print(f"Train igpt..")
-        # image_gpt = train_igpt(
-        #     strategy=cl_strategy,
-        #     config=config,
-        #     train_dataset=igpt_train_dataset,
-        #     device=device,
-        #     n_layer=config.num_gpt_layers,
-        #     local_rank=local_rank,
-        #     is_distributed=is_distributed,
-        #     num_classes=benchmark.n_classes,
-        #     classes_seen_so_far=train_experience.classes_seen_so_far,
-        # )
+        image_gpt = train_igpt(
+            strategy=cl_strategy,
+            config=config,
+            train_dataset=igpt_train_dataset,
+            device=device,
+            n_layer=config.num_gpt_layers,
+            local_rank=local_rank,
+            is_distributed=is_distributed,
+            num_classes=benchmark.n_classes,
+            classes_seen_so_far=train_experience.classes_seen_so_far,
+        )
 
         # Train linear classifiers
         print(f"Train classifier..")
         # We train two classifiers. One to predict all classes,
         # another to predict only observed so far classes.
-        # train_classifier_on_all_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # )
-        # train_classifier_on_observed_only_classes(
-        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        # )
+        train_classifier_on_all_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        )
+        train_classifier_on_observed_only_classes(
+            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        )
 
         # Finish CL step
         cl_strategy.model.unfreeze()
