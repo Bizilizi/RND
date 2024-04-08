@@ -4,40 +4,60 @@ import torch
 from avalanche.benchmarks.utils import make_classification_dataset
 from avalanche.benchmarks.utils.dataset_definitions import ClassificationDataset
 from einops import rearrange
-from torch.utils.data import Dataset, ConcatDataset, Subset
+from torch.utils.data import Dataset, ConcatDataset, Subset, DataLoader
+from tqdm.auto import tqdm
 
 from src.qmae_latent_extension.data import bootstrapped_dataset
 from src.qmae_latent_extension.utils.wrap_empty_indices import wrap_dataset
 
 
 class DummyBootstrap(Dataset):
-    def __init__(self, vq_vae_model, dataset, num_workers=4):
+    def __init__(self, vq_vae_model, dataset, num_workers=4, batch_size=256):
         super().__init__()
         self.num_workers = num_workers
+        self.batch_size = batch_size
 
         self.vq_vae_model = vq_vae_model
         self.dataset = dataset
+
+        self.targets = []
+        self.images = []
+        self.indices = []
+
+        self._project_dataset()
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, item):
-        image, y, *_ = self.dataset[item]
-
-        input_ids = self._project_image(image)
-
         data = {
-            "images": image.cpu(),
-            "indices": input_ids.cpu(),
+            "images": self.images[item],
+            "indices": self.indices[item],
             "is_past_domain": 1,
         }
 
-        return data, y
+        return data, self.targets[item].item()
 
     @torch.no_grad()
-    def _project_image(self, image):
+    def _project_dataset(self):
+        dataloader = DataLoader(
+            self.dataset, batch_size=self.batch_size, shuffle=False, num_workers=0
+        )
+        for images, y, *_ in tqdm(dataloader, leave=False):
+            indices = self._project_batch(images.to(self.vq_vae_model.device))
+
+            self.targets.append(y)
+            self.images.append(images)
+            self.indices.append(indices)
+
+        self.targets = torch.cat(self.targets).cpu()
+        self.images = torch.cat(self.images).cpu()
+        self.indices = torch.cat(self.indices).cpu()
+
+    @torch.no_grad()
+    def _project_batch(self, batch):
         # extract pathes featues
-        x = image[None].to(self.vq_vae_model.device)
+        x = batch
 
         _, full_features, _ = self.vq_vae_model.encoder(
             x,
@@ -49,7 +69,9 @@ class DummyBootstrap(Dataset):
             input_ids,
             _,
         ) = self.vq_vae_model.feature_quantization(full_features)
-        input_ids = rearrange(input_ids, "(t b) 1 -> t b", b=x.shape[0]).squeeze()
+
+        input_ids = rearrange(input_ids, "(t b) 1 -> t b", b=x.shape[0])
+        input_ids = rearrange(input_ids, "t b -> b t")
 
         return input_ids
 
