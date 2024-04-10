@@ -67,6 +67,7 @@ class VitVQVae(CLModel):
         mask_token_id: int,
         num_epochs: int,
         batch_size: int,
+        num_classes_per_task: int,
         decay=0,
         learning_rate: float = 1e-3,
         weight_decay=0.05,
@@ -145,7 +146,7 @@ class VitVQVae(CLModel):
         self.projection_head = nn.Linear(embedding_dim, img_embedding_dim)
 
         self.clf_head = nn.Parameter(
-            torch.randn((2, img_embedding_dim)), requires_grad=True
+            torch.randn((num_classes_per_task, img_embedding_dim)), requires_grad=True
         )
         self.register_buffer(
             "old_clf_head", torch.zeros((0, img_embedding_dim), requires_grad=False)

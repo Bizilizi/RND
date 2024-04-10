@@ -184,6 +184,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
             * config.accumulate_grad_batches
             / 256
         ),
+        num_classes_per_task=10 // config.num_tasks,
         weight_decay=config.weight_decay,
         mask_ratio=config.mask_ratio,
         mask_token_id=config.num_embeddings,
