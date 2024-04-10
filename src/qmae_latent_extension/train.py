@@ -77,11 +77,7 @@ def train_loop(
         igpt_train_dataset = train_experience.dataset
 
         # Bootstrap old data
-        if (
-            cl_strategy.experience_step != 0
-            # and image_gpt is not None
-            and config.num_random_past_samples != 0
-        ):
+        if cl_strategy.experience_step != 0 and config.num_random_past_samples != 0:
             print(f"Bootstrap vae model..")
 
             # image_gpt.to(device)
@@ -93,19 +89,19 @@ def train_loop(
                 )
             )
 
-            # bootstrapped_dataset = bootstrap_past_samples(
-            #     image_gpt=image_gpt,
-            #     qmae_model=cl_strategy.model,
-            #     num_images=get_num_random_past_samples(config, cl_strategy),
-            #     config=config,
-            #     classes_seen_in_past=classes_seen_in_past,
-            # )
-            bootstrapped_dataset = bootstrap_past_samples_from_benchmark(
-                vq_vae_model=cl_strategy.model,
+            bootstrapped_dataset = bootstrap_past_samples(
+                image_gpt=image_gpt,
+                qmae_model=cl_strategy.model,
                 num_images=get_num_random_past_samples(config, cl_strategy),
-                benchmark=benchmark,
-                experience_step=cl_strategy.experience_step - 1,
+                config=config,
+                classes_seen_in_past=classes_seen_in_past,
             )
+            # bootstrapped_dataset = bootstrap_past_samples_from_benchmark(
+            #     vq_vae_model=cl_strategy.model,
+            #     num_images=get_num_random_past_samples(config, cl_strategy),
+            #     benchmark=benchmark,
+            #     experience_step=cl_strategy.experience_step - 1,
+            # )
 
             train_experience.dataset = train_experience.dataset + bootstrapped_dataset
             igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
