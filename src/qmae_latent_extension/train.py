@@ -80,7 +80,7 @@ def train_loop(
         if cl_strategy.experience_step != 0 and config.num_random_past_samples != 0:
             print(f"Bootstrap vae model..")
 
-            # image_gpt.to(device)
+            image_gpt.to(device)
             cl_strategy.model.to(device)
 
             classes_seen_in_past = list(
