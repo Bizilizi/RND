@@ -27,7 +27,7 @@ python submitit_train.py \
     --model qmae-latent-extension \
     --config src/qmae_latent_extension/configuration/train.ini \
     --dataset cifar10 \
-    --num_tasks 5 \
+    --num_tasks 1 \
     --num_epochs_schedule warmup \
     --max_epochs 600 \
     --min_epochs 300 \

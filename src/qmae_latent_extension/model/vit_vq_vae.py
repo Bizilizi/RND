@@ -214,9 +214,7 @@ class VitVQVae(CLModel):
 
         # Compute reconstruction loss
         if current_data.any():
-            reconstruction_loss = self.get_reconstruction_loss(
-                x_recon[current_data], x_data[current_data], y[current_data]
-            )
+            reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
 
         # if self._past_samples_loss_weight != 0 and past_data.any():
         #     reconstruction_loss += self.get_reconstruction_loss(
