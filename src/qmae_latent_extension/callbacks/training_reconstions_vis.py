@@ -28,11 +28,16 @@ class VisualizeTrainingReconstructions(Callback):
         w1: int = 2,
         log_every: int = 200,
         name: str = "rec_img",
+        mean=0.4733,
+        std=0.266,
     ):
         self.image_indices = torch.arange(num_images)
         self.w1 = w1
         self.name = name
         self.log_every = log_every
+
+        self.mean = mean
+        self.std = std
 
     @torch.no_grad()
     def on_train_epoch_end(
@@ -88,9 +93,8 @@ class VisualizeTrainingReconstructions(Callback):
                     }
                 )
 
-    @staticmethod
-    def _rescale_image(image):
-        image = (image + 0.5) * 255
+    def _rescale_image(self, image):
+        image = (image * self.std + self.mean) * 255
         image = torch.clamp(image, 0, 255)
 
         return image.permute(1, 2, 0).int()

@@ -388,7 +388,7 @@ def sample_images(
         grid_image = make_grid(
             x_recon.cpu().data,
         )
-        grid_image = (grid_image + 0.5) * 255
+        grid_image = (grid_image * 0.266 + 0.4733) * 255
         grid_image = grid_image.clip(0, 255)
 
         return grid_image
