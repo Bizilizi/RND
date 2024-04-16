@@ -105,6 +105,7 @@ def get_cl_strategy(
 
 def get_benchmark(config: TrainConfig, target_dataset_dir):
     if config.dataset == "cifar10":
+        config.dataset_variance = 1.0
         return SplitCIFAR10(
             n_experiences=config.num_tasks,
             return_task_id=True,
@@ -113,18 +114,22 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
             train_transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                    transforms.Normalize(
+                        (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+                    ),
                 ]
             ),
             eval_transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                    transforms.Normalize(
+                        (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+                    ),
                 ]
             ),
         )
     elif config.dataset == "cifar100":
-        config.dataset_variance = 0.071
+        config.dataset_variance = 1
         return SplitCIFAR100(
             n_experiences=config.num_tasks,
             return_task_id=True,
@@ -133,13 +138,17 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
             train_transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                    transforms.Normalize(
+                        (0.4914, 0.4822, 0.4465), (0.2673, 0.2564, 0.2762)
+                    ),
                 ]
             ),
             eval_transform=transforms.Compose(
                 [
                     transforms.ToTensor(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465), (1, 1, 1)),
+                    transforms.Normalize(
+                        (0.4914, 0.4822, 0.4465), (0.2673, 0.2564, 0.2762)
+                    ),
                 ]
             ),
         )

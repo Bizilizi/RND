@@ -16,6 +16,9 @@ class BootstrappedDataset(Dataset):
         self.indices = None
         self.targets = None
 
+        self.mean = 0
+        self.std = 0
+
     def add_data(self, images, latent_indices, labels):
         if self.images is None:
             self.images = images
@@ -26,10 +29,12 @@ class BootstrappedDataset(Dataset):
             self.indices = torch.cat([self.indices, latent_indices], dim=0)
             self.targets = torch.cat([self.targets, labels], dim=0)
 
+        self.mean = self.images.mean()
+        self.std = self.images.std()
+
     def __getitem__(self, item):
         image = self.images[item]
-        if self.transform is not None:
-            image = self.transform(image)
+        image = (image - self.mean) / self.std
 
         data = {
             "images": image,

@@ -87,7 +87,7 @@ class VitVQVae(CLModel):
         precision: str = "32-true",
         accelerator: str = "cuda",
         quantize_features: bool = True,
-        data_variance: float = 0.06328692405746414,
+        data_variance: float = 1,
     ) -> None:
         super().__init__()
 

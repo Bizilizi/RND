@@ -22,12 +22,12 @@ python submitit_train.py \
     --partition gpu \
     --timeout 5700 \
     --ngpus 1 \
-    --comment "cifar10 no ccl" \
+    --comment "cifar10 full rec loss" \
     --group qmae_latent_ext \
     --model qmae-latent-extension \
     --config src/qmae_latent_extension/configuration/train.ini \
     --dataset cifar10 \
-    --num_tasks 1 \
+    --num_tasks 5 \
     --num_epochs_schedule warmup \
     --max_epochs 600 \
     --min_epochs 300 \
