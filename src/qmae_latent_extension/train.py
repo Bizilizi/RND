@@ -18,11 +18,9 @@ from src.qmae_latent_extension.init_scrips import (
 from src.qmae_latent_extension.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
-    train_classifier_on_random_memory,
 )
 from src.qmae_latent_extension.train_image_gpt import bootstrap_past_samples, train_igpt
 from src.qmae_latent_extension.utils.copy_dataset import copy_dataset_to_tmp
-from src.qmae_latent_extension.utils.gdumb import bootstrap_past_samples_from_benchmark
 from src.qmae_latent_extension.utils.wrap_empty_indices import (
     wrap_dataset,
 )
@@ -69,10 +67,14 @@ def train_loop(
     ):
 
         train_experience.dataset = wrap_dataset(
-            train_experience.dataset, is_past_domain=False
+            train_experience.dataset,
+            is_past_domain=False,
+            img_embedding_dim=config.img_embedding_dim,
         )
         test_experience.dataset = wrap_dataset(
-            test_experience.dataset, is_past_domain=False
+            test_experience.dataset,
+            is_past_domain=False,
+            img_embedding_dim=config.img_embedding_dim,
         )
         igpt_train_dataset = train_experience.dataset
 

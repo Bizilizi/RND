@@ -111,9 +111,13 @@ def bootstrap_past_samples(
             classes_to_sample=classes_seen_in_past,
         )
 
+        _, full_features, _ = qmae_model.encoder(images, return_full_features=True)
+        features = qmae_model.get_image_embedding(full_features)
+
         bootstrapped_dataset.add_data(
             images=images.cpu(),
             latent_indices=latent_indices.cpu(),
+            features=features.cpu(),
             labels=labels.cpu(),
         )
 
@@ -242,7 +246,7 @@ def train_igpt(
             500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
         ),
     )
-
+    return image_gpt
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
     step = 0
     for i in trange(0, epoch_num):

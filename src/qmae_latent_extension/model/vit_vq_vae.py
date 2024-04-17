@@ -31,6 +31,7 @@ class ForwardOutput:
     x_data: torch.Tensor
     x_recon: torch.Tensor
     x_indices: torch.Tensor
+    x_img_embeddings: torch.Tensor
 
     quantized: torch.Tensor
     latent_distances: torch.Tensor
@@ -49,6 +50,7 @@ class CriterionOutput:
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
     past_cycle_consistency_loss: torch.Tensor
+    past_image_embedding_consistency: torch.Tensor
     triplet_loss: torch.Tensor
 
     clf_loss: torch.Tensor
@@ -242,6 +244,11 @@ class VitVQVae(CLModel):
                 distances, indices
             )
 
+        # Compute image embedding consistency loss
+        past_image_embedding_consistency = torch.norm(
+            forward_output.x_img_embeddings - forward_output.image_emb, dim=1, p=2
+        )
+
         # Compute triplet loss
         # triplet_loss = self.triplet_loss(
         #     forward_output.image_emb, forward_output.past_data_mask
@@ -252,6 +259,7 @@ class VitVQVae(CLModel):
             vq_loss=forward_output.vq_loss,
             reconstruction_loss=reconstruction_loss,
             past_cycle_consistency_loss=past_cycle_consistency_loss,
+            past_image_embedding_consistency=past_image_embedding_consistency,
             triplet_loss=triplet_loss,
             clf_loss=clf_loss,
             clf_acc=clf_acc,
@@ -304,6 +312,7 @@ class VitVQVae(CLModel):
             x_recon=x_recon,
             x_data=x,
             x_indices=x_indices,
+            x_img_embeddings=None,
             quantized=masked_features,
             perplexity=perplexity,
             image_emb=image_emb,
@@ -322,6 +331,7 @@ class VitVQVae(CLModel):
         forward_output = self.forward(x)
         forward_output.x_data = x
         forward_output.past_data_mask = data["is_past_domain"] == 1
+        forward_output.x_img_embeddings = data["features"]
 
         past_data = forward_output.past_data_mask
         if past_data.any():
@@ -386,6 +396,7 @@ class VitVQVae(CLModel):
         forward_output = self.forward(x)
         forward_output.x_data = x
         forward_output.past_data_mask = data["is_past_domain"] == 1
+        forward_output.x_img_embeddings = data["features"]
 
         past_data = forward_output.past_data_mask
         if past_data.any():
