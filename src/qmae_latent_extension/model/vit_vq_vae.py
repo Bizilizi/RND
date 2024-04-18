@@ -9,6 +9,7 @@ import torch
 from einops import rearrange
 from pytorch_metric_learning.distances import CosineSimilarity
 from pytorch_metric_learning.losses import ContrastiveLoss, TripletMarginLoss
+from timm.models.vision_transformer import Block
 from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
@@ -142,9 +143,6 @@ class VitVQVae(CLModel):
 
         self.triplet_loss = TripletMarginLoss()
 
-        self.selection_mask = nn.Parameter(
-            torch.ones((16 * 16 + 1, 1, 1)), requires_grad=True
-        )
         self.projection_head = nn.Linear(embedding_dim, img_embedding_dim)
 
         self.clf_head = nn.Parameter(
@@ -247,7 +245,7 @@ class VitVQVae(CLModel):
         # Compute image embedding consistency loss
         past_image_embedding_consistency = torch.norm(
             forward_output.x_img_embeddings - forward_output.image_emb, dim=1, p=2
-        )
+        ).mean()
 
         # Compute triplet loss
         # triplet_loss = self.triplet_loss(
@@ -267,9 +265,7 @@ class VitVQVae(CLModel):
         )
 
     def get_image_embedding(self, full_features):
-        image_emb = self.selection_mask * full_features
-        """ T x B x emb_dim"""
-        image_emb = image_emb.sum(dim=0)
+        image_emb = full_features[0]
         """ B x emb_dim"""
         image_emb = self.projection_head(image_emb)
 
@@ -475,7 +471,6 @@ class VitVQVae(CLModel):
                 nn.ParameterList(
                     [
                         self.clf_head,
-                        self.selection_mask,
                     ]
                 ),
             ),
