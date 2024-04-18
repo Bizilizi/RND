@@ -200,6 +200,7 @@ class VitVQVae(CLModel):
         # prepare default values
         clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
         past_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
+        past_image_embedding_consistency = torch.tensor(0.0, device=self.device)
         reconstruction_loss = torch.tensor(0.0, device=self.device)
 
         # unpack variables from forward output
@@ -243,9 +244,10 @@ class VitVQVae(CLModel):
             )
 
         # Compute image embedding consistency loss
-        past_image_embedding_consistency = torch.norm(
-            forward_output.x_img_embeddings - forward_output.image_emb, dim=1, p=2
-        ).mean()
+        if self.cycle_consistency_weight != 0:
+            past_image_embedding_consistency = torch.norm(
+                forward_output.x_img_embeddings - forward_output.image_emb, dim=1, p=2
+            ).mean()
 
         # Compute triplet loss
         # triplet_loss = self.triplet_loss(
@@ -341,6 +343,7 @@ class VitVQVae(CLModel):
             + criterion_output.past_cycle_consistency_loss
             * self.cycle_consistency_weight
             + criterion_output.past_image_embedding_consistency
+            * self.cycle_consistency_weight
             # + criterion_output.triplet_loss
             + criterion_output.clf_loss
         )
