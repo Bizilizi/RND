@@ -223,9 +223,9 @@ class VitVQVae(CLModel):
         #     )
 
         # Compute accuracy if classification head presents
-        if forward_output.clf_logits is not None:
-            current_logits = forward_output.clf_logits
-            current_y = y
+        if past_data.any():
+            current_logits = forward_output.clf_logits[past_data]
+            current_y = y[past_data]
 
             clf_loss = F.cross_entropy(current_logits, current_y)
             clf_acc = (current_logits.argmax(dim=-1) == current_y).float().mean()
