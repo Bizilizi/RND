@@ -20,7 +20,7 @@ python submitit_train.py \
     --batch_size 512 \
     --accumulate_grad_batches 1 \
     --partition gpu \
-    --timeout 5700 \
+    --timeout 1680 \
     --ngpus 1 \
     --comment "cifar10 lcl everywhere" \
     --group qmae_latent_ext \
@@ -29,15 +29,15 @@ python submitit_train.py \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 2 \
-    --min_epochs 2 \
+    --max_epochs 600 \
+    --min_epochs 300 \
     --embedding_dim 192 \
     --img_embedding_dim 2 \
-    --igpt_num_epochs_max 2 \
-    --igpt_num_epochs_min 2 \
+    --igpt_num_epochs_max 20 \
+    --igpt_num_epochs_min 20 \
     --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 64 \
-    --max_epochs_lin_eval 2 \
+    --max_epochs_lin_eval 100 \
     --igpt_mask_ratio 0.02 \
     --num_random_past_samples 250000 \
     --num_random_past_samples_schedule schedule \

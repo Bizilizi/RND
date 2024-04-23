@@ -1005,7 +1005,7 @@ class ImageGPTForCausalImageModeling(ImageGPTPreTrainedModel):
     def __init__(self, config: ImageGPTConfig):
         super().__init__(config)
         self.transformer = ImageGPTModel(config)
-        self.lm_head = nn.Linear(config.n_embd, config.vocab_size - 1, bias=False)
+        self.lm_head = nn.Linear(config.n_embd, config.vocab_size, bias=False)
 
         # Model parallel
         self.model_parallel = False
