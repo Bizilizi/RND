@@ -85,8 +85,7 @@ class VitVQVae(CLModel):
         cycle_consistency_power=3,
         cycle_consistency_weight=1,
         cycle_consistency_sigma: float = 1,
-        current_samples_loss_weight=2,
-        past_samples_loss_weight=1,
+        past_samples_rec_loss=True,
         precision: str = "32-true",
         accelerator: str = "cuda",
         quantize_features: bool = True,
@@ -104,8 +103,7 @@ class VitVQVae(CLModel):
         self._mask_token_id = mask_token_id
         self._precision_dtype = torch.half if precision == "16-mixed" else torch.float32
         self._accelerator = accelerator
-        self._current_samples_loss_weight = current_samples_loss_weight
-        self._past_samples_loss_weight = past_samples_loss_weight
+        self._past_samples_rec_loss = past_samples_rec_loss
         self._num_epochs = num_epochs
         self._batch_size = batch_size
         self._cycle_consistency_sigma = cycle_consistency_sigma
@@ -156,15 +154,10 @@ class VitVQVae(CLModel):
     def get_reconstruction_loss(
         self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
     ):
-        # Create weight vector to shift gradient towards current dataset
-        weight_tensor = torch.ones(y.shape[0], device=self.device)
-        weight_tensor[y >= 0] = self._current_samples_loss_weight
-
         if self.use_lpips:
-            lpips_loss = (self._lpips(x, x_rec) * weight_tensor).mean()
+            lpips_loss = self._lpips(x, x_rec).mean()
             l1_loss = torch.mean(
                 F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
-                * weight_tensor
                 / self._data_variance
             )
             reconstruction_loss = lpips_loss + l1_loss
@@ -172,7 +165,6 @@ class VitVQVae(CLModel):
         else:
             reconstruction_loss = torch.mean(
                 F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
-                * weight_tensor
                 / self._data_variance
             )
 
@@ -214,13 +206,12 @@ class VitVQVae(CLModel):
         current_data = ~forward_output.past_data_mask
 
         # Compute reconstruction loss
-        if current_data.any():
-            reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
+        reconstruction_mask = current_data
+        if self._past_samples_rec_loss:
+            reconstruction_mask = reconstruction_mask | past_data
 
-        # if self._past_samples_loss_weight != 0 and past_data.any():
-        #     reconstruction_loss += self.get_reconstruction_loss(
-        #         x_recon[past_data], x_data[past_data], y[past_data]
-        #     )
+        if reconstruction_mask.any():
+            reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
 
         # Compute accuracy if classification head presents
         # if past_data.any():

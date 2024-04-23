@@ -113,7 +113,7 @@ def train_loop(
             cl_strategy.model.feature_quantization.extend_codebook()
             cl_strategy.model.extend_clf_head()
 
-        # cl_strategy.train(train_experience, [test_experience])
+        cl_strategy.train(train_experience, [test_experience])
         cl_strategy.model.freeze()
 
         # Train new image gpt model

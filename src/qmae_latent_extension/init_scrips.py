@@ -20,9 +20,6 @@ from src.qmae_latent_extension.callbacks.projections_visualisations import (
 )
 from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.qmae_latent_extension.callbacks.log_dataset import LogDataset
-from src.qmae_latent_extension.callbacks.reconstruction_visualization_plugin import (
-    ReconstructionVisualizationPlugin,
-)
 from src.qmae_latent_extension.callbacks.training_reconstions_vis import (
     VisualizeTrainingReconstructions,
 )
@@ -200,8 +197,7 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         use_lpips=config.use_lpips,
         precision=config.precision,
         accelerator=config.accelerator,
-        current_samples_loss_weight=config.current_samples_loss_weight,
-        past_samples_loss_weight=config.past_samples_loss_weight,
+        past_samples_rec_loss=config.past_samples_rec_loss,
         batch_size=config.batch_size * config.accumulate_grad_batches,
         num_epochs=config.max_epochs,
         cycle_consistency_weight=config.cycle_consistency_loss_weight,

@@ -15,6 +15,16 @@ class LogDataset(Callback):
     dataset for current CL step
     """
 
+    def __init__(
+        self,
+        mean=0.4733,
+        std=0.266,
+        num_images=500,
+    ):
+        self.num_images = num_images
+        self.mean = mean
+        self.std = std
+
     def on_fit_start(
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
@@ -35,7 +45,7 @@ class LogDataset(Callback):
 
         for logger in trainer.loggers:
             if isinstance(logger, WandbLogger):
-                random_idx = torch.randperm(len(dataset))[:500]
+                random_idx = torch.randperm(len(dataset))[: self.num_images]
 
                 images = [
                     wandb.Image(
@@ -83,9 +93,9 @@ class LogDataset(Callback):
 
         yield row
 
-    @staticmethod
-    def _rescale_image(image):
-        image = torch.clone(image) + 0.5
-        image = torch.clamp(image, 0) * 255
+    def _rescale_image(self, image):
+        image = torch.clone(image)
+        image = (image * self.std + self.mean) * 255
+        image = torch.clamp(image, 0, 255)
 
         return image.permute(1, 2, 0).int()
