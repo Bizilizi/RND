@@ -27,9 +27,9 @@ python submitit_train.py \
     --model qmae-latent-extension \
     --config src/qmae_latent_extension/configuration/train.ini \
     --dataset cifar10 \
-    --num_tasks 1 \
+    --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 1600 \
+    --max_epochs 600 \
     --min_epochs 300 \
     --embedding_dim 192 \
     --img_embedding_dim 2 \
@@ -44,9 +44,7 @@ python submitit_train.py \
     --cycle_consistency_loss_weight 1 \
     --cycle_consistency_sigma 1 \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
-    --current_samples_loss_weight 0 \
-    --num_random_future_samples 0 \
-    --future_samples_mode noise \
+    --past_samples_rec_loss True \
     --num_workers 8 \
     --num_embeddings 512 \
     --num_embeddings_per_step 32 \
