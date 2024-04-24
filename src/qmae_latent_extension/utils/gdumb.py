@@ -88,18 +88,9 @@ def bootstrap_past_samples_from_benchmark(
     benchmark,
     experience_step,
 ) -> ClassificationDataset:
-    train_dataset = ConcatDataset(
-        [
-            experience.dataset
-            for experience in benchmark.train_stream[: experience_step + 1]
-        ]
-    )
-    targets = torch.cat(
-        [
-            torch.tensor(experience.dataset.targets)
-            for experience in benchmark.train_stream[: experience_step + 1]
-        ]
-    )
+    train_dataset = benchmark.train_stream[experience_step].dataset
+    targets = torch.tensor(benchmark.train_stream[experience_step].dataset.targets)
+
     random_indices = torch.randperm(len(train_dataset))[:num_images].int()
 
     train_dataset = Subset(train_dataset, random_indices)

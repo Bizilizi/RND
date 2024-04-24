@@ -22,7 +22,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "cifar10 full ccl" \
+    --comment "cifar10 no ccl" \
     --group qmae_latent_ext \
     --model qmae-latent-extension \
     --config src/qmae_latent_extension/configuration/train.ini \
@@ -41,7 +41,7 @@ python submitit_train.py \
     --igpt_mask_ratio 0.02 \
     --num_random_past_samples 250000 \
     --num_random_past_samples_schedule schedule \
-    --cycle_consistency_loss_weight 1 \
+    --cycle_consistency_loss_weight 0 \
     --cycle_consistency_sigma 1 \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --past_samples_rec_loss True \
