@@ -235,10 +235,10 @@ class VitVQVae(CLModel):
             )
 
         # Compute image embedding consistency loss
-        if self.cycle_consistency_weight != 0:
-            past_image_embedding_consistency = torch.norm(
-                forward_output.x_img_embeddings - forward_output.image_emb, dim=1, p=2
-            ).mean()
+        # if self.cycle_consistency_weight != 0:
+        #     past_image_embedding_consistency = torch.norm(
+        #         forward_output.x_img_embeddings - forward_output.image_emb, dim=1, p=2
+        #     ).mean()
 
         # Compute triplet loss
         # triplet_loss = self.triplet_loss(
