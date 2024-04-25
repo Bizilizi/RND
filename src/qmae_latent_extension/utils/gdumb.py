@@ -23,6 +23,7 @@ class DummyBootstrap(Dataset):
         self.targets = []
         self.images = []
         self.indices = []
+        self.features = []
 
         self._project_dataset()
 
@@ -33,6 +34,7 @@ class DummyBootstrap(Dataset):
         data = {
             "images": self.images[item],
             "indices": self.indices[item],
+            "features": self.features[item],
             "is_past_domain": 1,
         }
 
@@ -44,15 +46,17 @@ class DummyBootstrap(Dataset):
             self.dataset, batch_size=self.batch_size, shuffle=False, num_workers=0
         )
         for images, y, *_ in tqdm(dataloader, leave=False):
-            indices = self._project_batch(images.to(self.vq_vae_model.device))
+            indices, features = self._project_batch(images.to(self.vq_vae_model.device))
 
             self.targets.append(y)
             self.images.append(images)
             self.indices.append(indices)
+            self.features.append(features)
 
         self.targets = torch.cat(self.targets).cpu()
         self.images = torch.cat(self.images).cpu()
         self.indices = torch.cat(self.indices).cpu()
+        self.features = torch.cat(self.features).cpu()
 
     @torch.no_grad()
     def _project_batch(self, batch):
@@ -73,7 +77,9 @@ class DummyBootstrap(Dataset):
         input_ids = rearrange(input_ids, "(t b) 1 -> t b", b=x.shape[0])
         input_ids = rearrange(input_ids, "t b -> b t")
 
-        return input_ids
+        features = self.vq_vae_model.get_image_embedding(full_features)
+
+        return input_ids, features
 
 
 def extend_memory(memory, dataset, num_samples):
