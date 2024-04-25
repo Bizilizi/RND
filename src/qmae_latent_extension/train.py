@@ -99,15 +99,15 @@ def train_loop(
                 config=config,
                 classes_seen_in_past=classes_seen_in_past,
             )
-            bootstrapped_dataset = (
-                bootstrapped_dataset
-                + bootstrap_past_samples_from_benchmark(
-                    vq_vae_model=cl_strategy.model,
-                    num_images=get_num_random_past_samples(config, cl_strategy) // 5,
-                    benchmark=benchmark,
-                    experience_step=cl_strategy.experience_step - 1,
-                )
-            )
+            # bootstrapped_dataset = (
+            #     bootstrapped_dataset
+            #     + bootstrap_past_samples_from_benchmark(
+            #         vq_vae_model=cl_strategy.model,
+            #         num_images=get_num_random_past_samples(config, cl_strategy) // 5,
+            #         benchmark=benchmark,
+            #         experience_step=cl_strategy.experience_step - 1,
+            #     )
+            # )
 
             train_experience.dataset = train_experience.dataset + bootstrapped_dataset
             igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
