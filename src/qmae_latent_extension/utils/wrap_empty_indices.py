@@ -16,7 +16,7 @@ class WrappedDataset(Dataset):
         x, y, *_ = self.dataset[item]
         data = {
             "images": x,
-            "indices": torch.zeros(16 * 16 + 1, dtype=torch.int64),
+            "indices": torch.zeros(129, dtype=torch.int64),
             "features": torch.zeros(self.img_embedding_dim, dtype=torch.float64),
             "is_past_domain": self.is_past_domain,
         }
