@@ -220,17 +220,17 @@ class VitVQVae(CLModel):
         clf_acc = (logits.argmax(dim=-1) == y).float().mean()
 
         # Compute consistency loss
-        if (
-            latent_distances is not None
-            and self.cycle_consistency_weight != 0
-            and past_data.any()
-        ):
-            distances = latent_distances[past_data]
-            indices = x_indices[past_data].long()
-
-            past_cycle_consistency_loss = self.get_cycle_consistency_loss(
-                distances, indices
-            )
+        # if (
+        #     latent_distances is not None
+        #     and self.cycle_consistency_weight != 0
+        #     and past_data.any()
+        # ):
+        #     distances = latent_distances[past_data]
+        #     indices = x_indices[past_data].long()
+        #
+        #     past_cycle_consistency_loss = self.get_cycle_consistency_loss(
+        #         distances, indices
+        #     )
 
         # Compute image embedding consistency loss
         # if self.cycle_consistency_weight != 0:
@@ -321,8 +321,8 @@ class VitVQVae(CLModel):
         forward_output.x_img_embeddings = data["features"]
 
         past_data = forward_output.past_data_mask
-        if past_data.any():
-            forward_output.x_indices[past_data] = data["indices"][past_data]
+        # if past_data.any():
+        #     forward_output.x_indices[past_data] = data["indices"][past_data]
 
         criterion_output = self.criterion(forward_output, y)
 
@@ -392,8 +392,8 @@ class VitVQVae(CLModel):
         forward_output.x_img_embeddings = data["features"]
 
         past_data = forward_output.past_data_mask
-        if past_data.any():
-            forward_output.x_indices[past_data] = data["indices"][past_data]
+        # if past_data.any():
+        #     forward_output.x_indices[past_data] = data["indices"][past_data]
 
         criterion_output = self.criterion(forward_output, y)
 
