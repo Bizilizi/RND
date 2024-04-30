@@ -106,23 +106,13 @@ class NaivePytorchLightning(Naive):
         )
 
         # Training
-        if isinstance(self.max_epochs, list):
-            max_epochs = self.max_epochs[self.experience_step]
-        else:
-            max_epochs = self.max_epochs
-
-        if isinstance(self.max_epochs, list):
-            min_epochs = self.min_epochs[self.experience_step]
-        else:
-            min_epochs = self.min_epochs
-
         self.trainer = Trainer(
             check_val_every_n_epoch=self.validate_every_n,
             accelerator=self.accelerator,
             devices=self.devices,
             logger=self.train_logger,
-            max_epochs=max_epochs,
-            min_epochs=min_epochs,
+            max_epochs=self.max_epochs,
+            min_epochs=self.min_epochs,
             callbacks=(
                 self.callbacks_factory(self.experience_step) + self.strategy_callbacks
             ),

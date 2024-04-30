@@ -14,6 +14,7 @@ from src.qmae_latent_extension.init_scrips import (
     get_model,
     get_benchmark,
     get_cl_strategy,
+    get_epochs_schedule,
 )
 from src.qmae_latent_extension.train_classifier import (
     train_classifier_on_all_classes,
@@ -62,10 +63,15 @@ def train_loop(
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
     image_gpt = None
+    bootstrapped_dataset = None
+    epochs_schedule = get_epochs_schedule(config)
 
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
     ):
+        # set number of training epochs
+        cl_strategy.max_epochs = epochs_schedule[cl_strategy.experience_step]
+        cl_strategy.min_epochs = epochs_schedule[cl_strategy.experience_step]
 
         train_experience.dataset = wrap_dataset(
             train_experience.dataset,
@@ -79,36 +85,7 @@ def train_loop(
         )
         igpt_train_dataset = train_experience.dataset
 
-        # Bootstrap old data
-        if cl_strategy.experience_step != 0 and config.num_random_past_samples != 0:
-            print(f"Bootstrap vae model..")
-
-            image_gpt.to(device)
-            cl_strategy.model.to(device)
-
-            classes_seen_in_past = list(
-                set(train_experience.classes_seen_so_far).difference(
-                    train_experience.classes_in_this_experience
-                )
-            )
-
-            bootstrapped_dataset = bootstrap_past_samples(
-                image_gpt=image_gpt,
-                qmae_model=cl_strategy.model,
-                num_images=get_num_random_past_samples(config, cl_strategy),
-                config=config,
-                classes_seen_in_past=classes_seen_in_past,
-            )
-            # bootstrapped_dataset = (
-            #     bootstrapped_dataset
-            #     + bootstrap_past_samples_from_benchmark(
-            #         vq_vae_model=cl_strategy.model,
-            #         num_images=get_num_random_past_samples(config, cl_strategy) // 5,
-            #         benchmark=benchmark,
-            #         experience_step=cl_strategy.experience_step - 1,
-            #     )
-            # )
-
+        if bootstrapped_dataset is not None:
             train_experience.dataset = train_experience.dataset + bootstrapped_dataset
             igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset
 
@@ -133,6 +110,40 @@ def train_loop(
             num_classes=benchmark.n_classes,
             classes_seen_so_far=train_experience.classes_seen_so_far,
         )
+
+        # Bootstrap old data
+        if config.num_random_past_samples != 0:
+            print(f"Bootstrap vae model..")
+
+            image_gpt.to(device)
+            cl_strategy.model.to(device)
+
+            classes_seen_in_past = list(train_experience.classes_seen_so_far)
+
+            bootstrapped_dataset = bootstrap_past_samples(
+                image_gpt=image_gpt,
+                qmae_model=cl_strategy.model,
+                num_images=get_num_random_past_samples(config, cl_strategy),
+                config=config,
+                classes_seen_in_past=classes_seen_in_past,
+            )
+
+            # train model on dataset again
+            cl_step = cl_strategy.experience_step
+            train_experience.dataset = (
+                wrap_dataset(
+                    benchmark.train_stream[cl_step].dataset,
+                    is_past_domain=False,
+                    img_embedding_dim=config.img_embedding_dim,
+                )
+                + bootstrapped_dataset
+            )
+
+            cl_strategy.max_epochs = cl_strategy.min_epochs = 2
+
+            cl_strategy.model.unfreeze()
+            cl_strategy.train(train_experience, [test_experience])
+            cl_strategy.model.freeze()
 
         # Train linear classifiers
         print(f"Train classifier..")
