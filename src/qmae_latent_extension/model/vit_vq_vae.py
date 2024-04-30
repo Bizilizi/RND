@@ -214,19 +214,10 @@ class VitVQVae(CLModel):
             reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
 
         # Compute accuracy if classification head presents
-        if past_data.any():
-            past_logits = forward_output.clf_logits[past_data]
-            past_y = y[past_data]
+        logits = forward_output.clf_logits
 
-            clf_loss = F.cross_entropy(past_logits, past_y)
-            clf_acc = (past_logits.argmax(dim=-1) == past_y).float().mean()
-
-        if self.experience_step == 0:
-            current_logits = forward_output.clf_logits
-            current_y = y
-
-            clf_loss = F.cross_entropy(current_logits, current_y)
-            clf_acc = (current_logits.argmax(dim=-1) == current_y).float().mean()
+        clf_loss = F.cross_entropy(logits, y)
+        clf_acc = (logits.argmax(dim=-1) == y).float().mean()
 
         # Compute consistency loss
         if (

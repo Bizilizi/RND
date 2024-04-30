@@ -100,6 +100,12 @@ class MAEEncoder(torch.nn.Module):
         masked_features = rearrange(masked_features, "b t c -> t b c")
 
         if return_full_features:
+            # hide 50% of dat and use it as a "full features" response
+            # quick hack to make sure all code occurrences uses the same masking ratio
+            # for classification embedding
+            self.shuffle.ratio = 0.5
+            full_patches, _, _ = self.shuffle(full_patches)
+
             full_patches = torch.cat(
                 [self.cls_token.expand(-1, full_patches.shape[1], -1), full_patches],
                 dim=0,
