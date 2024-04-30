@@ -139,7 +139,7 @@ def train_loop(
                 + bootstrapped_dataset
             )
 
-            cl_strategy.max_epochs = cl_strategy.min_epochs = 2
+            cl_strategy.max_epochs = cl_strategy.min_epochs = 100
 
             cl_strategy.model.unfreeze()
             cl_strategy.train(train_experience, [test_experience])
