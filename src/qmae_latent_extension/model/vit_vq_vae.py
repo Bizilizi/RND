@@ -142,10 +142,8 @@ class VitVQVae(CLModel):
         self.triplet_loss = TripletMarginLoss()
 
         self.projection_head = nn.Linear(embedding_dim, img_embedding_dim)
+        self.clf_head = nn.Linear(img_embedding_dim, 10, bias=False)
 
-        self.clf_head = nn.Parameter(
-            torch.randn((num_classes_per_task, img_embedding_dim)), requires_grad=True
-        )
         self.register_buffer(
             "old_clf_head", torch.zeros((0, img_embedding_dim), requires_grad=False)
         )
@@ -171,10 +169,11 @@ class VitVQVae(CLModel):
         return reconstruction_loss
 
     def extend_clf_head(self):
-        self.old_clf_head = torch.cat([self.old_clf_head, self.clf_head.data.clone()])
-        self.old_clf_head.requires_grad = False
-
-        self.clf_head.data.normal_()
+        ...
+        # self.old_clf_head = torch.cat([self.old_clf_head, self.clf_head.data.clone()])
+        # self.old_clf_head.requires_grad = False
+        #
+        # self.clf_head.data.normal_()
 
     def get_cycle_consistency_loss(self, distances, indices):
         q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
@@ -299,9 +298,7 @@ class VitVQVae(CLModel):
         x_recon, mask = self.decoder(masked_features, backward_indexes)
 
         image_emb = self.get_image_embedding(full_features)
-        clf_logits = torch.cat(
-            [image_emb @ self.old_clf_head.T, image_emb @ self.clf_head.T], dim=1
-        )
+        clf_logits = self.clf_head(image_emb)
 
         return ForwardOutput(
             vq_loss=vq_loss,
@@ -469,11 +466,7 @@ class VitVQVae(CLModel):
                 self.encoder.parameters(),
                 self.decoder.parameters(),
                 self.projection_head.parameters(),
-                nn.ParameterList(
-                    [
-                        self.clf_head,
-                    ]
-                ),
+                self.clf_head.parameters(),
             ),
             lr=self._learning_rate * self._batch_size / 256,
             betas=(0.9, 0.95),
