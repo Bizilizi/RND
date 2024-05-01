@@ -43,7 +43,7 @@ def get_num_random_past_samples(
         return config.num_random_past_samples * cl_strategy.experience_step
 
     if config.num_random_past_samples_schedule == "schedule":
-        schedule = [0, 10000, 20000, 25000, 25000]
+        schedule = [10000, 20000, 25000, 25000, 25000]
         return schedule[int(cl_strategy.experience_step)]
 
 
