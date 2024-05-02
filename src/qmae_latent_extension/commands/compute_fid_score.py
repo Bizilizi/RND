@@ -25,6 +25,7 @@ from src.qmae_latent_extension.train_image_gpt import (
     BootstrappedDataset,
     get_image_embedding,
     sample_images,
+    bootstrap_past_samples,
 )
 from src.qmae_latent_extension.utils.fid_score import calculate_fid_given_datasets
 from src.qmae_latent_extension.utils.wrap_empty_indices import (
@@ -43,59 +44,6 @@ class ImgDataset(Dataset):
     def __getitem__(self, item):
         x, *_ = self.dataset[item]
         return x["images"]
-
-
-@torch.no_grad()
-def bootstrap_past_samples(
-    image_gpt: ImageGPTForCausalImageModeling,
-    vq_vae_model,
-    num_images: int,
-    experience_step: int,
-    dataset_path: str,
-    config: TrainConfig,
-    sos_token: int,
-    mask_token: int,
-    transform: t.Optional[t.Any] = None,
-    time_indices=None,
-) -> ClassificationDataset:
-    num_images_per_batch = min(128, num_images)
-
-    bootstrapped_dataset = BootstrappedDataset(
-        dataset_path=dataset_path,
-        experience_step=experience_step,
-        transform=transform,
-    )
-    image_embeddings = get_image_embedding(vq_vae_model, config, mask_token).to(
-        vq_vae_model.device
-    )
-
-    for i in range(num_images // num_images_per_batch):
-        images, latent_indices, sampled_time_indices = sample_images(
-            image_gpt=image_gpt,
-            vq_vae_model=vq_vae_model,
-            embedding=image_embeddings,
-            sos_token=sos_token,
-            temperature=config.temperature,
-            num_images=num_images_per_batch,
-            experience_step=experience_step,
-            time_indices=time_indices[
-                i * num_images_per_batch : (i + 1) * num_images_per_batch
-            ]
-            if time_indices is not None
-            else None,
-        )
-
-        bootstrapped_dataset.add_data(
-            images=images.cpu(),
-            latent_indices=latent_indices.cpu(),
-            time_indices=sampled_time_indices.cpu(),
-        )
-
-    dataset = make_classification_dataset(
-        bootstrapped_dataset, targets=bootstrapped_dataset.targets
-    )
-
-    return dataset
 
 
 def calculate_fid_score(
@@ -134,55 +82,30 @@ def calculate_fid_score(
     image_gpt.to(device)
 
     # create datasets
-    if task_id is None:
-        """
-        If task_id is empty we calculate fid score for all tasks
-        observed before given experience step
-        """
-        bootstrapped_dataset = bootstrap_past_samples(
-            image_gpt=image_gpt,
-            vq_vae_model=model,
-            num_images=num_images,
-            dataset_path=config.bootstrapped_dataset_path,
-            config=config,
-            sos_token=sos_token,
-            experience_step=exp_step,
-            mask_token=mask_token,
-        )
-        bootstrapped_dataset = ImgDataset(bootstrapped_dataset)
+    """
+    If task_id is empty we calculate fid score for all tasks
+    observed before given experience step
+    """
+    bootstrapped_dataset = bootstrap_past_samples(
+        image_gpt=image_gpt,
+        qmae_model=model,
+        num_images=num_images,
+        classes_seen_in_past=benchmark.train_stream[exp_step].classes_seen_so_far,
+        config=config,
+    )
+    bootstrapped_dataset = ImgDataset(bootstrapped_dataset)
 
-        real_dataset = ConcatDataset(
-            [
-                wrap_dataset(experience.dataset, is_past_domain=experience_step)
-                for experience_step, experience in enumerate(
-                    benchmark.train_stream[: exp_step + 1]
-                )
-            ]
-        )
-        real_dataset = ImgDataset(real_dataset)
-    else:
-        """
-        If task_id is not None we calculate fid score for this task
-        at given experience step.
-        """
-        time_indices = torch.tensor([task_id] * num_images).to(model.device)
-        bootstrapped_dataset = bootstrap_past_samples(
-            image_gpt=image_gpt,
-            vq_vae_model=model,
-            num_images=num_images,
-            dataset_path=config.bootstrapped_dataset_path,
-            config=config,
-            sos_token=sos_token,
-            experience_step=exp_step,
-            mask_token=mask_token,
-            time_indices=time_indices,
-        )
-        bootstrapped_dataset = ImgDataset(bootstrapped_dataset)
-
-        real_dataset = wrap_dataset(
-            benchmark.train_stream[task_id].dataset, is_past_domain=exp_step
-        )
-        real_dataset = ImgDataset(real_dataset)
+    real_dataset = ConcatDataset(
+        [
+            wrap_dataset(
+                experience.dataset,
+                img_embedding_dim=config.img_embedding_dim,
+                is_past_domain=True,
+            )
+            for experience_step, experience in enumerate(benchmark.train_stream)
+        ]
+    )
+    real_dataset = ImgDataset(real_dataset)
 
     return calculate_fid_given_datasets(
         bootstrapped_dataset, real_dataset, 128, device, 2048
@@ -242,7 +165,7 @@ def calculate_fid_score_for_all_cl_steps(run_id, num_images):
     image_gpt.to(device)
 
     fid_scores = []
-    m_eps = [900, 300, 300, 300, 300]
+    m_eps = [600, 300, 300, 300, 300]
 
     print("Compute score for all tasks")
     for experience_step in trange(len(benchmark.train_stream)):
@@ -269,42 +192,5 @@ def calculate_fid_score_for_all_cl_steps(run_id, num_images):
             )
         }
     )
-
-    for task_id in trange(len(benchmark.train_stream)):
-        print(f"Compute score per task: {task_id}")
-
-        task_fid_scores = []
-        for experience_step in trange(
-            task_id, len(benchmark.train_stream), leave=False
-        ):
-            task_fid_scores.append(
-                calculate_fid_score(
-                    config=config,
-                    benchmark=benchmark,
-                    model=model,
-                    image_gpt=image_gpt,
-                    device=device,
-                    run_id=run_id,
-                    exp_step=experience_step,
-                    task_id=task_id,
-                    m_ep=m_eps[experience_step],
-                    i_ep=9,
-                    num_images=num_images,
-                )
-            )
-
-        # log to wandb
-        wandb.log(
-            {
-                f"fid_score/experience_step_{task_id}": wandb.Table(
-                    columns=["experience_step", "value"],
-                    data=list(
-                        zip(
-                            range(task_id, len(benchmark.train_stream)), task_fid_scores
-                        )
-                    ),
-                )
-            }
-        )
 
     wandb.finish()
