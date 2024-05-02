@@ -89,7 +89,8 @@ class VisualizeTrainingReconstructions(Callback):
                         f"train/dataset/experience_step_{experience_step}/{self.name}": wandb.Image(
                             all_images.numpy(),
                             caption=f"target_img",
-                        )
+                        ),
+                        "epoch": trainer.current_epoch,
                     }
                 )
 

@@ -68,7 +68,8 @@ class VisualizeProjections(Callback):
                         f"train/projections/real_data_experience_step_{experience_step}": wandb.Table(
                             columns=["x", "y", "class", "is_real"],
                             data=real_data.tolist(),
-                        )
+                        ),
+                        "epoch": trainer.current_epoch,
                     }
                 )
 
@@ -96,7 +97,8 @@ class VisualizeProjections(Callback):
                             f"train/projections/bootstrapped_data_experience_step_{experience_step}": wandb.Table(
                                 columns=["x", "y", "class", "is_real"],
                                 data=bootstrapped_data.tolist(),
-                            )
+                            ),
+                            "epoch": trainer.current_epoch,
                         }
                     )
                 else:
@@ -120,7 +122,8 @@ class VisualizeProjections(Callback):
                         f"train/projections/all_data_experience_step_{experience_step}": wandb.Table(
                             columns=["x", "y", "class", "is_real", "full_class"],
                             data=data,
-                        )
+                        ),
+                        "epoch": trainer.current_epoch,
                     }
                 )
 

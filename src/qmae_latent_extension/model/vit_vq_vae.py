@@ -213,19 +213,10 @@ class VitVQVae(CLModel):
             reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
 
         # Compute accuracy if classification head presents
-        if past_data.any():
-            past_logits = forward_output.clf_logits[past_data]
-            past_y = y[past_data]
+        logits = forward_output.clf_logits
 
-            clf_loss = F.cross_entropy(past_logits, past_y)
-            clf_acc = (past_logits.argmax(dim=-1) == past_y).float().mean()
-
-        if self.experience_step == 0:
-            current_logits = forward_output.clf_logits
-            current_y = y
-
-            clf_loss = F.cross_entropy(current_logits, current_y)
-            clf_acc = (current_logits.argmax(dim=-1) == current_y).float().mean()
+        clf_loss = F.cross_entropy(logits, y)
+        clf_acc = (logits.argmax(dim=-1) == y).float().mean()
 
         # Compute consistency loss
         if (
@@ -287,6 +278,27 @@ class VitVQVae(CLModel):
                 *_,
             ) = self.feature_quantization(masked_features)
 
+            (
+                _,
+                quantized_full_features,
+                *_,
+            ) = self.feature_quantization(full_features)
+
+            # decode and get reconstructed image
+            features = quantized_full_features + self.decoder.pos_embedding
+
+            features = rearrange(features, "t b c -> b t c")
+            features = self.decoder.transformer(features)
+            features = rearrange(features, "b t c -> t b c")
+            features = features[1:]  # remove global feature
+
+            patches = self.decoder.head(features)
+            x_recon = self.decoder.patch2img(patches)
+
+            # re-encode to get new full features
+            _, full_features, _ = self.encoder(x_recon, return_full_features=True)
+
+            # re-quantize to get new indices and distances
             (
                 *_,
                 x_indices,

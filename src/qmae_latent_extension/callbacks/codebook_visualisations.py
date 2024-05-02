@@ -46,6 +46,7 @@ class VisualizeCodebook(Callback):
                         f"train/codebook/experience_step_{experience_step}": wandb.Table(
                             columns=["x", "y"],
                             data=codebook.tolist(),
-                        )
+                        ),
+                        "epoch": trainer.current_epoch,
                     }
                 )
