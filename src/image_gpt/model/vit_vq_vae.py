@@ -1,0 +1,508 @@
+import dataclasses
+
+import math
+import typing as t
+from itertools import chain
+
+import lpips
+import torch
+from einops import rearrange
+from pytorch_metric_learning.distances import CosineSimilarity
+from pytorch_metric_learning.losses import ContrastiveLoss, TripletMarginLoss
+from timm.models.vision_transformer import Block
+from torch import nn
+from torch.cuda.amp import GradScaler
+from torch.nn import functional as F
+
+from src.avalanche.model.cl_model import CLModel
+from src.qmae_latent_extension.model.decoder import MAEDecoder
+from src.qmae_latent_extension.model.encoder import MAEEncoder
+from src.qmae_latent_extension.model.quiantizer import (
+    VectorQuantizerEMA,
+)
+
+if t.TYPE_CHECKING:
+    from src.qmae_latent_extension.model.classification_head import EmbClassifier
+
+
+@dataclasses.dataclass
+class ForwardOutput:
+    vq_loss: torch.Tensor
+
+    x_data: torch.Tensor
+    x_recon: torch.Tensor
+    x_indices: torch.Tensor
+    x_img_embeddings: torch.Tensor
+
+    quantized: torch.Tensor
+    latent_distances: torch.Tensor
+    perplexity: torch.Tensor
+    avg_probs: torch.Tensor
+
+    image_emb: torch.Tensor
+    clf_logits: torch.Tensor
+    mask: torch.Tensor
+
+    past_data_mask: torch.Tensor
+
+
+@dataclasses.dataclass
+class CriterionOutput:
+    vq_loss: torch.Tensor
+    reconstruction_loss: torch.Tensor
+    past_cycle_consistency_loss: torch.Tensor
+    past_image_embedding_consistency: torch.Tensor
+    triplet_loss: torch.Tensor
+
+    clf_loss: torch.Tensor
+    clf_acc: torch.Tensor
+    perplexity: torch.Tensor
+
+
+class VitVQVae(CLModel):
+    def __init__(
+        self,
+        num_embeddings,
+        num_embeddings_per_step,
+        embedding_dim,
+        img_embedding_dim,
+        commitment_cost,
+        mask_token_id: int,
+        num_epochs: int,
+        batch_size: int,
+        num_classes_per_task: int,
+        decay=0,
+        learning_rate: float = 1e-3,
+        weight_decay=0.05,
+        image_size=32,
+        patch_size=2,
+        encoder_layer=12,
+        encoder_head=3,
+        decoder_layer=4,
+        decoder_head=3,
+        mask_ratio=0.75,
+        use_lpips: bool = True,
+        cycle_consistency_power=3,
+        cycle_consistency_weight=1,
+        cycle_consistency_sigma: float = 1,
+        past_samples_rec_loss=True,
+        precision: str = "32-true",
+        accelerator: str = "cuda",
+        quantize_features: bool = True,
+        data_variance: float = 1,
+    ) -> None:
+        super().__init__()
+
+        self._num_embeddings = num_embeddings
+        self._learning_rate = learning_rate
+        self._weight_decay = weight_decay
+        self._embedding_dim = embedding_dim
+        self._img_embedding_dim = img_embedding_dim
+        self._latent_sos_token = num_embeddings + 1
+        self._mask_ratio = mask_ratio
+        self._mask_token_id = mask_token_id
+        self._precision_dtype = torch.half if precision == "16-mixed" else torch.float32
+        self._accelerator = accelerator
+        self._past_samples_rec_loss = past_samples_rec_loss
+        self._num_epochs = num_epochs
+        self._batch_size = batch_size
+        self._cycle_consistency_sigma = cycle_consistency_sigma
+        self._quantize_features = quantize_features
+
+        self.encoder = MAEEncoder(
+            image_size,
+            patch_size,
+            embedding_dim,
+            encoder_layer,
+            encoder_head,
+        )
+        self.feature_quantization = VectorQuantizerEMA(
+            num_embeddings,
+            num_embeddings_per_step,
+            embedding_dim,
+            commitment_cost,
+            decay,
+        )
+        self.decoder = MAEDecoder(
+            image_size, patch_size, embedding_dim, decoder_layer, decoder_head
+        )
+
+        self.experience_step = 0
+        self.cycle_consistency_power = cycle_consistency_power
+        self.cycle_consistency_weight = cycle_consistency_weight
+
+        self.use_lpips = use_lpips
+        self._data_variance = data_variance
+
+        if self.use_lpips:
+            self._lpips = lpips.LPIPS(net="vgg")
+            for param in self._lpips.parameters():
+                param.requires_grad = False
+
+        self.triplet_loss = TripletMarginLoss()
+
+        self.projection_head = nn.Linear(embedding_dim, img_embedding_dim)
+
+        self.clf_head = nn.Parameter(
+            torch.randn((num_classes_per_task, img_embedding_dim)), requires_grad=True
+        )
+        self.register_buffer(
+            "old_clf_head", torch.zeros((0, img_embedding_dim), requires_grad=False)
+        )
+        self.register_buffer("old_classes", torch.zeros((0), requires_grad=False))
+
+    def get_reconstruction_loss(
+        self, x: torch.Tensor, x_rec: torch.Tensor, y: torch.Tensor
+    ):
+        if self.use_lpips:
+            lpips_loss = self._lpips(x, x_rec).mean()
+            l1_loss = torch.mean(
+                F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
+                / self._data_variance
+            )
+            reconstruction_loss = lpips_loss + l1_loss
+
+        else:
+            reconstruction_loss = torch.mean(
+                F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3))
+                / self._data_variance
+            )
+
+        return reconstruction_loss
+
+    def extend_clf_head(self):
+        self.old_clf_head = torch.cat([self.old_clf_head, self.clf_head.data.clone()])
+        self.old_clf_head.requires_grad = False
+
+        self.clf_head.data.normal_()
+
+    def get_cycle_consistency_loss(self, distances, indices):
+        q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
+
+        q_logits = q_logits.flatten(0, 1)
+        q_indices = indices.flatten()
+
+        # Remove loss for mask token
+        q_logits = q_logits[q_indices != self._mask_token_id]
+        q_indices = q_indices[q_indices != self._mask_token_id]
+
+        return F.cross_entropy(q_logits, q_indices)
+
+    def criterion(self, forward_output: ForwardOutput, y) -> CriterionOutput:
+        # prepare default values
+        clf_loss = clf_acc = torch.tensor(0.0, device=self.device)
+        past_cycle_consistency_loss = torch.tensor(0.0, device=self.device)
+        past_image_embedding_consistency = torch.tensor(0.0, device=self.device)
+        reconstruction_loss = torch.tensor(0.0, device=self.device)
+
+        # unpack variables from forward output
+        x_recon = forward_output.x_recon
+        x_data = forward_output.x_data
+        x_indices = forward_output.x_indices
+
+        latent_distances = forward_output.latent_distances
+
+        past_data = forward_output.past_data_mask
+        current_data = ~forward_output.past_data_mask
+
+        # Compute reconstruction loss
+        reconstruction_mask = current_data
+        if self._past_samples_rec_loss:
+            reconstruction_mask = reconstruction_mask | past_data
+
+        if reconstruction_mask.any():
+            reconstruction_loss = self.get_reconstruction_loss(x_recon, x_data, y)
+
+        # Compute accuracy if classification head presents
+        if past_data.any():
+            current_logits = forward_output.clf_logits[past_data]
+            current_y = y[past_data]
+
+            clf_loss = F.cross_entropy(current_logits, current_y)
+            clf_acc = (current_logits.argmax(dim=-1) == current_y).float().mean()
+
+        # Compute consistency loss
+        if (
+            latent_distances is not None
+            and self.cycle_consistency_weight != 0
+            and past_data.any()
+        ):
+            distances = latent_distances[past_data]
+            indices = x_indices[past_data].long()
+
+            past_cycle_consistency_loss = self.get_cycle_consistency_loss(
+                distances, indices
+            )
+
+        # Compute image embedding consistency loss
+        if self.cycle_consistency_weight != 0:
+            past_image_embedding_consistency = torch.norm(
+                forward_output.x_img_embeddings - forward_output.image_emb, dim=1, p=2
+            ).mean()
+
+        # Compute triplet loss
+        # triplet_loss = self.triplet_loss(
+        #     forward_output.image_emb, forward_output.past_data_mask
+        # )
+        triplet_loss = None
+
+        return CriterionOutput(
+            vq_loss=forward_output.vq_loss,
+            reconstruction_loss=reconstruction_loss,
+            past_cycle_consistency_loss=past_cycle_consistency_loss,
+            past_image_embedding_consistency=past_image_embedding_consistency,
+            triplet_loss=triplet_loss,
+            clf_loss=clf_loss,
+            clf_acc=clf_acc,
+            perplexity=forward_output.perplexity,
+        )
+
+    def get_image_embedding(self, full_features):
+        image_emb = full_features[0]
+        """ B x emb_dim"""
+        image_emb = self.projection_head(image_emb)
+
+        return image_emb
+
+    def forward(self, x) -> ForwardOutput:
+
+        # Extract features from backbone
+        masked_features, full_features, backward_indexes = self.encoder(
+            x, return_full_features=True
+        )
+
+        with torch.autocast(self._accelerator, dtype=torch.float32):
+            (
+                vq_loss,
+                masked_features,
+                perplexity,
+                _,
+                avg_probs,
+                *_,
+            ) = self.feature_quantization(masked_features)
+
+            (
+                *_,
+                x_indices,
+                _,
+                latent_distances,
+            ) = self.feature_quantization(full_features, return_distances=True)
+
+        x_indices = rearrange(x_indices, "(b t) 1 -> b t", b=x.shape[0])
+        x_recon, mask = self.decoder(masked_features, backward_indexes)
+
+        image_emb = self.get_image_embedding(full_features)
+        clf_logits = torch.cat(
+            [image_emb @ self.old_clf_head.T, image_emb @ self.clf_head.T], dim=1
+        )
+
+        return ForwardOutput(
+            vq_loss=vq_loss,
+            x_recon=x_recon,
+            x_data=x,
+            x_indices=x_indices,
+            x_img_embeddings=None,
+            quantized=masked_features,
+            perplexity=perplexity,
+            image_emb=image_emb,
+            clf_logits=clf_logits,
+            mask=mask,
+            latent_distances=latent_distances,
+            avg_probs=avg_probs,
+            past_data_mask=None,
+        )
+
+    def training_step(self, batch, batch_idx):
+        data, y, *_ = batch
+
+        x = data["images"]
+
+        forward_output = self.forward(x)
+        forward_output.x_data = x
+        forward_output.past_data_mask = data["is_past_domain"] == 1
+        forward_output.x_img_embeddings = data["features"]
+
+        past_data = forward_output.past_data_mask
+        if past_data.any():
+            forward_output.x_indices[past_data] = data["indices"][past_data]
+
+        criterion_output = self.criterion(forward_output, y)
+
+        loss = (
+            criterion_output.vq_loss
+            + criterion_output.reconstruction_loss
+            + criterion_output.past_cycle_consistency_loss
+            * self.cycle_consistency_weight
+            + criterion_output.past_image_embedding_consistency
+            * self.cycle_consistency_weight
+            # + criterion_output.triplet_loss
+            + criterion_output.clf_loss
+        )
+
+        # LOGGING
+        self.log_with_postfix(
+            f"train/loss",
+            loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/clf_loss",
+            criterion_output.clf_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/clf_accuracy",
+            criterion_output.clf_acc.cpu().item(),
+        )
+        # self.log_with_postfix(
+        #     f"train/triplet_loss",
+        #     criterion_output.triplet_loss.cpu().item(),
+        # )
+        self.log_with_postfix(
+            f"train/vq_loss",
+            criterion_output.vq_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/reconstruction_loss",
+            criterion_output.reconstruction_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/perplexity",
+            criterion_output.perplexity.cpu().item(),
+        )
+
+        self.log_with_postfix(
+            f"train/cycle_consistency_loss",
+            criterion_output.past_cycle_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"train/image_embedding_consistency_loss",
+            criterion_output.past_image_embedding_consistency.cpu().item(),
+        )
+
+        return {
+            "loss": loss,
+            "forward_output": forward_output,
+        }
+
+    def validation_step(self, batch, batch_idx):
+        data, y, *_ = batch
+
+        x = data["images"]
+
+        forward_output = self.forward(x)
+        forward_output.x_data = x
+        forward_output.past_data_mask = data["is_past_domain"] == 1
+        forward_output.x_img_embeddings = data["features"]
+
+        past_data = forward_output.past_data_mask
+        if past_data.any():
+            forward_output.x_indices[past_data] = data["indices"][past_data]
+
+        criterion_output = self.criterion(forward_output, y)
+
+        loss = (
+            criterion_output.vq_loss
+            + criterion_output.reconstruction_loss
+            + criterion_output.past_cycle_consistency_loss
+            * self.cycle_consistency_weight
+            + criterion_output.past_image_embedding_consistency
+            # + criterion_output.triplet_loss
+            + criterion_output.clf_loss
+        )
+
+        # LOGGING
+        self.log_with_postfix(
+            f"val/loss",
+            loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/clf_loss",
+            criterion_output.clf_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/clf_accuracy",
+            criterion_output.clf_acc.cpu().item(),
+        )
+        # self.log_with_postfix(
+        #     f"val/triplet_loss",
+        #     criterion_output.triplet_loss.cpu().item(),
+        # )
+        self.log_with_postfix(
+            f"val/vq_loss",
+            criterion_output.vq_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/reconstruction_loss",
+            criterion_output.reconstruction_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/perplexity",
+            criterion_output.perplexity.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/cycle_consistency_loss",
+            criterion_output.past_cycle_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            f"val/image_embedding_consistency_loss",
+            criterion_output.past_image_embedding_consistency.cpu().item(),
+        )
+
+        return {
+            "loss": loss,
+            "forward_output": forward_output,
+        }
+
+    def on_train_epoch_end(self):
+        sch = self.lr_schedulers()
+        sch.step()
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(
+            chain(
+                self.encoder.parameters(),
+                self.decoder.parameters(),
+                self.projection_head.parameters(),
+                nn.ParameterList(
+                    [
+                        self.clf_head,
+                    ]
+                ),
+            ),
+            lr=self._learning_rate * self._batch_size / 256,
+            betas=(0.9, 0.95),
+            weight_decay=self._weight_decay,
+        )
+
+        warmup = min(200, self._num_epochs // 3)
+        lr_func = lambda epoch: min(
+            (epoch + 1) / (warmup + 1e-8),
+            0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
+        )
+        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+            optimizer, lr_lambda=lr_func, verbose=True
+        )
+
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": lr_scheduler,
+                "interval": "epoch",
+                "frequency": 1,
+            },
+        }
+
+    def log_with_postfix(self, name: str, value: t.Any, *args, **kwargs):
+        self.log_dict(
+            {
+                f"{name}/experience_step_{self.experience_step}": value,
+            },
+            sync_dist=True,
+            *args,
+            **kwargs,
+        )
+
+    def unfreeze(self) -> None:
+        super().unfreeze()
+
+        for param in self.feature_quantization.parameters():
+            param.requires_grad = False

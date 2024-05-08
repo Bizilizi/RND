@@ -185,7 +185,7 @@ def get_wandb_params(args, config):
         entity="vgg-continual-learning",
         group=args.group,
         dir=args.wandb_dir,
-        resume="allow",
+        resume="must",
     )
     wandb.init(**wandb_params)
 

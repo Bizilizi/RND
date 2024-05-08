@@ -14,21 +14,21 @@ import torch
 from tqdm.auto import trange
 from transformers import ImageGPTConfig
 
-from src.qmae_latent_extension.configuration.config import TrainConfig
-from src.qmae_latent_extension.init_scrips import (
+from src.image_gpt.configuration.config import TrainConfig
+from src.image_gpt.init_scrips import (
     get_benchmark,
     get_model,
     get_cl_strategy,
 )
-from src.qmae_latent_extension.model.image_gpt import ImageGPTForCausalImageModeling
-from src.qmae_latent_extension.train_image_gpt import (
+from src.image_gpt.model.image_gpt import ImageGPTForCausalImageModeling
+from src.image_gpt.train_image_gpt import (
     BootstrappedDataset,
     get_image_embedding,
     sample_images,
     bootstrap_past_samples,
 )
-from src.qmae_latent_extension.utils.fid_score import calculate_fid_given_datasets
-from src.qmae_latent_extension.utils.wrap_empty_indices import (
+from src.image_gpt.utils.fid_score import calculate_fid_given_datasets
+from src.image_gpt.utils.wrap_empty_indices import (
     wrap_dataset,
 )
 from train_utils import get_device
@@ -116,7 +116,7 @@ def calculate_fid_score_for_all_cl_steps(
     run_id, num_images, max_epochs, min_epochs, i_ep=9
 ):
     ini_config = ConfigParser()
-    ini_config.read("./src/qmae_latent_extension/configuration/train.ini")
+    ini_config.read("./src/image_gpt/configuration/train.ini")
 
     config = TrainConfig.construct_typed_config(ini_config)
 

@@ -10,8 +10,9 @@ sbatch -J fid_scores_1z0vahmb submit.sh \
     python commands.py \
     --command fid_score \
     --max_epochs 600 \
-    --min_epochs 600 \
-    --run_id 1z0vahmb
+    --min_epochs 300 \
+    --i_ep 6 \
+    --run_id m9ofkbqk
 
 python submitit_train.py \
     --cpus_per_task 8 \

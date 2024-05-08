@@ -1,9 +1,9 @@
 import argparse
 
-from src.transformer_vq_vae.commands.compute_cka_score import (
+from src.qmae_latent_extension.commands.compute_cka_score import (
     calculate_cka_score_for_all_cl_steps,
 )
-from src.transformer_vq_vae.commands.compute_fid_score import (
+from src.qmae_latent_extension.commands.compute_fid_score import (
     calculate_fid_score_for_all_cl_steps,
 )
 
@@ -25,6 +25,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--max_epochs", type=int, default=900)
     parser.add_argument("--min_epochs", type=int, default=300)
+    parser.add_argument("--i_ep", type=int, default=9)
     args = parser.parse_args()
 
     if args.command == "fid_score":
@@ -33,6 +34,7 @@ if __name__ == "__main__":
             args.num_images,
             args.max_epochs,
             args.min_epochs,
+            args.i_ep,
         )
     elif args.command == "cka_score":
         calculate_cka_score_for_all_cl_steps(
