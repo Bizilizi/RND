@@ -120,18 +120,18 @@ def main(args):
             os.environ["WANDB_MODE"] = "offline"
 
         # this will restore wand run from args id
-        qmae_run = wandb.init(
+        with wandb.init(
             project=args.project,
             id=args.run_id,
             entity="vgg-continual-learning",
             group=args.group,
             dir=args.wandb_dir,
             resume="must",
-        )
-        for k, v in qmae_run.config.items():
-            if k == "accelerator" or "gpt" in k:
-                continue
-            setattr(config, k, v)
+        ) as qmae_run:
+            for k, v in qmae_run.config.items():
+                if k == "accelerator" or "gpt" in k:
+                    continue
+                setattr(config, k, v)
 
         # Now we will re-init wandb with igpt project
         wandb_params = dict(

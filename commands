@@ -25,6 +25,7 @@ python submitit_train.py \
     --ngpus 1 \
     --comment "cifar10 igpt" \
     --project qmae-latent-extension \
+    --devices 0, \
     --run_id zfjmxqb0 \
     --resume_from /scratch/shared/beegfs/dzverev/artifacts/zfjmxqb0/model/model-exp-0-ep-1600.ckpt \
     --group tests \
