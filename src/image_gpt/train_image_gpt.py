@@ -240,12 +240,12 @@ def train_igpt(
 
     grad_scaler = torch.cuda.amp.GradScaler()
     optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
-    exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        learning_rate_schedule(
-            500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
-        ),
-    )
+    # exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+    #     optimizer,
+    #     learning_rate_schedule(
+    #         500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
+    #     ),
+    # )
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
     step = 0
     for i in trange(0, epoch_num):
@@ -268,7 +268,7 @@ def train_igpt(
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
                 optimizer.zero_grad(set_to_none=True)
-                exp_lr_scheduler.step()
+                # exp_lr_scheduler.step()
 
             if local_rank == 0:
                 logger.log_metrics(
