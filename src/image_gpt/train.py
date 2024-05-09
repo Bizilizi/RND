@@ -147,6 +147,8 @@ def main(args):
             f"#Emb-{config.num_embeddings} | "
             f"DEmb-{config.embedding_dim} | "
         )
+
+        wandb_params["config"] = config
         wandb_params["name"] = wandb.run.name
         wandb_params["id"] = wandb.run.id
         wandb.run.summary["slurm_job_id"] = os.environ.get("SLURM_JOB_ID", -1)

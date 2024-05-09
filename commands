@@ -24,6 +24,9 @@ python submitit_train.py \
     --timeout 1680 \
     --ngpus 1 \
     --comment "cifar10 igpt" \
+    --project qmae-latent-extension \
+    --run_id zfjmxqb0 \
+    --resume_from /scratch/shared/beegfs/dzverev/artifacts/zfjmxqb0/model/model-exp-0-ep-1600.ckpt \
     --group tests \
     --model image-gpt \
     --config src/image_gpt/configuration/train.ini \
