@@ -139,6 +139,7 @@ def main(args):
             entity="vgg-continual-learning",
             group=args.group,
             dir=args.wandb_dir,
+            reinit=False,
         )
         wandb.init(**wandb_params)
 
