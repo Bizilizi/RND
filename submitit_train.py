@@ -15,6 +15,7 @@ from src.utils.train_script import parse_arguments
 from src.vae_ft.train import main as vae_ft_main
 from src.vq_vae.train import main as vq_vae_main
 from src.transformer_vq_vae.train import main as transformer_vq_vae_main
+from src.image_gpt.train import main as image_gpt_main
 
 
 def chunker(seq, size):
@@ -87,6 +88,8 @@ class Trainer(object):
             entry_main = transformer_vq_vae_main
         elif self.args.model == "qmae-latent-extension":
             entry_main = qmae_latent_extension_main
+        elif self.args.model == "image-gpt":
+            entry_main = image_gpt_main
         else:
             assert False, "Unknown value '--model' parameter"
 

@@ -23,16 +23,17 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "cifar10 enc-dec-enc" \
-    --group qmae_latent_ext \
-    --model qmae-latent-extension \
-    --config src/qmae_latent_extension/configuration/train.ini \
+    --comment "cifar10 igpt" \
+    --group tests \
+    --model image-gpt \
+    --config src/image_gpt/configuration/train.ini \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
     --max_epochs 600 \
     --min_epochs 300 \
     --embedding_dim 192 \
+    --num_gpt_layers 12 \
     --img_embedding_dim 2 \
     --igpt_num_epochs_max 20 \
     --igpt_num_epochs_min 20 \
