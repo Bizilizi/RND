@@ -36,7 +36,7 @@ class TrainConfig(BaseTrainConfig):
     temperature: float
 
     # igpt
-    num_gpt_layers: int
+    igpt_num_layers: int
     igpt_num_epochs_max: int
     igpt_num_epochs_min: int
     igpt_batch_size: int

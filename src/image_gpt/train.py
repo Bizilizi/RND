@@ -8,7 +8,7 @@ from torch import distributed
 
 import wandb
 from avalanche.benchmarks import SplitCIFAR10
-from torch.utils.data import ConcatDataset
+from torch.utils.data import ConcatDataset, Dataset
 
 from src.avalanche.strategies import NaivePytorchLightning
 from src.image_gpt.configuration.config import TrainConfig
@@ -27,6 +27,18 @@ from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_wandb_params
 
 from pathlib import Path
+
+
+class ImgDataset(Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, item):
+        x, *_ = self.dataset[item]
+        return x["images"]
 
 
 def train_loop(
@@ -67,7 +79,7 @@ def train_loop(
         config=config,
         train_dataset=igpt_train_dataset,
         device=device,
-        n_layer=config.num_gpt_layers,
+        n_layer=config.igpt_num_layers,
         local_rank=local_rank,
         is_distributed=is_distributed,
         num_classes=benchmark.n_classes,
@@ -83,7 +95,11 @@ def train_loop(
     )
 
     fid_score = calculate_fid_given_datasets(
-        igpt_train_dataset, bootstrapped_dataset, 128, device, 2048
+        ImgDataset(igpt_train_dataset),
+        ImgDataset(bootstrapped_dataset),
+        128,
+        device,
+        2048,
     )
 
     if is_using_wandb:
@@ -149,7 +165,9 @@ def main(args):
             f"DEmb-{config.embedding_dim} | "
         )
 
+        wandb.config.update(dict(config))
         wandb_params["config"] = config
+
         wandb_params["name"] = wandb.run.name
         wandb_params["id"] = wandb.run.id
         wandb.run.summary["slurm_job_id"] = os.environ.get("SLURM_JOB_ID", -1)
