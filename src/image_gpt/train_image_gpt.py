@@ -151,7 +151,6 @@ def train_igpt(
     device: torch.device,
     classes_seen_so_far,
     num_classes: int,
-    n_layer: int = 12,
     is_distributed: bool,
     local_rank: int,
 ):
@@ -193,7 +192,7 @@ def train_igpt(
             "model_type": "imagegpt",
             "n_embd": config.embedding_dim,
             "n_head": 8,
-            "n_layer": n_layer,
+            "n_layer": config.igpt_num_layers,
             "n_positions": n_positions,
             "reorder_and_upcast_attn": False,
             "resid_pdrop": 0.1,
@@ -233,13 +232,9 @@ def train_igpt(
         shuffle=True,
     )
 
-    if strategy.experience_step < 2:
-        epoch_num = config.igpt_num_epochs_max
-    else:
-        epoch_num = config.igpt_num_epochs_min
-
+    epoch_num = config.igpt_num_epochs_max
     grad_scaler = torch.cuda.amp.GradScaler()
-    optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
+    optimizer = torch.optim.Adam(image_gpt.parameters(), lr=config.igpt_learning_rate)
     # exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
     #     optimizer,
     #     learning_rate_schedule(

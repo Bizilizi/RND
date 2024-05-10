@@ -79,7 +79,6 @@ def train_loop(
         config=config,
         train_dataset=igpt_train_dataset,
         device=device,
-        n_layer=config.igpt_num_layers,
         local_rank=local_rank,
         is_distributed=is_distributed,
         num_classes=benchmark.n_classes,

@@ -37,6 +37,7 @@ class TrainConfig(BaseTrainConfig):
 
     # igpt
     igpt_num_layers: int
+    igpt_learning_rate: float
     igpt_num_epochs_max: int
     igpt_num_epochs_min: int
     igpt_batch_size: int
