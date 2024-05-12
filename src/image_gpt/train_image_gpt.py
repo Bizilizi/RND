@@ -260,6 +260,7 @@ def train_igpt(
                 grad_scaler.scale(loss).backward()
 
             if step % config.igpt_accumulate_grad_batches == 0:
+                torch.nn.utils.clip_grad_norm_(image_gpt.parameters(), 10)
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
                 optimizer.zero_grad(set_to_none=True)
