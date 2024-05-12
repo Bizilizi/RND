@@ -23,7 +23,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "cifar10 igpt no sched" \
+    --comment "igpt 12" \
     --project qmae-latent-extension \
     --devices 0, \
     --run_id zfjmxqb0 \
@@ -37,10 +37,11 @@ python submitit_train.py \
     --max_epochs 600 \
     --min_epochs 300 \
     --embedding_dim 192 \
-    --igpt_num_layers 24 \
     --img_embedding_dim 2 \
-    --igpt_num_epochs_max 1 \
-    --igpt_num_epochs_min 1 \
+    --igpt_num_layers 12 \
+    --igpt_learning_rate 0.003 \
+    --igpt_num_epochs_max 200 \
+    --igpt_num_epochs_min 200 \
     --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 128 \
     --max_epochs_lin_eval 100 \
