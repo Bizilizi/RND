@@ -235,12 +235,12 @@ def train_igpt(
     epoch_num = config.igpt_num_epochs_max
     grad_scaler = torch.cuda.amp.GradScaler()
     optimizer = torch.optim.Adam(image_gpt.parameters(), lr=config.igpt_learning_rate)
-    # exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-    #     optimizer,
-    #     learning_rate_schedule(
-    #         500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
-    #     ),
-    # )
+    exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
+        optimizer,
+        learning_rate_schedule(
+            15, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
+        ),
+    )
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
     step = 0
     for i in trange(0, epoch_num):
@@ -264,7 +264,6 @@ def train_igpt(
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
                 optimizer.zero_grad(set_to_none=True)
-                # exp_lr_scheduler.step()
 
             if local_rank == 0:
                 logger.log_metrics(
@@ -274,6 +273,8 @@ def train_igpt(
                     },
                     step=i,
                 )
+
+        exp_lr_scheduler.step()
 
         # Generate sampled images at the end of the epoch
         if local_rank == 0:
