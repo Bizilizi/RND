@@ -17,7 +17,14 @@ from src.image_gpt.init_scrips import (
     get_benchmark,
     get_cl_strategy,
 )
-from src.image_gpt.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.image_gpt.train_diffusion import (
+    bootstrap_past_samples as bootstrap_past_samples_with_diffusion,
+    train_diffusion,
+)
+from src.image_gpt.train_image_gpt import (
+    bootstrap_past_samples as bootstrap_past_samples_with_igpt,
+    train_igpt,
+)
 from src.image_gpt.utils.copy_dataset import copy_dataset_to_tmp
 from src.image_gpt.utils.fid_score import calculate_fid_given_datasets
 from src.image_gpt.utils.wrap_empty_indices import (
@@ -50,6 +57,7 @@ def train_loop(
     is_distributed: bool,
     local_rank: int,
     resume_from: str,
+    sampler_type: str,
 ) -> None:
     """
     :return:
@@ -74,24 +82,46 @@ def train_loop(
             for experience in benchmark.train_stream
         ]
     )
-    image_gpt = train_igpt(
-        strategy=cl_strategy,
-        config=config,
-        train_dataset=igpt_train_dataset,
-        device=device,
-        local_rank=local_rank,
-        is_distributed=is_distributed,
-        num_classes=benchmark.n_classes,
-        classes_seen_so_far=range(10),
-    )
+    if sampler_type == 'image-gpt':
+        image_gpt = train_igpt(
+            strategy=cl_strategy,
+            config=config,
+            train_dataset=igpt_train_dataset,
+            device=device,
+            local_rank=local_rank,
+            is_distributed=is_distributed,
+            num_classes=benchmark.n_classes,
+            classes_seen_so_far=range(10),
+        )
 
-    bootstrapped_dataset = bootstrap_past_samples(
-        image_gpt=image_gpt,
-        qmae_model=cl_strategy.model,
-        num_images=25000,
-        config=config,
-        classes_seen_in_past=range(10),
-    )
+        bootstrapped_dataset = bootstrap_past_samples_with_igpt(
+            image_gpt=image_gpt,
+            qmae_model=cl_strategy.model,
+            num_images=25000,
+            config=config,
+            classes_seen_in_past=range(10),
+        )
+    elif sampler_type == 'diffusion':
+        diffusion = train_diffusion(
+            strategy=cl_strategy,
+            config=config,
+            train_dataset=igpt_train_dataset,
+            device=device,
+            local_rank=local_rank,
+            is_distributed=is_distributed,
+            num_classes=benchmark.n_classes,
+            classes_seen_so_far=range(10),
+        )
+
+        bootstrapped_dataset = bootstrap_past_samples_with_diffusion(
+            image_gpt=diffusion,
+            qmae_model=cl_strategy.model,
+            num_images=25000,
+            config=config,
+            classes_seen_in_past=range(10),
+        )
+    else:
+        assert False, f"wrong sampler type -- {sampler_type}"
 
     fid_score = calculate_fid_given_datasets(
         ImgDataset(igpt_train_dataset),
@@ -235,6 +265,7 @@ def main(args):
             is_distributed=is_distributed,
             local_rank=args.local_rank,
             resume_from=args.resume_from,
+            sampler_type='diffusion',
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")

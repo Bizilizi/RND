@@ -9,87 +9,29 @@ from tqdm import tqdm
 from torch import nn
 
 
-class Sampler(nn.Module):
+class AbsorbingDiffusion(nn.Module):
     def __init__(
         self,
         *,
-        latent_shape,
-        emb_dim,
         codebook_size,
-        n_samples,
-        embedding_weight,
-    ):
-        super().__init__()
-        self.latent_shape = latent_shape
-        self.emb_dim = emb_dim
-        self.codebook_size = codebook_size
-        self.embedding_weight = embedding_weight
-        self.embedding_weight.requires_grad = False
-        self.n_samples = n_samples
-
-    def train_iter(self, x, x_target, step):
-        raise NotImplementedError()
-
-    def sample(self):
-        raise NotImplementedError()
-
-    def class_conditional_train_iter(self, x, y):
-        raise NotImplementedError()
-
-    def class_conditional_sample(n_samples, y):
-        raise NotImplementedError()
-
-    def embed(self, z):
-        with torch.no_grad():
-            z_flattened = z.view(-1, self.codebook_size)  # B*H*W, codebook_size
-            embedded = (
-                torch.matmul(z_flattened, self.embedding_weight)
-                .view(
-                    z.size(0), self.latent_shape[1], self.latent_shape[2], self.emb_dim
-                )
-                .permute(0, 3, 1, 2)
-                .contiguous()
-            )
-
-        return embedded
-
-
-class AbsorbingDiffusion(Sampler):
-    def __init__(
-        self,
-        *,
-        n_samples,
-        codebook_size,
-        emb_dim,
-        latent_shape,
+        sequence_length,
         total_steps,
-        batch_size,
         loss_type,
         mask_schedule,
         denoise_fn,
         mask_id,
-        embedding_weight,
-        aux_weight=0.01,
     ):
-        super().__init__(
-            latent_shape=latent_shape,
-            emb_dim=emb_dim,
-            codebook_size=codebook_size,
-            n_samples=n_samples,
-            embedding_weight=embedding_weight,
-        )
+        super().__init__()
 
-        self.num_classes = codebook_size
-        self.latent_emb_dim = emb_dim
-        self.shape = tuple(latent_shape)
+        self.codebook_size = codebook_size
+
+        self.sequence_length = sequence_length
         self.num_timesteps = total_steps
 
         self.mask_id = mask_id
         self._denoise_fn = denoise_fn
-        self.n_samples = batch_size
         self.loss_type = loss_type
         self.mask_schedule = mask_schedule
-        self.aux_weight = aux_weight
         self.register_buffer('Lt_history', torch.zeros(self.num_timesteps + 1))
         self.register_buffer('Lt_count', torch.zeros(self.num_timesteps + 1))
         self.register_buffer('loss_history', torch.zeros(self.num_timesteps + 1))
@@ -159,7 +101,6 @@ class AbsorbingDiffusion(Sampler):
         t, pt = self.sample_time(b, device, 'uniform')
 
         # make x noisy and denoise
-
         if self.mask_schedule == 'random':
             x_t, x_0_ignore, mask = self.q_sample(x_0=x_0, t=t)
         elif self.mask_schedule == 'fixed':
@@ -209,9 +150,9 @@ class AbsorbingDiffusion(Sampler):
 
         return loss.mean(), vb_loss.mean()
 
-    def sample(self, temp=1.0, sample_steps=None):
-        b, device = self.n_samples, 'cuda'
-        x_t = torch.ones((b, np.prod(self.shape)), device=device).long() * self.mask_id
+    def sample(self, n_samples, temp=1.0, sample_steps=None):
+        b, device = n_samples, 'cuda'
+        x_t = torch.ones((b, self.sequence_length), device=device).long() * self.mask_id
         unmasked = torch.zeros_like(x_t, device=device).bool()
         sample_steps = list(range(1, sample_steps + 1))
 
@@ -235,8 +176,8 @@ class AbsorbingDiffusion(Sampler):
 
         return x_t
 
-    def sample_mlm(self, temp=1.0, sample_steps=None):
-        b, device = self.n_samples, 'cuda'
+    def sample_mlm(self, n_samples, temp=1.0, sample_steps=None):
+        b, device = n_samples, 'cuda'
         x_0 = torch.ones((b, np.prod(self.shape)), device=device).long() * self.mask_id
         sample_steps = np.linspace(1, self.num_timesteps, num=sample_steps).astype(
             np.long
@@ -272,8 +213,7 @@ class AbsorbingDiffusion(Sampler):
 
     def train_iter(self, x):
         loss, vb_loss = self._train_loss(x)
-        stats = {'loss': loss, 'vb_loss': vb_loss}
-        return stats
+        return loss, vb_loss
 
     def sample_shape(self, shape, num_samples, time_steps=1000, step=1, temp=0.8):
         device = 'cuda'

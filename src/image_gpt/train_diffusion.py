@@ -20,9 +20,10 @@ from avalanche.benchmarks.utils.classification_dataset import ClassificationData
 from src.avalanche.strategies import NaivePytorchLightning
 from src.image_gpt.configuration.config import TrainConfig
 from src.image_gpt.data.bootstrapped_dataset import BootstrappedDataset
-from src.image_gpt.data.image_gpt_dataset import ImageGPTDataset
+from src.image_gpt.data.image_gpt_dataset import ProjectionsDataset
 from src.image_gpt.model.absorbing_diffusion import AbsorbingDiffusion
 from src.image_gpt.model.image_gpt import ImageGPTForCausalImageModeling
+from src.image_gpt.model.transformer import Transformer
 from src.image_gpt.model.vit_vq_vae import VitVQVae
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -83,8 +84,8 @@ def bootstrap_past_samples(
 
     for _ in range(num_images // num_images_per_batch):
         images, latent_indices, labels = sample_images(
-            image_gpt=image_gpt,
-            vq_vae_model=qmae_model,
+            diffusion=image_gpt,
+            qmae_model=qmae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
             temperature=config.temperature,
@@ -109,7 +110,7 @@ def bootstrap_past_samples(
     return dataset
 
 
-def train_igpt(
+def train_diffusion(
     *,
     strategy: NaivePytorchLightning,
     config: TrainConfig,
@@ -123,6 +124,7 @@ def train_igpt(
     qmae_model = strategy.model
     logger = strategy.train_logger
 
+    num_embeddings = qmae_model.feature_quantization.num_embeddings
     """
     Token ids scheme:
     
@@ -131,13 +133,13 @@ def train_igpt(
     { sos token }         with size = 1
     { class tokens }      with size = num_classes
     """
-    mask_token = qmae_model.feature_quantization.num_embeddings
-    sos_token = qmae_model.feature_quantization.num_embeddings + 1
+    mask_token = num_embeddings
+    sos_token = num_embeddings + 1
 
     """
     vocab_size = num_embeddings + mask_token + igpt_sos_token + num_classes
     """
-    vocab_size = qmae_model.feature_quantization.num_embeddings + 2 + num_classes
+    vocab_size = num_embeddings + 2 + num_classes
 
     """
     Length of the token sequence:
@@ -146,21 +148,24 @@ def train_igpt(
     { igpt sos token }               with size = 1
     { class token }                  with size = 1
     """
-    n_positions = 16 * 16 + 1 + 1 + 1
+    n_positions = 16 * 16 + 1
 
+    denoise_fn = Transformer(
+        vocab_size=vocab_size,
+        codebook_size=num_embeddings,
+        embedding_dim=config.embedding_dim,
+        block_size=n_positions,
+        n_layers=24,
+        num_heads=8,
+    )
     diffusion_model = AbsorbingDiffusion(
-        n_samples=,
-        codebook_size=,
-        emb_dim=,
-        latent_shape=,
-        total_steps=,
-        batch_size=,
-        loss_type=,
-        mask_schedule=,
-        denoise_fn=,
-        mask_id=,
-        embedding_weight=,
-        aux_weight=0.01,
+        codebook_size=num_embeddings,
+        sequence_length=n_positions,
+        total_steps=256,
+        loss_type=config.diff_loss_type,
+        mask_schedule=config.diff_mask_schedule,
+        denoise_fn=denoise_fn,
+        mask_id=mask_token,
     )
 
     # init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
@@ -169,55 +174,58 @@ def train_igpt(
     )
 
     # Transfer models to corresponding device (DDP)
-    image_gpt = image_gpt.to(device)
+    diffusion_model = diffusion_model.to(device)
     if is_distributed:
-        image_gpt = DDP(image_gpt, device_ids=[local_rank], output_device=local_rank)
+        diffusion_model = DDP(
+            diffusion_model, device_ids=[local_rank], output_device=local_rank
+        )
 
     qmae_model.to(device)
     image_embeddings.to(device)
 
-    train_dataset = ImageGPTDataset(
+    train_dataset = ProjectionsDataset(
         vq_vae_model=qmae_model,
         dataset=train_dataset,
         sos_token=sos_token,
         mask_token=mask_token,
-        ratio=config.igpt_mask_ratio,
+        ratio=config.diff_masking_ratio,
         num_workers=config.num_workers,
     )
     data_loader = DataLoader(
         train_dataset,
-        batch_size=config.igpt_batch_size,
+        batch_size=config.diff_batch_size,
         shuffle=True,
     )
 
-    epoch_num = config.igpt_num_epochs_max
+    epoch_num = config.diff_num_epochs_max
     grad_scaler = torch.cuda.amp.GradScaler()
-    optimizer = torch.optim.Adam(image_gpt.parameters(), lr=config.igpt_learning_rate)
+    optimizer = torch.optim.Adam(
+        diffusion_model.parameters(), lr=config.diff_learning_rate
+    )
+
     # exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
     #     optimizer,
     #     learning_rate_schedule(
-    #         500, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
+    #         500, epoch_num * len(data_loader) // config.diff_accumulate_grad_batches
     #     ),
     # )
+
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
     step = 0
+
     for i in trange(0, epoch_num):
         counter = i
-        logger.log_metrics({"igpt_epoch": counter}, step=step)
+        logger.log_metrics({"diffusion_epoch": counter}, step=step)
 
         for batch in tqdm(data_loader):
             step += 1
 
-            masked_input_ids = batch["input_ids"].to(device)
+            masked_input_ids = batch["input_ids"][:, 2:].to(device)
             with torch.autocast(device_type=config.accelerator):
-                output = image_gpt(input_ids=masked_input_ids)
-                loss = loss_fn(
-                    output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
-                    masked_input_ids[..., 1:].reshape(-1),
-                )
+                loss, vb_loss = diffusion_model.train_iter(masked_input_ids)
                 grad_scaler.scale(loss).backward()
 
-            if step % config.igpt_accumulate_grad_batches == 0:
+            if step % config.diff_accumulate_grad_batches == 0:
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
                 optimizer.zero_grad(set_to_none=True)
@@ -226,7 +234,15 @@ def train_igpt(
             if local_rank == 0:
                 logger.log_metrics(
                     {
-                        f"train/image_gpt_loss/experience_step_{strategy.experience_step}": loss,
+                        f"train/diffusion_loss/experience_step_{strategy.experience_step}": loss,
+                        "epoch": i,
+                    },
+                    step=i,
+                )
+
+                logger.log_metrics(
+                    {
+                        f"train/diffusion_vb_loss/experience_step_{strategy.experience_step}": vb_loss,
                         "epoch": i,
                     },
                     step=i,
@@ -235,13 +251,13 @@ def train_igpt(
         # Generate sampled images at the end of the epoch
         if local_rank == 0:
             if is_distributed:
-                sampler = image_gpt.module
+                sampler = diffusion_model.module
             else:
-                sampler = image_gpt
+                sampler = diffusion_model
 
             sample = sample_images(
-                image_gpt=sampler,
-                vq_vae_model=qmae_model,
+                diffusion=sampler,
+                qmae_model=qmae_model,
                 embedding=image_embeddings,
                 sos_token=sos_token,
                 return_grid_only=True,
@@ -252,7 +268,7 @@ def train_igpt(
             if isinstance(logger, WandbLogger):
                 logger.log_metrics(
                     {
-                        f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples": wandb.Image(
+                        f"train/dataset/experience_step_{strategy.experience_step}/diffusion_samples": wandb.Image(
                             sample.permute(1, 2, 0).numpy()
                         ),
                         "epoch": i,
@@ -260,36 +276,36 @@ def train_igpt(
                 )
             if isinstance(logger, TensorBoardLogger):
                 logger.experiment.add_image(
-                    f"train/dataset/experience_step_{strategy.experience_step}/igpt_samples",
+                    f"train/dataset/experience_step_{strategy.experience_step}/diffusion_samples",
                     sample / 255,
                     i,
                 )
 
-        # Save igpt model on every epoch
+        # Save diffusion model on every epoch
         if local_rank == 0:
             if is_distributed:
-                state_dict = image_gpt.module.state_dict()
+                state_dict = diffusion_model.module.state_dict()
             else:
-                state_dict = image_gpt.state_dict()
+                state_dict = diffusion_model.state_dict()
 
             for k, v in state_dict.items():
                 state_dict[k] = v.cpu()
 
             torch.save(
                 state_dict,
-                f"{config.checkpoint_path}/igpt-exp{strategy.experience_step}-{i}.ckpt",
+                f"{config.checkpoint_path}/diffusion-exp{strategy.experience_step}-{i}.ckpt",
             )
 
     if is_distributed:
-        return image_gpt.module
+        return diffusion_model.module
     else:
-        return image_gpt
+        return diffusion_model
 
 
 @torch.no_grad()
 def sample_images(
-    image_gpt,
-    vq_vae_model,
+    diffusion,
+    qmae_model,
     embedding,
     sos_token,
     classes_to_sample,
@@ -297,39 +313,21 @@ def sample_images(
     num_images=8 * 4 * 10,
     return_grid_only=False,
 ):
-    image_gpt.eval()
-    vq_vae_model.eval()
+    diffusion.eval()
+    qmae_model.eval()
 
-    device = vq_vae_model.device
-    decoder = vq_vae_model.decoder
+    device = qmae_model.device
+    decoder = qmae_model.decoder
 
-    labels = torch.tensor(
-        random.choices(classes_to_sample, k=num_images), device=device
+    diffusion.to(device)
+    decoder.to(device)
+
+    diffusion_output = diffusion.sample(
+        n_samples=num_images, temp=temperature, sample_steps=256
     )
+    diffusion_output[diffusion_output >= sos_token] = 0
 
-    labels_tokens = sos_token + 1 + labels
-    sos_tokens = torch.full((num_images,), sos_token, device=device)
-
-    context = torch.cat(
-        [
-            rearrange(sos_tokens, "n -> n 1"),
-            rearrange(labels_tokens, "n -> n 1"),
-        ],
-        dim=1,
-    )
-
-    igpt_output = image_gpt.generate(
-        input_ids=context,
-        max_length=16 * 16 + 3,
-        temperature=temperature,
-        do_sample=True,
-        top_k=45,
-        top_p=0.9,
-    )
-    igpt_output = igpt_output[:, 2:]
-    igpt_output[igpt_output >= sos_token] = 0
-
-    quantized = rearrange(embedding(igpt_output), "b t c -> t b c")
+    quantized = rearrange(embedding(diffusion_output), "b t c -> t b c")
     features = quantized + decoder.pos_embedding
 
     features = rearrange(features, "t b c -> b t c")
@@ -349,4 +347,4 @@ def sample_images(
 
         return grid_image
     else:
-        return x_recon, igpt_output, labels
+        return x_recon, diffusion_output, None

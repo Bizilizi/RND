@@ -45,6 +45,18 @@ class TrainConfig(BaseTrainConfig):
     igpt_accumulate_grad_batches: int
     igpt_mask_token_weight: float
 
+    # diffusion
+    diff_learning_rate: float
+    diff_num_epochs_max: int
+    diff_num_epochs_min: int
+    diff_batch_size: int
+    diff_accumulate_grad_batches: int
+    diff_total_steps: int
+    diff_loss_type: str
+    diff_mask_schedule: str
+    diff_aux_weight: str
+    diff_masking_ratio: float
+
     # training
     max_epochs_lin_eval: int
     min_epochs_lin_eval: int
@@ -63,7 +75,8 @@ class TrainConfig(BaseTrainConfig):
             **ini_config["logging"],
             **ini_config["model"],
             **ini_config["sampling"],
-            **ini_config["igpt"]
+            **ini_config["igpt"],
+            **ini_config["diff"],
         )
 
         return config

@@ -158,19 +158,19 @@ def load_tf_weights_in_imagegpt(model, config, imagegpt_checkpoint_path):
         logger.info("Initialize PyTorch weight {}".format(name))
 
         if name[-1] == "q_proj":
-            pointer.data[:, : config.n_embd] = torch.from_numpy(
-                array.reshape(config.n_embd, config.n_embd)
+            pointer.data[:, : config.embedding_dim] = torch.from_numpy(
+                array.reshape(config.embedding_dim, config.embedding_dim)
             ).T
         elif name[-1] == "k_proj":
-            pointer.data[:, config.n_embd : 2 * config.n_embd] = torch.from_numpy(
-                array.reshape(config.n_embd, config.n_embd)
+            pointer.data[:, config.embedding_dim: 2 * config.embedding_dim] = torch.from_numpy(
+                array.reshape(config.embedding_dim, config.embedding_dim)
             ).T
         elif name[-1] == "v_proj":
-            pointer.data[:, 2 * config.n_embd :] = torch.from_numpy(
-                array.reshape(config.n_embd, config.n_embd)
+            pointer.data[:, 2 * config.embedding_dim:] = torch.from_numpy(
+                array.reshape(config.embedding_dim, config.embedding_dim)
             ).T
         elif len(name) == 3 and name[1] == "attn" and name[2] == "c_proj":
-            pointer.data = torch.from_numpy(array.reshape(config.n_embd, config.n_embd))
+            pointer.data = torch.from_numpy(array.reshape(config.embedding_dim, config.embedding_dim))
         elif name[-1] == "wtet":
             pointer.data = torch.from_numpy(array)
         elif name[-1] == "wte":

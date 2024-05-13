@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 from src.image_gpt.model.encoder import take_indexes
 
 
-class ImageGPTDataset(Dataset):
+class ProjectionsDataset(Dataset):
     def __init__(
         self, vq_vae_model, dataset, sos_token, mask_token, ratio, num_workers=4
     ):
