@@ -23,7 +23,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "diffusion 24" \
+    --comment "diffusion 24 masked" \
     --project qmae-latent-extension \
     --devices 0, \
     --run_id zfjmxqb0 \
@@ -41,7 +41,7 @@ python submitit_train.py \
     --igpt_num_layers 12 \
     --igpt_learning_rate 0.01 \
     --igpt_num_epochs_max 200 \
-    --igpt_num_epochs_min 200 \
+    --igpt_num_epochs_min 20 0 \
     --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 128 \
     --igpt_mask_ratio 0.05 \

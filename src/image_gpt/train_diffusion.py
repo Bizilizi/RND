@@ -145,10 +145,9 @@ def train_diffusion(
     Length of the token sequence:
     
     { patches tokens + encoder sos } with size = 16 * 16 + 1
-    { igpt sos token }               with size = 1
     { class token }                  with size = 1
     """
-    n_positions = 16 * 16 + 1 + 1 + 1
+    n_positions = 16 * 16 + 1 + 1
 
     denoise_fn = Transformer(
         vocab_size=vocab_size,
@@ -220,7 +219,7 @@ def train_diffusion(
         for batch in tqdm(data_loader):
             step += 1
 
-            masked_input_ids = batch["input_ids"][:, 2:].to(device)
+            masked_input_ids = batch["input_ids"][:, 1:].to(device)
             with torch.autocast(device_type=config.accelerator):
                 loss, vb_loss = diffusion_model.train_iter(masked_input_ids)
                 grad_scaler.scale(loss).backward()
@@ -323,9 +322,12 @@ def sample_images(
     decoder.to(device)
 
     diffusion_output = diffusion.sample(
-        n_samples=num_images, temp=temperature, sample_steps=256
+        n_samples=num_images,
+        temp=temperature,
+        sample_steps=256,
+        classes_to_sample=classes_to_sample,
     )
-    diffusion_output = diffusion_output[:, 2:]
+    diffusion_output = diffusion_output[:, 1:]
     diffusion_output[diffusion_output >= sos_token] = 0
 
     quantized = rearrange(embedding(diffusion_output), "b t c -> t b c")

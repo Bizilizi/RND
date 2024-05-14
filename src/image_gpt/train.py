@@ -161,8 +161,6 @@ def main(args):
     overwrite_config_with_args(args, config)
 
     if is_main_process:
-        if args.dev:
-            os.environ["WANDB_MODE"] = "offline"
 
         # this will restore wand run from args id
         with wandb.init(
@@ -178,6 +176,8 @@ def main(args):
                     continue
                 setattr(config, k, v)
 
+        if args.dev:
+            os.environ["WANDB_MODE"] = "offline"
         # Now we will re-init wandb with igpt project
         wandb_params = dict(
             project=args.model.lower(),

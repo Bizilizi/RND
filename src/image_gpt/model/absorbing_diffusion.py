@@ -1,4 +1,5 @@
 # code is taken from https://github.com/samb-t/unleashing-transformers
+import random
 
 import math
 import numpy as np
@@ -69,6 +70,10 @@ class AbsorbingDiffusion(nn.Module):
         mask = torch.rand_like(x_t.float()) < (
             t.float().unsqueeze(-1) / self.num_timesteps
         )
+
+        # do not mask class token to condition the model
+        mask[:, 0] = False
+
         x_t[mask] = self.mask_id
         x_0_ignore[torch.bitwise_not(mask)] = -1
         return x_t, x_0_ignore, mask
@@ -150,9 +155,24 @@ class AbsorbingDiffusion(nn.Module):
 
         return loss.mean(), vb_loss.mean()
 
-    def sample(self, n_samples, temp=1.0, sample_steps=None):
+    def sample(
+        self,
+        classes_to_sample,
+        n_samples,
+        sample_steps,
+        temp=1.0,
+    ):
         b, device = n_samples, 'cuda'
-        x_t = torch.ones((b, self.sequence_length), device=device).long() * self.mask_id
+
+        labels = torch.tensor(
+            random.choices(classes_to_sample, k=n_samples), device=device
+        ).unsqueeze(1)
+        x_t = (
+            torch.ones((b, self.sequence_length - 1), device=device).long()
+            * self.mask_id
+        )
+        x_t = torch.cat([labels, x_t], dim=1)
+
         unmasked = torch.zeros_like(x_t, device=device).bool()
         sample_steps = list(range(1, sample_steps + 1))
 
