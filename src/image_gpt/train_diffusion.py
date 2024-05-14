@@ -148,7 +148,7 @@ def train_diffusion(
     { igpt sos token }               with size = 1
     { class token }                  with size = 1
     """
-    n_positions = 16 * 16 + 1
+    n_positions = 16 * 16 + 1 + 1 + 1
 
     denoise_fn = Transformer(
         vocab_size=vocab_size,
@@ -165,7 +165,7 @@ def train_diffusion(
         loss_type=config.diff_loss_type,
         mask_schedule=config.diff_mask_schedule,
         denoise_fn=denoise_fn,
-        mask_id=mask_token,
+        mask_id=sos_token,
     )
 
     # init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
@@ -325,6 +325,7 @@ def sample_images(
     diffusion_output = diffusion.sample(
         n_samples=num_images, temp=temperature, sample_steps=256
     )
+    diffusion_output = diffusion_output[:, 2:]
     diffusion_output[diffusion_output >= sos_token] = 0
 
     quantized = rearrange(embedding(diffusion_output), "b t c -> t b c")
