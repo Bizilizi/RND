@@ -57,7 +57,7 @@ def get_image_embedding(
 
 @torch.no_grad()
 def bootstrap_past_samples(
-    image_gpt: ImageGPTForCausalImageModeling,
+    diffusion,
     qmae_model: VitVQVae,
     num_images: int,
     classes_seen_in_past,
@@ -84,7 +84,7 @@ def bootstrap_past_samples(
 
     for _ in range(num_images // num_images_per_batch):
         images, latent_indices, labels = sample_images(
-            diffusion=image_gpt,
+            diffusion=diffusion,
             qmae_model=qmae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
@@ -321,7 +321,7 @@ def sample_images(
     diffusion.to(device)
     decoder.to(device)
 
-    diffusion_output = diffusion.sample(
+    diffusion_output, labels = diffusion.sample(
         n_samples=num_images,
         temp=temperature,
         sample_steps=256,
@@ -350,4 +350,4 @@ def sample_images(
 
         return grid_image
     else:
-        return x_recon, diffusion_output, None
+        return x_recon, diffusion_output, labels

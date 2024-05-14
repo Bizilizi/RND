@@ -166,12 +166,12 @@ class AbsorbingDiffusion(nn.Module):
 
         labels = torch.tensor(
             random.choices(classes_to_sample, k=n_samples), device=device
-        ).unsqueeze(1)
+        )
         x_t = (
             torch.ones((b, self.sequence_length - 1), device=device).long()
             * self.mask_id
         )
-        x_t = torch.cat([labels, x_t], dim=1)
+        x_t = torch.cat([labels.unsqueeze(1), x_t], dim=1)
 
         unmasked = torch.zeros_like(x_t, device=device).bool()
         sample_steps = list(range(1, sample_steps + 1))
@@ -194,7 +194,7 @@ class AbsorbingDiffusion(nn.Module):
             x_0_hat = x_0_dist.sample().long()
             x_t[changes] = x_0_hat[changes]
 
-        return x_t
+        return x_t, labels
 
     def sample_mlm(self, n_samples, temp=1.0, sample_steps=None):
         b, device = n_samples, 'cuda'

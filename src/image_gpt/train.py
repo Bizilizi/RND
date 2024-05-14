@@ -57,7 +57,6 @@ def train_loop(
     is_distributed: bool,
     local_rank: int,
     resume_from: str,
-    sampler_type: str,
 ) -> None:
     """
     :return:
@@ -82,7 +81,7 @@ def train_loop(
             for experience in benchmark.train_stream
         ]
     )
-    if sampler_type == 'image-gpt':
+    if config.sampler_type == 'igpt':
         image_gpt = train_igpt(
             strategy=cl_strategy,
             config=config,
@@ -101,7 +100,7 @@ def train_loop(
             config=config,
             classes_seen_in_past=range(10),
         )
-    elif sampler_type == 'diffusion':
+    elif config.sampler_type == 'diffusion':
         diffusion = train_diffusion(
             strategy=cl_strategy,
             config=config,
@@ -114,14 +113,14 @@ def train_loop(
         )
 
         bootstrapped_dataset = bootstrap_past_samples_with_diffusion(
-            image_gpt=diffusion,
+            diffusion=diffusion,
             qmae_model=cl_strategy.model,
             num_images=25000,
             config=config,
             classes_seen_in_past=range(10),
         )
     else:
-        assert False, f"wrong sampler type -- {sampler_type}"
+        assert False, f"wrong sampler type -- {config.sampler_type}"
 
     fid_score = calculate_fid_given_datasets(
         ImgDataset(igpt_train_dataset),
@@ -265,7 +264,6 @@ def main(args):
             is_distributed=is_distributed,
             local_rank=args.local_rank,
             resume_from=args.resume_from,
-            sampler_type='diffusion',
         )
     except KeyboardInterrupt:
         print("Training successfully interrupted.")
