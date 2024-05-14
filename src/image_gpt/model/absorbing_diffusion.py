@@ -162,7 +162,7 @@ class AbsorbingDiffusion(nn.Module):
         sample_steps,
         temp=1.0,
     ):
-        b, device = n_samples, 'cuda'
+        b, device = n_samples, self.device
 
         labels = torch.tensor(
             random.choices(classes_to_sample, k=n_samples), device=device
