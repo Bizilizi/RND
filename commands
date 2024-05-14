@@ -38,8 +38,9 @@ python submitit_train.py \
     --min_epochs 300 \
     --embedding_dim 192 \
     --img_embedding_dim 2 \
-    --igpt_num_layers 12 \
-    --igpt_learning_rate 0.01 \
+    --sampler_type igpt \
+    --igpt_num_layers 48 \
+    --igpt_learning_rate 0.001 \
     --igpt_num_epochs_max 200 \
     --igpt_num_epochs_min 20 0 \
     --igpt_accumulate_grad_batches 1 \
@@ -47,7 +48,7 @@ python submitit_train.py \
     --igpt_mask_ratio 0.05 \
     --diff_learning_rate 0.001 \
     --diff_num_epochs_max 100 \
-    --diff_batch_size 128 \
+    --diff_batch_size 64 \
     --diff_accumulate_grad_batches 1 \
     --diff_total_steps 256 \
     --diff_loss_type reweighted_elbo \
