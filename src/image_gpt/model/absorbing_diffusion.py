@@ -315,3 +315,7 @@ class AbsorbingDiffusion(nn.Module):
             x_t[changes] = x_0_hat[changes]
 
         return x_t
+
+    def to(self, device):
+        self.device = device
+        super().to(device)
