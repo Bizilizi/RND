@@ -197,7 +197,7 @@ class AbsorbingDiffusion(nn.Module):
         return x_t, labels
 
     def sample_mlm(self, n_samples, temp=1.0, sample_steps=None):
-        b, device = n_samples, 'cuda'
+        b, device = n_samples, self.device
         x_0 = torch.ones((b, np.prod(self.shape)), device=device).long() * self.mask_id
         sample_steps = np.linspace(1, self.num_timesteps, num=sample_steps).astype(
             np.long
@@ -236,7 +236,7 @@ class AbsorbingDiffusion(nn.Module):
         return loss, vb_loss
 
     def sample_shape(self, shape, num_samples, time_steps=1000, step=1, temp=0.8):
-        device = 'cuda'
+        device = self.device
         x_t = torch.ones((num_samples,) + shape, device=device).long() * self.mask_id
         x_lim, y_lim = shape[0] - self.shape[1], shape[1] - self.shape[2]
 
