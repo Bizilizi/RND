@@ -318,4 +318,4 @@ class AbsorbingDiffusion(nn.Module):
 
     def to(self, device):
         self.device = device
-        super().to(device)
+        return super().to(device)
