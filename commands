@@ -38,7 +38,8 @@ python submitit_train.py \
     --min_epochs 300 \
     --embedding_dim 192 \
     --img_embedding_dim 2 \
-    --sampler_type igpt \
+    --sampler_type diffusion \
+    --temperature 1 \
     --igpt_num_layers 48 \
     --igpt_learning_rate 0.001 \
     --igpt_num_epochs_max 200 \

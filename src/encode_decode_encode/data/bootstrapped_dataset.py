@@ -1,0 +1,51 @@
+from torch.utils.data import Dataset
+import typing as t
+import torch
+
+
+class BootstrappedDataset(Dataset):
+    def __init__(
+        self,
+        transform: t.Optional[t.Any],
+    ):
+        super().__init__()
+
+        self.transform = transform
+
+        self.images = None
+        self.indices = None
+        self.targets = None
+
+        self.mean = 0
+        self.std = 0
+
+    def add_data(self, *, latent_indices, labels):
+        images = torch.rand(latent_indices.shape[0], 3, 32, 32)
+
+        if self.images is None:
+            self.images = images
+            self.indices = latent_indices
+            self.targets = labels
+        else:
+            self.images = torch.cat([self.images, images], dim=0)
+            self.indices = torch.cat([self.indices, latent_indices], dim=0)
+            self.targets = torch.cat([self.targets, labels], dim=0)
+
+        self.mean = self.images.mean()
+        self.std = self.images.std()
+
+    def __getitem__(self, item):
+        image = self.images[item]
+        image = (image - self.mean) / self.std
+
+        data = {
+            "images": image,
+            "indices": self.indices[item],
+            "is_past_domain": 1,
+        }
+        targets = self.targets[item].item()
+
+        return data, targets
+
+    def __len__(self):
+        return len(self.images)
