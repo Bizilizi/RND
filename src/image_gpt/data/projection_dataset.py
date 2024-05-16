@@ -48,7 +48,7 @@ class ProjectionsDataset(Dataset):
             ratio=self.ratio,
         )
 
-        if self.ratio == 1:
+        if self.ratio == 0:
             (
                 *_,
                 input_ids,

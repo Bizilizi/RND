@@ -20,7 +20,7 @@ from avalanche.benchmarks.utils.classification_dataset import ClassificationData
 from src.avalanche.strategies import NaivePytorchLightning
 from src.image_gpt.configuration.config import TrainConfig
 from src.image_gpt.data.bootstrapped_dataset import BootstrappedDataset
-from src.image_gpt.data.image_gpt_dataset import ProjectionsDataset
+from src.image_gpt.data.projection_dataset import ProjectionsDataset
 from src.image_gpt.model.absorbing_diffusion import AbsorbingDiffusion
 from src.image_gpt.model.image_gpt import ImageGPTForCausalImageModeling
 from src.image_gpt.model.transformer import Transformer
@@ -154,8 +154,8 @@ def train_diffusion(
         codebook_size=num_embeddings,
         embedding_dim=config.embedding_dim,
         block_size=n_positions,
-        n_layers=24,
-        num_heads=8,
+        n_layers=config.diff_num_layers,
+        num_heads=config.diff_num_heads,
     )
     diffusion_model = AbsorbingDiffusion(
         codebook_size=num_embeddings,

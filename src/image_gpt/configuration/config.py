@@ -47,6 +47,8 @@ class TrainConfig(BaseTrainConfig):
     igpt_mask_token_weight: float
 
     # diffusion
+    diff_num_heads: int
+    diff_num_layers: int
     diff_learning_rate: float
     diff_num_epochs_max: int
     diff_num_epochs_min: int

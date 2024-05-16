@@ -20,7 +20,7 @@ from avalanche.benchmarks.utils.classification_dataset import ClassificationData
 from src.avalanche.strategies import NaivePytorchLightning
 from src.image_gpt.configuration.config import TrainConfig
 from src.image_gpt.data.bootstrapped_dataset import BootstrappedDataset
-from src.image_gpt.data.image_gpt_dataset import ProjectionsDataset
+from src.image_gpt.data.projection_dataset import ProjectionsDataset
 from src.image_gpt.model.image_gpt import ImageGPTForCausalImageModeling
 from src.image_gpt.model.vit_vq_vae import VitVQVae
 from torch.nn.parallel import DistributedDataParallel as DDP
