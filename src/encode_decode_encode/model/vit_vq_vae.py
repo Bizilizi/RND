@@ -79,10 +79,8 @@ class VitVQVae(CLModel):
         classification_loss_weight=1,
         latent_consistency_loss_weight=1,
         cycle_consistency_sigma: float = 1,
-        past_samples_rec_loss=True,
         precision: str = "32-true",
         accelerator: str = "cuda",
-        quantize_features: bool = True,
         data_variance: float = 1,
     ) -> None:
         super().__init__()
@@ -530,10 +528,6 @@ class VitVQVae(CLModel):
             "forward_output": forward_output,
         }
 
-    def on_train_epoch_end(self):
-        sch = self.lr_schedulers()
-        sch.step()
-
     def configure_optimizers(self):
         optimizer = torch.optim.AdamW(
             chain(
@@ -543,28 +537,12 @@ class VitVQVae(CLModel):
                 self.projection_head.parameters(),
                 self.clf_head.parameters(),
             ),
-            lr=self._learning_rate * self._batch_size / 256,
+            lr=self._learning_rate,
             betas=(0.9, 0.95),
             weight_decay=self._weight_decay,
         )
 
-        warmup = min(200, self._num_epochs // 3)
-        lr_func = lambda epoch: min(
-            (epoch + 1) / (warmup + 1e-8),
-            0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
-        )
-        lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-            optimizer, lr_lambda=lr_func, verbose=True
-        )
-
-        return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": lr_scheduler,
-                "interval": "epoch",
-                "frequency": 1,
-            },
-        }
+        return optimizer
 
     def log_with_postfix(self, name: str, value: t.Any, *args, **kwargs):
         self.log_dict(
