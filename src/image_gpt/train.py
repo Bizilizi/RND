@@ -171,7 +171,7 @@ def main(args):
             resume="must",
         ) as qmae_run:
             for k, v in qmae_run.config.items():
-                if k == "accelerator" or "gpt" in k:
+                if k in ["accelerator", "temperature"] or "gpt" in k or "diff" in k:
                     continue
                 setattr(config, k, v)
 

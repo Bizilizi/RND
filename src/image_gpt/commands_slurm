@@ -48,6 +48,8 @@ python submitit_train.py \
     --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 128 \
     --igpt_mask_ratio 0.05 \
+    --diff_num_heads 8 \
+    --diff_num_layers 24 \
     --diff_learning_rate 0.001 \
     --diff_num_epochs_max 100 \
     --diff_batch_size 64 \
