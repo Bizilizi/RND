@@ -403,7 +403,6 @@ class VitVQVae(CLModel):
             criterion_output.vq_loss
             + criterion_output.reconstruction_loss
             + criterion_output.past_cycle_consistency_loss
-            * self.cycle_consistency_weight
             + criterion_output.past_image_embedding_consistency
             # + criterion_output.triplet_loss
             + criterion_output.clf_loss

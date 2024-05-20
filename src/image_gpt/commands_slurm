@@ -57,7 +57,7 @@ python submitit_train.py \
     --diff_total_steps 256 \
     --diff_loss_type reweighted_elbo \
     --diff_mask_schedule random \
-    --diff_masking_ratio 0.1 \
+    --diff_masking_ratio 0 \
     --max_epochs_lin_eval 100 \
     --num_random_past_samples 250000 \
     --num_random_past_samples_schedule schedule \
