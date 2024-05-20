@@ -62,6 +62,7 @@ def bootstrap_past_samples(
     num_images: int,
     classes_seen_in_past,
     config: TrainConfig,
+    temperature: float,
     transform: t.Optional[t.Any] = None,
 ) -> ClassificationDataset:
     num_images_per_batch = min(128, num_images)
@@ -88,7 +89,7 @@ def bootstrap_past_samples(
             qmae_model=qmae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
-            temperature=config.temperature,
+            temperature=temperature,
             num_images=num_images_per_batch,
             classes_to_sample=classes_seen_in_past,
         )

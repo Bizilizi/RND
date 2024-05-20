@@ -61,6 +61,8 @@ def train_loop(
     """
     :return:
     """
+    temperatures = [0.9, 1, 1.1, 1.2, 1.3]
+    num_images = 10000
 
     cl_strategy.model.load_state_dict(
         torch.load(
@@ -70,7 +72,6 @@ def train_loop(
     )
     cl_strategy.model.to(device)
 
-    print(f"Train igpt..")
     igpt_train_dataset = ConcatDataset(
         [
             wrap_dataset(
@@ -81,7 +82,9 @@ def train_loop(
             for experience in benchmark.train_stream
         ]
     )
+
     if config.sampler_type == 'igpt':
+        print(f"Train igpt..")
         image_gpt = train_igpt(
             strategy=cl_strategy,
             config=config,
@@ -92,15 +95,20 @@ def train_loop(
             num_classes=benchmark.n_classes,
             classes_seen_so_far=range(10),
         )
-
-        bootstrapped_dataset = bootstrap_past_samples_with_igpt(
-            image_gpt=image_gpt,
-            qmae_model=cl_strategy.model,
-            num_images=25000,
-            config=config,
-            classes_seen_in_past=range(10),
-        )
+        print(f"Bootstrapping dataset..")
+        bootstrapped_datasets = {
+            temperature: bootstrap_past_samples_with_igpt(
+                image_gpt=image_gpt,
+                qmae_model=cl_strategy.model,
+                num_images=num_images,
+                config=config,
+                classes_seen_in_past=range(10),
+                temperature=temperature,
+            )
+            for temperature in temperatures
+        }
     elif config.sampler_type == 'diffusion':
+        print(f"Train diffusion..")
         diffusion = train_diffusion(
             strategy=cl_strategy,
             config=config,
@@ -112,28 +120,35 @@ def train_loop(
             classes_seen_so_far=range(10),
         )
 
-        bootstrapped_dataset = bootstrap_past_samples_with_diffusion(
-            diffusion=diffusion,
-            qmae_model=cl_strategy.model,
-            num_images=25000,
-            config=config,
-            classes_seen_in_past=range(10),
-        )
+        print(f"Bootstrapping dataset..")
+        bootstrapped_datasets = {
+            temperature: bootstrap_past_samples_with_diffusion(
+                diffusion=diffusion,
+                qmae_model=cl_strategy.model,
+                num_images=num_images,
+                config=config,
+                classes_seen_in_past=range(10),
+                temperature=temperature,
+            )
+            for temperature in temperatures
+        }
     else:
         assert False, f"wrong sampler type -- {config.sampler_type}"
 
-    fid_score = calculate_fid_given_datasets(
-        ImgDataset(igpt_train_dataset),
-        ImgDataset(bootstrapped_dataset),
-        128,
-        device,
-        2048,
-    )
+    print(f"Calculating fid score..")
+    for temperature, dataset in bootstrapped_datasets.items():
+        fid_score = calculate_fid_given_datasets(
+            ImgDataset(igpt_train_dataset),
+            ImgDataset(dataset),
+            128,
+            device,
+            2048,
+        )
 
-    if is_using_wandb:
-        wandb.log({"fid_score/all_tasks": fid_score})
-    else:
-        print(f"Fid score: {fid_score}")
+        if is_using_wandb:
+            wandb.log({"fid_score/all_tasks": fid_score, "temperature": temperature})
+        else:
+            print(f"Fid score: {fid_score}")
 
 
 def main(args):

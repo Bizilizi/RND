@@ -259,6 +259,7 @@ def calculate_activation_statistics(
     return mu, sigma
 
 
+@torch.no_grad()
 def calculate_fid_given_datasets(
     dataset_1, dataset_2, batch_size, device, dims, num_workers=1
 ):

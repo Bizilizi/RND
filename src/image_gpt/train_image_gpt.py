@@ -80,6 +80,7 @@ def bootstrap_past_samples(
     num_images: int,
     classes_seen_in_past,
     config: TrainConfig,
+    temperature: float,
     transform: t.Optional[t.Any] = None,
 ) -> ClassificationDataset:
     num_images_per_batch = min(128, num_images)
@@ -106,7 +107,7 @@ def bootstrap_past_samples(
             vq_vae_model=qmae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
-            temperature=config.temperature,
+            temperature=temperature,
             num_images=num_images_per_batch,
             classes_to_sample=classes_seen_in_past,
         )
@@ -191,7 +192,7 @@ def train_igpt(
             "layer_norm_epsilon": 1e-05,
             "model_type": "imagegpt",
             "n_embd": config.embedding_dim,
-            "n_head": 8,
+            "n_head": config.igpt_num_heads,
             "n_layer": config.igpt_num_layers,
             "n_positions": n_positions,
             "reorder_and_upcast_attn": False,
@@ -235,14 +236,10 @@ def train_igpt(
     epoch_num = config.igpt_num_epochs_max
     grad_scaler = torch.cuda.amp.GradScaler()
     optimizer = torch.optim.Adam(image_gpt.parameters(), lr=config.igpt_learning_rate)
-    # exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-    #     optimizer,
-    #     learning_rate_schedule(
-    #         15, epoch_num * len(data_loader) // config.igpt_accumulate_grad_batches
-    #     ),
-    # )
+
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
     step = 0
+
     for i in trange(0, epoch_num):
         counter = i
         logger.log_metrics({"igpt_epoch": counter}, step=step)
