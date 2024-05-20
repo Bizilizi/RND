@@ -129,16 +129,16 @@ def train_diffusion(
     """
     Token ids scheme:
     
-    { embeddings tokens } with size = num_embeddings 
-    { mask token }        with size = 1
-    { sos token }         with size = 1
-    { class tokens }      with size = num_classes
+    { embeddings tokens }         with size = num_embeddings 
+    { decoder mask token }        with size = 1
+    { diffusion mask token }      with size = 1
+    { class tokens }              with size = num_classes
     """
-    mask_token = num_embeddings
-    sos_token = num_embeddings + 1
+    decoder_mask_token = num_embeddings
+    diffusion_mask_token = num_embeddings + 1
 
     """
-    vocab_size = num_embeddings + mask_token + igpt_sos_token + num_classes
+    vocab_size = num_embeddings + decoder_mask_token + diffusion_mask_token + num_classes
     """
     vocab_size = num_embeddings + 2 + num_classes
 
@@ -165,11 +165,11 @@ def train_diffusion(
         loss_type=config.diff_loss_type,
         mask_schedule=config.diff_mask_schedule,
         denoise_fn=denoise_fn,
-        mask_id=sos_token,
+        mask_id=diffusion_mask_token,
     )
 
     # init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
-    image_embeddings = get_image_embedding(qmae_model, config, mask_token).to(
+    image_embeddings = get_image_embedding(qmae_model, config, decoder_mask_token).to(
         qmae_model.device
     )
 
@@ -183,11 +183,15 @@ def train_diffusion(
     qmae_model.to(device)
     image_embeddings.to(device)
 
+    """
+    Elements of the ProjectionsDataset are sequences with following order
+    {sos_token}, {class_token}, {embedding_token_1}, ... ,{embedding_token_T}
+    """
     train_dataset = ProjectionsDataset(
         vq_vae_model=qmae_model,
         dataset=train_dataset,
-        sos_token=sos_token,
-        mask_token=mask_token,
+        sos_token=0,  # sos_token is ignored in this training
+        mask_token=decoder_mask_token,
         ratio=config.diff_masking_ratio,
         num_workers=config.num_workers,
     )
@@ -220,7 +224,9 @@ def train_diffusion(
         for batch in tqdm(data_loader):
             step += 1
 
-            masked_input_ids = batch["input_ids"][:, 1:].to(device)
+            masked_input_ids = batch["input_ids"][:, 1:]  # here we drop sos_token
+            masked_input_ids = masked_input_ids.to(device)
+
             with torch.autocast(device_type=config.accelerator):
                 loss, vb_loss = diffusion_model.train_iter(masked_input_ids)
                 grad_scaler.scale(loss).backward()
@@ -259,7 +265,7 @@ def train_diffusion(
                 diffusion=sampler,
                 qmae_model=qmae_model,
                 embedding=image_embeddings,
-                sos_token=sos_token,
+                sos_token=diffusion_mask_token,
                 return_grid_only=True,
                 temperature=config.temperature,
                 classes_to_sample=classes_seen_so_far,
