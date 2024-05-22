@@ -77,7 +77,7 @@ def get_cl_strategy(
         initial_resume_from=resume_from,
         model=model,
         device=device,
-        optimizer=model.configure_optimizers()["optimizer"],
+        optimizer=model.configure_optimizers(),
         criterion=model.criterion,
         train_mb_size=config.batch_size,
         train_mb_num_workers=config.num_workers,
@@ -192,14 +192,12 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         mask_ratio=config.mask_ratio,
         precision=config.precision,
         accelerator=config.accelerator,
-        past_samples_rec_loss=config.past_samples_rec_loss,
         batch_size=config.batch_size * config.accumulate_grad_batches,
         num_epochs=config.max_epochs,
         reconstruction_loss_weight=config.reconstruction_loss_weight,
         classification_loss_weight=config.classification_loss_weight,
         latent_consistency_loss_weight=config.latent_consistency_loss_weight,
         cycle_consistency_sigma=config.cycle_consistency_sigma,
-        quantize_features=config.quantize_features,
         data_variance=config.dataset_variance,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
