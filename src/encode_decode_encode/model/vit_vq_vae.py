@@ -189,7 +189,7 @@ class VitVQVae(CLModel):
         )
 
         # Compute consistency loss
-        latent_consistency_loss = 0
+        latent_consistency_loss = torch.tensor(0.0, device=self.device)
         # latent_consistency_loss = self.get_cycle_consistency_loss(
         #     forward_output.z_distances, forward_output.z_indices
         # )
