@@ -189,9 +189,10 @@ class VitVQVae(CLModel):
         )
 
         # Compute consistency loss
-        latent_consistency_loss = self.get_cycle_consistency_loss(
-            forward_output.z_distances, forward_output.z_indices
-        )
+        latent_consistency_loss = 0
+        # latent_consistency_loss = self.get_cycle_consistency_loss(
+        #     forward_output.z_distances, forward_output.z_indices
+        # )
 
         if forward_output.past_z_indices is not None:
             latent_consistency_loss += self.get_cycle_consistency_loss(

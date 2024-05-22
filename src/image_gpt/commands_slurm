@@ -55,7 +55,7 @@ python submitit_train.py \
     --diff_num_epochs_max 100 \
     --diff_batch_size 32 \
     --diff_accumulate_grad_batches 4 \
-    --diff_total_steps 256 \
+    --diff_total_steps 512 \
     --diff_loss_type reweighted_elbo \
     --diff_mask_schedule random \
     --diff_masking_ratio 0 \
