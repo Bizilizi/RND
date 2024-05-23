@@ -18,6 +18,10 @@ class TrainConfig(BaseTrainConfig):
     dataset: str
     dataset_variance: float
     memory_buffer_size: int
+    encoder_layer: int
+    encoder_head: int
+    decoder_layer: int
+    decoder_head: int
 
     supervised: bool
     use_lpips: bool

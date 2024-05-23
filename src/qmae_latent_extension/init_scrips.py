@@ -204,6 +204,10 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
         cycle_consistency_sigma=config.cycle_consistency_sigma,
         quantize_features=config.quantize_features,
         data_variance=config.dataset_variance,
+        encoder_layer=config.encoder_layer,
+        encoder_head=config.encoder_head,
+        decoder_layer=config.decoder_layer,
+        decoder_head=config.decoder_head,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 
