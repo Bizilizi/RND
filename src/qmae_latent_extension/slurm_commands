@@ -1,0 +1,56 @@
+sbatch -J cka_scores_lppmdmbl submit.sh \
+    python commands.py \
+    --command cka_score \
+    --batch_size 128 \
+    --max_epochs 600 \
+    --min_epochs 300 \
+    --run_id lppmdmbl
+
+sbatch -J fid_scores_1z0vahmb submit.sh \
+    python commands.py \
+    --command fid_score \
+    --max_epochs 600 \
+    --min_epochs 300 \
+    --i_ep 6 \
+    --run_id m9ofkbqk
+
+# Qmae
+python submitit_train.py \
+    --cpus_per_task 8 \
+    --slurm_mem 96 \
+    --gpu_type a6000 \
+    --batch_size 512 \
+    --accumulate_grad_batches 1 \
+    --partition gpu \
+    --timeout 1680 \
+    --ngpus 1 \
+    --comment "qmae 1 task" \
+    --devices 0, \
+    --group tests \
+    --model qmae-latent-extension \
+    --config src/image_gpt/configuration/train.ini \
+    --dataset cifar10 \
+    --num_tasks 2 \
+    --num_epochs_schedule warmup \
+    --max_epochs 600 \
+    --min_epochs 300 \
+    --embedding_dim 192 \
+    --img_embedding_dim 2 \
+    --igpt_num_layers 24 \
+    --igpt_learning_rate 0.001 \
+    --igpt_num_epochs_max 50 \
+    --igpt_num_epochs_min 50 \
+    --igpt_accumulate_grad_batches 1 \
+    --igpt_batch_size 128 \
+    --max_epochs_lin_eval 100 \
+    --igpt_mask_ratio 0.05 \
+    --num_random_past_samples 250000 \
+    --num_random_past_samples_schedule schedule \
+    --cycle_consistency_loss_weight 1 \
+    --cycle_consistency_sigma 1 \
+    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --past_samples_rec_loss True \
+    --num_workers 8 \
+    --num_embeddings 512 \
+    --num_embeddings_per_step 32 \
+    --precision 16-mixed
