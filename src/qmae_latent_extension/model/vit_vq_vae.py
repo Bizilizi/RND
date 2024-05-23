@@ -474,10 +474,13 @@ class VitVQVae(CLModel):
         )
 
         warmup = min(200, self._num_epochs // 3)
-        lr_func = lambda epoch: min(
-            (epoch + 1) / (warmup + 1e-8),
-            0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
-        )
+        # lr_func = lambda epoch: min(
+        #     (epoch + 1) / (warmup + 1e-8),
+        #     0.5 * (math.cos(epoch / self._num_epochs * math.pi) + 1),
+        # )
+
+        lr_func = lambda epoch: 1
+
         lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
             optimizer, lr_lambda=lr_func, verbose=True
         )
