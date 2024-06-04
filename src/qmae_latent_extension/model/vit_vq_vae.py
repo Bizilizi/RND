@@ -220,14 +220,20 @@ class VitVQVae(CLModel):
             past_y = y[past_data]
 
             clf_loss = F.cross_entropy(past_logits, past_y)
-            clf_acc = (past_logits.argmax(dim=-1) == past_y).float().mean()
+            clf_acc = (
+                (past_logits.argmax(dim=-1) == past_y.argmax(dim=-1)).float().mean()
+            )
 
         if self.experience_step == 0:
             current_logits = forward_output.clf_logits
             current_y = y
 
             clf_loss = F.cross_entropy(current_logits, current_y)
-            clf_acc = (current_logits.argmax(dim=-1) == current_y).float().mean()
+            clf_acc = (
+                (current_logits.argmax(dim=-1) == current_y.argmax(dim=-1))
+                .float()
+                .mean()
+            )
 
         # Compute consistency loss
         if (
@@ -322,7 +328,7 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
-        # x, y = self.mixup(x, y)
+        x, y = self.mixup(x, y)
 
         forward_output = self.forward(x)
         forward_output.x_data = x
@@ -394,6 +400,7 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
+        x, y = self.mixup(x, y)
 
         forward_output = self.forward(x)
         forward_output.x_data = x

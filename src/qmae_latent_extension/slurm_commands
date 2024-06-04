@@ -19,8 +19,8 @@ python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
     --gpu_type a6000 \
-    --batch_size 512 \
-    --accumulate_grad_batches 1 \
+    --batch_size 128 \
+    --accumulate_grad_batches 4 \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
