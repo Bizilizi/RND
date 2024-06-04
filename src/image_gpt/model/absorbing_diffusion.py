@@ -14,6 +14,8 @@ class AbsorbingDiffusion(nn.Module):
     def __init__(
         self,
         *,
+        indices_tensor,
+        decoder,
         codebook_size,
         sequence_length,
         total_steps,
@@ -24,6 +26,8 @@ class AbsorbingDiffusion(nn.Module):
     ):
         super().__init__()
 
+        self.indices_tensor = indices_tensor
+        self.decoder = decoder
         self.codebook_size = codebook_size
 
         self.sequence_length = sequence_length
@@ -33,6 +37,7 @@ class AbsorbingDiffusion(nn.Module):
         self._denoise_fn = denoise_fn
         self.loss_type = loss_type
         self.mask_schedule = mask_schedule
+
         self.register_buffer('Lt_history', torch.zeros(self.num_timesteps + 1))
         self.register_buffer('Lt_count', torch.zeros(self.num_timesteps + 1))
         self.register_buffer('loss_history', torch.zeros(self.num_timesteps + 1))
@@ -113,6 +118,20 @@ class AbsorbingDiffusion(nn.Module):
 
         # sample p(x_0 | x_t)
         x_0_hat_logits = self._denoise_fn(x_t, t=t).permute(0, 2, 1)
+        """x_0_hat_logits - B x T + 1 x n_emb"""
+
+        # Calculate GAN loss
+        x_0_hat_onehot = F.gumbel_softmax(
+            x_0_hat_logits[:, 1:],  # skip class token when reconstruct
+            tau=1.5,
+            hard=True,
+        )
+        """x_0_hat_onehot - B x T x n_emb"""
+
+        decoder_indices = x_0_hat_onehot @ self.indices_tensor
+        """x_0_hat_onehot - B x T x emb_dim"""
+
+        decoded_output = self.decoder(decoder_indices)
 
         # Always compute ELBO for comparison purposes
         cross_entropy_loss = F.cross_entropy(

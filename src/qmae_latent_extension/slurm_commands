@@ -19,22 +19,26 @@ python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
     --gpu_type a6000 \
-    --batch_size 512 \
-    --accumulate_grad_batches 1 \
+    --batch_size 128 \
+    --accumulate_grad_batches 4 \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
     --comment "qmae 1 task" \
     --devices 0, \
-    --group tests \
+    --group iid \
     --model qmae-latent-extension \
-    --config src/image_gpt/configuration/train.ini \
+    --config src/qmae_latent_extension/configuration/train.ini \
     --dataset cifar10 \
-    --num_tasks 2 \
+    --num_tasks 1 \
     --num_epochs_schedule warmup \
-    --max_epochs 600 \
+    --max_epochs 1200 \
     --min_epochs 300 \
     --embedding_dim 192 \
+    --encoder_layer 24 \
+    --encoder_head 6 \
+    --decoder_layer 24 \
+    --decoder_head 6 \
     --img_embedding_dim 2 \
     --igpt_num_layers 24 \
     --igpt_learning_rate 0.001 \

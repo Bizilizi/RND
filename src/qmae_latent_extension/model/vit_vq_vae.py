@@ -13,7 +13,7 @@ from timm.models.vision_transformer import Block
 from torch import nn
 from torch.cuda.amp import GradScaler
 from torch.nn import functional as F
-
+from torchvision.transforms import v2
 from src.avalanche.model.cl_model import CLModel
 from src.qmae_latent_extension.model.decoder import MAEDecoder
 from src.qmae_latent_extension.model.encoder import MAEEncoder
@@ -71,6 +71,7 @@ class VitVQVae(CLModel):
         num_epochs: int,
         batch_size: int,
         num_classes_per_task: int,
+        num_classes: int,
         decay=0,
         learning_rate: float = 1e-3,
         weight_decay=0.05,
@@ -140,6 +141,7 @@ class VitVQVae(CLModel):
                 param.requires_grad = False
 
         self.triplet_loss = TripletMarginLoss()
+        self.mixup = v2.MixUp(num_classes=num_classes)
 
         self.projection_head = nn.Linear(embedding_dim, img_embedding_dim)
         self.clf_head = nn.Linear(img_embedding_dim, 10, bias=False)
@@ -320,6 +322,7 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
+        x, y = self.mixup(x, y)
 
         forward_output = self.forward(x)
         forward_output.x_data = x
