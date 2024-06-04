@@ -322,7 +322,7 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         x = data["images"]
-        x, y = self.mixup(x, y)
+        # x, y = self.mixup(x, y)
 
         forward_output = self.forward(x)
         forward_output.x_data = x
