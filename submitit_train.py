@@ -17,6 +17,7 @@ from src.vq_vae.train import main as vq_vae_main
 from src.transformer_vq_vae.train import main as transformer_vq_vae_main
 from src.image_gpt.train import main as image_gpt_main
 from src.encode_decode_encode.train import main as ede_main
+from src.qmae_memory.train import main as qmae_memory_main
 
 
 def chunker(seq, size):
@@ -93,6 +94,8 @@ class Trainer(object):
             entry_main = image_gpt_main
         elif self.args.model in ["ede", "encode-decode-encode"]:
             entry_main = ede_main
+        elif self.args.model == "qmae-memory":
+            entry_main = qmae_memory_main
         else:
             assert False, "Unknown value '--model' parameter"
 

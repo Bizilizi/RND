@@ -14,7 +14,6 @@ sbatch -J fid_scores_1z0vahmb submit.sh \
     --i_ep 6 \
     --run_id m9ofkbqk
 
-# Qmae
 python submitit_train.py \
     --cpus_per_task 8 \
     --slurm_mem 96 \
@@ -24,34 +23,35 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "qmae 1 task" \
+    --comment "ede 24 test" \
+    --project encode-decode-encode \
     --devices 0, \
-    --group iid \
-    --model qmae-latent-extension \
-    --config src/qmae_latent_extension/configuration/train.ini \
+    --group tests \
+    --model encode-decode-encode \
+    --config src/qmae_memory/configuration/train.ini \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 1200 \
+    --max_epochs 600 \
     --min_epochs 300 \
     --embedding_dim 192 \
-    --encoder_layer 16 \
-    --encoder_head 4 \
-    --decoder_layer 12 \
-    --decoder_head 4 \
     --img_embedding_dim 2 \
+    --sampler_type diffusion \
+    --temperature 1 \
     --igpt_num_layers 24 \
     --igpt_learning_rate 0.001 \
-    --igpt_num_epochs_max 30 \
-    --igpt_num_epochs_min 30 \
+    --igpt_num_epochs_max 20 \
+    --igpt_num_epochs_min 20 \
     --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 128 \
-    --max_epochs_lin_eval 100 \
     --igpt_mask_ratio 0.05 \
+    --max_epochs_lin_eval 100 \
     --num_random_past_samples 250000 \
     --num_random_past_samples_schedule schedule \
-    --cycle_consistency_loss_weight 1 \
     --cycle_consistency_sigma 1 \
+    --latent_consistency_loss_weight 1 \
+    --classification_loss_weight 1 \
+    --reconstruction_loss_weight 1 \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --past_samples_rec_loss True \
     --num_workers 8 \

@@ -16,6 +16,7 @@ from src.transformer_vq_vae.train import main as transformer_vq_vae_main
 from src.qmae_latent_extension.train import main as qmae_latent_extension_main
 from src.image_gpt.train import main as image_gpt_main
 from src.encode_decode_encode.train import main as ede_main
+from src.qmae_memory.train import main as qmae_memory_main
 
 from train_utils import add_arguments
 
@@ -56,6 +57,8 @@ if __name__ == "__main__":
         entry_main = image_gpt_main
     elif args.model in ["ede", "encode-decode-encode"]:
         entry_main = ede_main
+    elif args.model == "qmae-memory":
+        entry_main = qmae_memory_main
     else:
         assert False, "Unknown value '--model' parameter"
 
