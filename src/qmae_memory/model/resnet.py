@@ -12,7 +12,7 @@ class ResNet(pl.LightningModule):
         batch_size: int,
         num_epochs: int,
         learning_rate: float = 1e-3,
-        dataset_mode: str = "",
+        dataset_mode: str = "resnet",
     ):
         super().__init__()
 
