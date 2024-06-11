@@ -220,6 +220,7 @@ def train_igpt(
         sos_token=sos_token,
         mask_token=mask_token,
         num_workers=config.num_workers,
+        mask_ratio=config.igpt_mask_ratio,
     )
     data_loader = DataLoader(
         train_dataset,

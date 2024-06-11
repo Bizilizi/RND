@@ -7,13 +7,21 @@ from src.qmae_memory.model.encoder import take_indexes
 
 
 class ImageGPTDataset(Dataset):
-    def __init__(self, qmae_model, dataset, sos_token, mask_token, num_workers=4):
+    def __init__(
+        self,
+        qmae_model,
+        dataset,
+        sos_token,
+        mask_token,
+        num_workers=4,
+        mask_ratio=0,
+    ):
         super().__init__()
 
         self.sos_token = sos_token
         self.mask_token = mask_token
+        self.mask_ratio = mask_ratio
         self.num_workers = num_workers
-
         self.qmae_model = qmae_model
         self.dataset = dataset
 
@@ -40,7 +48,7 @@ class ImageGPTDataset(Dataset):
         x = image[None]
 
         encoder = self.qmae_model.encoder
-        full_features, backward_indexes = encoder(x, ratio=0)
+        full_features, backward_indexes = encoder(x, ratio=self.mask_ratio)
 
         (
             *_,

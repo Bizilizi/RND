@@ -23,11 +23,11 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "ede 24 test" \
-    --project encode-decode-encode \
+    --comment "qmae-mem 24 test" \
+    --project qmae-memory \
     --devices 0, \
     --group tests \
-    --model encode-decode-encode \
+    --model qmae-memory \
     --config src/qmae_memory/configuration/train.ini \
     --dataset cifar10 \
     --num_tasks 5 \
@@ -38,10 +38,10 @@ python submitit_train.py \
     --img_embedding_dim 2 \
     --sampler_type diffusion \
     --temperature 1 \
-    --igpt_num_layers 24 \
+    --igpt_num_layers 12 \
     --igpt_learning_rate 0.001 \
-    --igpt_num_epochs_max 20 \
-    --igpt_num_epochs_min 20 \
+    --igpt_num_epochs_max 30 \
+    --igpt_num_epochs_min 30 \
     --igpt_accumulate_grad_batches 1 \
     --igpt_batch_size 128 \
     --igpt_mask_ratio 0.05 \
