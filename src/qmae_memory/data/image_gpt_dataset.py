@@ -48,14 +48,50 @@ class ImageGPTDataset(Dataset):
         x = image[None]
 
         encoder = self.qmae_model.encoder
-        full_features, backward_indexes = encoder(x, ratio=self.mask_ratio)
+        features, backward_indexes = encoder(x, ratio=self.mask_ratio)
 
-        (
-            *_,
-            input_ids,
-            _,
-        ) = self.qmae_model.feature_quantization(full_features)
-        input_ids = rearrange(input_ids, "(t b) 1 -> t b", b=x.shape[0]).squeeze()
+        if self.mask_ratio == 0:
+            (
+                *_,
+                input_ids,
+                _,
+            ) = self.qmae_model.feature_quantization(features)
+            input_ids = rearrange(input_ids, "(t b) 1 -> t b", b=x.shape[0]).squeeze()
+        else:
+            # quantize features
+            (
+                *_,
+                input_ids,
+                _,
+            ) = self.qmae_model.feature_quantization(features)
+            input_ids = rearrange(input_ids, "(t b) 1 -> t b 1", b=x.shape[0])
+
+            # fill masked pathes with learned embedding
+            mask_token_id = torch.full(
+                (1, 1),
+                self.mask_token,
+                device=self.qmae_model.device,
+            )
+
+            backward_indexes = torch.cat(
+                [
+                    torch.zeros(1, backward_indexes.shape[1]).to(backward_indexes),
+                    backward_indexes + 1,
+                ],
+                dim=0,
+            )
+            input_ids = torch.cat(
+                [
+                    input_ids,
+                    mask_token_id.expand(
+                        backward_indexes.shape[0] - input_ids.shape[0],
+                        input_ids.shape[1],
+                        -1,
+                    ),
+                ],
+                dim=0,
+            )
+            input_ids = take_indexes(input_ids, backward_indexes).squeeze()
 
         return input_ids
 
