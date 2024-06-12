@@ -278,7 +278,6 @@ def train_igpt(
                     },
                     step=i,
                 )
-
         # Generate sampled images at the end of the epoch
         if local_rank == 0:
             if is_distributed:

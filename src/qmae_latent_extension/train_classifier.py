@@ -9,6 +9,8 @@ from src.avalanche.strategies import NaivePytorchLightning
 from src.qmae_latent_extension.configuration.config import TrainConfig
 from src.qmae_latent_extension.data.clf_dataset import ClassificationDataset
 from src.qmae_latent_extension.model.classification_head import EmbClassifier
+from src.qmae_latent_extension.model.resnet import ResNet
+from src.qmae_latent_extension.utils.wrap_empty_indices import wrap_dataset
 
 
 def train_classifier_on_random_memory(
@@ -171,3 +173,50 @@ def train_classifier_on_observed_only_classes(
     trainer.fit(clf_head, datamodule=datamodule)
 
     return clf_head
+
+
+def train_resnet_on_observed_only_classes(
+    strategy: NaivePytorchLightning,
+    config: TrainConfig,
+    benchmark: SplitCIFAR10,
+    bootstrapped_dataset: ClassificationDataset,
+    device: torch.device,
+):
+    clf_model = ResNet(
+        num_classes=benchmark.n_classes,
+        experience_step=strategy.experience_step,
+        batch_size=128,
+        num_epochs=config.max_epochs_lin_eval,
+    ).to(device)
+
+    val_dataset = ConcatDataset(
+        [
+            wrap_dataset(
+                experience.dataset,
+                img_embedding_dim=config.img_embedding_dim,
+                is_past_domain=True,
+            )
+            for experience in benchmark.test_stream[: strategy.experience_step + 1]
+        ]
+    )
+
+    datamodule = PLDataModule(
+        batch_size=128,
+        num_workers=config.num_workers,
+        train_dataset=bootstrapped_dataset,
+        val_dataset=val_dataset,
+    )
+
+    # Training
+    trainer = Trainer(
+        check_val_every_n_epoch=strategy.validate_every_n,
+        accelerator=strategy.accelerator,
+        devices=strategy.devices,
+        logger=strategy.train_logger,
+        max_epochs=config.max_epochs_lin_eval,
+        min_epochs=config.min_epochs_lin_eval,
+    )
+
+    trainer.fit(clf_model, datamodule=datamodule)
+
+    return clf_model

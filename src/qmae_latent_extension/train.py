@@ -18,6 +18,7 @@ from src.qmae_latent_extension.init_scrips import (
 from src.qmae_latent_extension.train_classifier import (
     train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
+    train_resnet_on_observed_only_classes,
 )
 from src.qmae_latent_extension.train_image_gpt import bootstrap_past_samples, train_igpt
 from src.qmae_latent_extension.utils.copy_dataset import copy_dataset_to_tmp
@@ -99,6 +100,15 @@ def train_loop(
                 config=config,
                 classes_seen_in_past=classes_seen_in_past,
             )
+
+            print(f"Train classifier..")
+            train_resnet_on_observed_only_classes(
+                strategy=cl_strategy,
+                config=config,
+                benchmark=benchmark,
+                bootstrapped_dataset=bootstrapped_dataset,
+                device=device,
+            )
             # bootstrapped_dataset = (
             #     bootstrapped_dataset
             #     + bootstrap_past_samples_from_benchmark(
@@ -135,15 +145,14 @@ def train_loop(
         )
 
         # Train linear classifiers
-        print(f"Train classifier..")
         # We train two classifiers. One to predict all classes,
         # another to predict only observed so far classes.
-        train_classifier_on_all_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        )
-        train_classifier_on_observed_only_classes(
-            strategy=cl_strategy, config=config, benchmark=benchmark, device=device
-        )
+        # train_classifier_on_all_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # )
+        # train_classifier_on_observed_only_classes(
+        #     strategy=cl_strategy, config=config, benchmark=benchmark, device=device
+        # )
 
         # Finish CL step
         cl_strategy.model.unfreeze()
