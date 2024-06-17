@@ -23,12 +23,15 @@ class TrainConfig(BaseTrainConfig):
     use_lpips: bool
     mask_ratio: float
     weight_decay: float
-    latent_consistency_loss_weight: float
-    classification_loss_weight: float
-    reconstruction_loss_weight: float
-    current_samples_loss_weight: float
     past_samples_rec_loss: bool
     cycle_consistency_sigma: float
+
+    # weight
+    l1_loss_weight: float
+    lpip_loss_weight: float
+    vq_loss_weight: float
+    latent_consistency_loss_weight: float
+    discriminator_weight: float
 
     # sampling
     num_random_future_samples: int
@@ -64,7 +67,7 @@ class TrainConfig(BaseTrainConfig):
             **ini_config["logging"],
             **ini_config["model"],
             **ini_config["sampling"],
-            **ini_config["igpt"]
+            **ini_config["igpt"],
         )
 
         return config

@@ -181,8 +181,6 @@ class QMAE(CLModel):
         self.disc_conditional = disc_conditional
 
         self.lpips = lpips.LPIPS(net="vgg")
-        for param in self.lpips.parameters():
-            param.requires_grad = False
 
     def get_cycle_consistency_loss(self, distances, indices):
         q_logits = -1 / 2 * distances / self.cycle_consistency_sigma
@@ -198,16 +196,8 @@ class QMAE(CLModel):
         return F.cross_entropy(q_logits, q_indices)
 
     def calculate_adaptive_weight(self, nll_loss, g_loss, last_layer=None):
-        if last_layer is not None:
-            nll_grads = torch.autograd.grad(nll_loss, last_layer, retain_graph=True)[0]
-            g_grads = torch.autograd.grad(g_loss, last_layer, retain_graph=True)[0]
-        else:
-            nll_grads = torch.autograd.grad(
-                nll_loss, self.last_layer[0], retain_graph=True
-            )[0]
-            g_grads = torch.autograd.grad(
-                g_loss, self.last_layer[0], retain_graph=True
-            )[0]
+        nll_grads = torch.autograd.grad(nll_loss, last_layer, retain_graph=True)[0]
+        g_grads = torch.autograd.grad(g_loss, last_layer, retain_graph=True)[0]
 
         d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-4)
         d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
@@ -251,7 +241,6 @@ class QMAE(CLModel):
 
         # Compute generator loss
         if cond is None:
-            assert not self.disc_conditional
             logits_fake = self.discriminator(forward_output.x_recon)
         else:
             assert self.disc_conditional

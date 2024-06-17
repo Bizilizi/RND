@@ -23,7 +23,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "qmae-mem 24 test" \
+    --comment "qmae-gan" \
     --project qmae-memory \
     --devices 0, \
     --group tests \
@@ -32,7 +32,7 @@ python submitit_train.py \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 600 \
+    --max_epochs 800 \
     --min_epochs 300 \
     --embedding_dim 192 \
     --img_embedding_dim 2 \
@@ -50,8 +50,6 @@ python submitit_train.py \
     --num_random_past_samples_schedule schedule \
     --cycle_consistency_sigma 1 \
     --latent_consistency_loss_weight 1 \
-    --classification_loss_weight 1 \
-    --reconstruction_loss_weight 1 \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --past_samples_rec_loss True \
     --num_workers 8 \
