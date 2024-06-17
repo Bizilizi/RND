@@ -1,14 +1,8 @@
-import argparse
 import pathlib
 from configparser import ConfigParser
 
 import wandb
-import typing as t
 
-from avalanche.benchmarks.utils.classification_dataset import (
-    ClassificationDataset,
-    make_classification_dataset,
-)
 from torch.utils.data import Dataset, ConcatDataset
 import torch
 from tqdm.auto import trange
@@ -18,13 +12,9 @@ from src.qmae_memory.configuration.config import TrainConfig
 from src.qmae_memory.init_scrips import (
     get_benchmark,
     get_model,
-    get_cl_strategy,
 )
-from src.qmae_memory.model.image_gpt import ImageGPTForCausalImageModeling
+from src.qmae_memory.model.misc.image_gpt import ImageGPTForCausalImageModeling
 from src.qmae_memory.train_image_gpt import (
-    BootstrappedDataset,
-    get_image_embedding,
-    sample_images,
     bootstrap_past_samples,
 )
 from src.qmae_memory.utils.fid_score import calculate_fid_given_datasets

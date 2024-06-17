@@ -1,6 +1,5 @@
 import torch
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import EarlyStopping
 from torch.utils.data import ConcatDataset
 
 from avalanche.benchmarks import SplitCIFAR10
@@ -8,8 +7,8 @@ from src.avalanche.data import PLDataModule
 from src.avalanche.strategies import NaivePytorchLightning
 from src.qmae_memory.configuration.config import TrainConfig
 from src.qmae_memory.data.clf_dataset import ClassificationDataset
-from src.qmae_memory.model.classification_head import EmbClassifier
-from src.qmae_memory.model.resnet import ResNet
+from src.qmae_memory.model.misc.classification_head import EmbClassifier
+from src.qmae_memory.model.misc.resnet import ResNet
 from src.qmae_memory.utils.wrap_empty_indices import wrap_dataset
 
 

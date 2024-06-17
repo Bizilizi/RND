@@ -1,15 +1,11 @@
-import os
 import random
 
 import math
-import pathlib
 import typing as t
 import torch
 from einops import rearrange
-from PIL import Image
 from pytorch_lightning.loggers import TensorBoardLogger, WandbLogger
 from torch.utils.data import DataLoader, Dataset
-from torchvision.io import read_image
 from torchvision.utils import make_grid
 from tqdm.auto import tqdm, trange
 from transformers import ImageGPTConfig
@@ -21,13 +17,13 @@ from src.avalanche.strategies import NaivePytorchLightning
 from src.qmae_memory.configuration.config import TrainConfig
 from src.qmae_memory.data.bootstrapped_dataset import BootstrappedDataset
 from src.qmae_memory.data.image_gpt_dataset import ImageGPTDataset
-from src.qmae_memory.model.image_gpt import ImageGPTForCausalImageModeling
-from src.qmae_memory.model.vit_vq_vae import VitVQVae
+from src.qmae_memory.model.misc.image_gpt import ImageGPTForCausalImageModeling
+from src.qmae_memory.model.qmae import QMAE
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 def init_token_embeddings(
-    vq_vae_model: VitVQVae,
+    vq_vae_model: QMAE,
     image_gpt: ImageGPTForCausalImageModeling,
     config: TrainConfig,
     mask_token: int,
@@ -47,7 +43,7 @@ def init_token_embeddings(
 
 
 def get_image_embedding(
-    vq_vae_model: VitVQVae,
+    vq_vae_model: QMAE,
     config: TrainConfig,
     mask_token: int,
 ) -> torch.nn.Embedding:
@@ -76,7 +72,7 @@ def get_image_embedding(
 @torch.no_grad()
 def bootstrap_past_samples(
     image_gpt: ImageGPTForCausalImageModeling,
-    qmae_model: VitVQVae,
+    qmae_model: QMAE,
     num_images: int,
     classes_seen_in_past,
     config: TrainConfig,

@@ -5,10 +5,8 @@ from einops import rearrange
 from pytorch_lightning.callbacks import Callback
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities.types import DistributedDataParallel
-from torchvision.utils import make_grid
 
 import wandb
-from src.qmae_memory.model.vit_vq_vae import ForwardOutput, VitVQVae
 
 
 def chunks(lst, n):

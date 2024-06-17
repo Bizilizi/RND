@@ -11,10 +11,6 @@ from pytorch_lightning.callbacks import LearningRateMonitor
 from torchvision import transforms
 
 from src.avalanche.strategies import NaivePytorchLightning
-from src.qmae_memory.callbacks.codebook_histogram import LogCodebookHistogram
-from src.qmae_memory.callbacks.projections_visualisations import (
-    VisualizeProjections,
-)
 from src.rnd.callbacks.log_model import LogModelWightsCallback
 from src.qmae_memory.callbacks.log_dataset import LogDataset
 from src.qmae_memory.callbacks.training_reconstions_vis import (
@@ -28,8 +24,22 @@ from src.qmae_memory.metrics.vq_vae_forgetting import (
     vq_vae_forgetting_metrics,
 )
 from src.qmae_memory.metrics.vq_vae_loss import vq_vae_loss_metrics
-from src.qmae_memory.model.vit_vq_vae import VitVQVae
+from src.qmae_memory.model.qmae import QMAE
 from train_utils import get_loggers
+
+
+def get_num_random_past_samples(
+    config: TrainConfig, cl_strategy: NaivePytorchLightning
+):
+    if config.num_random_past_samples_schedule == "fixed":
+        return config.num_random_past_samples
+
+    if config.num_random_past_samples_schedule == "linear":
+        return config.num_random_past_samples * cl_strategy.experience_step
+
+    if config.num_random_past_samples_schedule == "schedule":
+        schedule = [0, 10000, 20000, 25000, 25000]
+        return schedule[int(cl_strategy.experience_step)]
 
 
 def get_epochs_schedule(config: TrainConfig):
@@ -59,7 +69,7 @@ def get_cl_strategy(
     resume_from,
     local_rank,
     is_using_wandb,
-    is_distributed
+    is_distributed,
 ):
     cl_strategy_logger, eval_plugin_loggers = get_loggers(config, model, wandb_params)
     evaluation_plugin = get_evaluation_plugin(
@@ -77,7 +87,7 @@ def get_cl_strategy(
         initial_resume_from=resume_from,
         model=model,
         device=device,
-        optimizer=model.configure_optimizers(),
+        optimizer=model.configure_optimizers()[0],
         criterion=model.criterion,
         train_mb_size=config.batch_size,
         train_mb_num_workers=config.num_workers,
@@ -173,8 +183,8 @@ def get_evaluation_plugin(
     return eval_plugin
 
 
-def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
-    vae = VitVQVae(
+def get_model(config: TrainConfig, device: torch.device) -> QMAE:
+    vae = QMAE(
         num_embeddings=config.num_embeddings,
         num_embeddings_per_step=config.num_embeddings_per_step,
         embedding_dim=config.embedding_dim,
@@ -187,18 +197,19 @@ def get_model(config: TrainConfig, device: torch.device) -> VitVQVae:
             * config.accumulate_grad_batches
             / 256
         ),
-        num_classes_per_task=10 // config.num_tasks,
         weight_decay=config.weight_decay,
         mask_ratio=config.mask_ratio,
         precision=config.precision,
         accelerator=config.accelerator,
         batch_size=config.batch_size * config.accumulate_grad_batches,
+        accumulate_batch_every=config.accumulate_grad_batches,
         num_epochs=config.max_epochs,
-        reconstruction_loss_weight=config.reconstruction_loss_weight,
-        classification_loss_weight=config.classification_loss_weight,
+        vq_loss_weight=1.0,
+        lpip_loss_weight=config.reconstruction_loss_weight,
+        l1_loss_weight=1.0,
         latent_consistency_loss_weight=config.latent_consistency_loss_weight,
         cycle_consistency_sigma=config.cycle_consistency_sigma,
-        data_variance=config.dataset_variance,
+        disc_start=2_000,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

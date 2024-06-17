@@ -33,7 +33,7 @@ def init_token_embeddings(
     mask_token: int,
 ) -> None:
     """
-    Initialize image gpt token embeddings with vq_vae embeddings.
+        Initialize image gpt token embeddings with vq_vae embeddings.
     We copy data for the first config.num_embeddings from
     VQ-Vae model, and the rest of two, corresponds to mask_token and sos_token
     """

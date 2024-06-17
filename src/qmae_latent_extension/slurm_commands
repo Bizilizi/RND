@@ -24,15 +24,15 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "qmae 1 task" \
+    --comment "qmae memory" \
     --devices 0, \
-    --group iid \
+    --group qmae-memory \
     --model qmae-latent-extension \
     --config src/qmae_latent_extension/configuration/train.ini \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 1200 \
+    --max_epochs 600 \
     --min_epochs 300 \
     --embedding_dim 192 \
     --encoder_layer 16 \

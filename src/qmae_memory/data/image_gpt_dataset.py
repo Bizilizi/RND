@@ -1,9 +1,8 @@
 import torch
 from einops import rearrange
-from torch.utils.data import ConcatDataset, DataLoader, Dataset
-from tqdm.auto import tqdm
+from torch.utils.data import Dataset
 
-from src.qmae_memory.model.encoder import take_indexes
+from src.qmae_memory.model.mae.encoder import take_indexes
 
 
 class ImageGPTDataset(Dataset):

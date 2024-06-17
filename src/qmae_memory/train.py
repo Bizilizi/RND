@@ -14,9 +14,9 @@ from src.qmae_memory.init_scrips import (
     get_model,
     get_benchmark,
     get_cl_strategy,
+    get_num_random_past_samples,
 )
 from src.qmae_memory.train_classifier import (
-    train_classifier_on_all_classes,
     train_classifier_on_observed_only_classes,
 )
 from src.qmae_memory.train_image_gpt import bootstrap_past_samples, train_igpt
@@ -29,20 +29,6 @@ from src.utils.train_script import overwrite_config_with_args
 from train_utils import get_device, get_wandb_params
 
 from pathlib import Path
-
-
-def get_num_random_past_samples(
-    config: TrainConfig, cl_strategy: NaivePytorchLightning
-):
-    if config.num_random_past_samples_schedule == "fixed":
-        return config.num_random_past_samples
-
-    if config.num_random_past_samples_schedule == "linear":
-        return config.num_random_past_samples * cl_strategy.experience_step
-
-    if config.num_random_past_samples_schedule == "schedule":
-        schedule = [0, 10000, 20000, 25000, 25000]
-        return schedule[int(cl_strategy.experience_step)]
 
 
 def train_loop(
@@ -98,15 +84,6 @@ def train_loop(
                 config=config,
                 classes_seen_in_past=classes_seen_in_past,
             )
-            # bootstrapped_dataset = (
-            #     bootstrapped_dataset
-            #     + bootstrap_past_samples_from_benchmark(
-            #         vq_vae_model=cl_strategy.model,
-            #         num_images=get_num_random_past_samples(config, cl_strategy) // 5,
-            #         benchmark=benchmark,
-            #         experience_step=cl_strategy.experience_step - 1,
-            #     )
-            # )
 
             train_experience.dataset = train_experience.dataset + bootstrapped_dataset
             igpt_train_dataset = igpt_train_dataset + bootstrapped_dataset

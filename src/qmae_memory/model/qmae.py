@@ -9,9 +9,10 @@ from einops import rearrange
 from torch.nn import functional as F
 
 from src.avalanche.model.cl_model import CLModel
-from src.qmae_memory.model.decoder import MAEDecoder
-from src.qmae_memory.model.encoder import MAEEncoder
-from src.qmae_memory.model.quiantizer import (
+from src.qmae_memory.model.loss.discriminator import NLayerDiscriminator, weights_init
+from src.qmae_memory.model.mae.decoder import MAEDecoder
+from src.qmae_memory.model.mae.encoder import MAEEncoder
+from src.qmae_memory.model.vqvae.quiantizer import (
     VectorQuantizerEMA,
 )
 
@@ -36,26 +37,47 @@ class ForwardOutput:
 
 
 @dataclasses.dataclass
-class CriterionOutput:
+class ReconstrcutionCriterionOutput:
+    loss: torch.Tensor
     vq_loss: torch.Tensor
     reconstruction_loss: torch.Tensor
     latent_consistency_loss: torch.Tensor
+    generator_loss: torch.Tensor
 
 
-class VitVQVae(CLModel):
+def adopt_weight(weight, global_step, threshold=0, value=0.0):
+    if global_step < threshold:
+        weight = value
+    return weight
+
+
+def hinge_d_loss(logits_real, logits_fake):
+    loss_real = torch.mean(F.relu(1.0 - logits_real))
+    loss_fake = torch.mean(F.relu(1.0 + logits_fake))
+    d_loss = 0.5 * (loss_real + loss_fake)
+    return d_loss
+
+
+def vanilla_d_loss(logits_real, logits_fake):
+    d_loss = 0.5 * (
+        torch.mean(torch.nn.functional.softplus(-logits_real))
+        + torch.mean(torch.nn.functional.softplus(logits_fake))
+    )
+    return d_loss
+
+
+class QMAE(CLModel):
     def __init__(
         self,
+        *,
+        # quantisation
+        commitment_cost,
+        decay=0,
         num_embeddings,
         num_embeddings_per_step,
         embedding_dim,
         img_embedding_dim,
-        commitment_cost,
-        num_epochs: int,
-        batch_size: int,
-        num_classes_per_task: int,
-        decay=0,
-        learning_rate: float = 1e-3,
-        weight_decay=0.05,
+        # mae
         image_size=32,
         patch_size=2,
         encoder_layer=12,
@@ -63,41 +85,62 @@ class VitVQVae(CLModel):
         decoder_layer=4,
         decoder_head=3,
         mask_ratio=0.75,
-        reconstruction_loss_weight=1,
-        classification_loss_weight=1,
-        latent_consistency_loss_weight=1,
+        # discriminator
+        disc_start,
+        disc_num_layers=3,
+        disc_in_channels=3,
+        disc_factor=1.0,
+        use_actnorm=False,
+        disc_conditional=False,
+        disc_ndf=64,
+        disc_loss="hinge",
+        # loss weights
+        l1_loss_weight: float = 1,
+        lpip_loss_weight: float = 1,
+        vq_loss_weight: float = 1,
+        latent_consistency_loss_weight: float = 1,
         cycle_consistency_sigma: float = 1,
+        discriminator_weight: float = 1,
+        # training
         precision: str = "32-true",
         accelerator: str = "cuda",
-        data_variance: float = 1,
+        learning_rate: float = 1e-3,
+        weight_decay=0.05,
+        batch_size: int,
+        accumulate_batch_every: int,
+        num_epochs: int,
     ) -> None:
         super().__init__()
 
+        # turn of automatic optimisation
+        self.automatic_optimization = False
+
         self.experience_step = 0
 
-        self._num_embeddings = num_embeddings
-        self._learning_rate = learning_rate
-        self._weight_decay = weight_decay
-        self._num_epochs = num_epochs
-        self._batch_size = batch_size
+        self.num_embeddings = num_embeddings
+        self.learning_rate = learning_rate
+        self.weight_decay = weight_decay
+        self.num_epochs = num_epochs
+        self.batch_size = batch_size
+        self.accumulate_batch_every = accumulate_batch_every
 
-        self._embedding_dim = embedding_dim
-        self._img_embedding_dim = img_embedding_dim
+        self.embedding_dim = embedding_dim
+        self.img_embedding_dim = img_embedding_dim
 
-        self._latent_sos_token = num_embeddings + 1
-        self._mask_ratio = mask_ratio
+        self.latent_sos_token = num_embeddings + 1
+        self.mask_ratio = mask_ratio
 
-        self._precision_dtype = torch.half if precision == "16-mixed" else torch.float32
-        self._accelerator = accelerator
+        self.precision_dtype = torch.half if precision == "16-mixed" else torch.float32
+        self.accelerator = accelerator
 
-        self._cycle_consistency_sigma = cycle_consistency_sigma
-
-        self._data_variance = data_variance
+        self.cycle_consistency_sigma = cycle_consistency_sigma
 
         # Loss weights
         self.lcl_weight = latent_consistency_loss_weight
-        self.rec_loss_weight = reconstruction_loss_weight
-        self.clf_loss_weight = classification_loss_weight
+        self.lpips_loss_weight = lpip_loss_weight
+        self.l1_loss_weight = l1_loss_weight
+        self.vq_loss_weight = vq_loss_weight
+        self.discriminator_weight = discriminator_weight
 
         # Model layers
         self.encoder = MAEEncoder(
@@ -118,21 +161,31 @@ class VitVQVae(CLModel):
             image_size, patch_size, embedding_dim, decoder_layer, decoder_head
         )
 
-        self._lpips = lpips.LPIPS(net="vgg")
-        for param in self._lpips.parameters():
+        # Losses
+        self.discriminator = NLayerDiscriminator(
+            input_nc=disc_in_channels,
+            n_layers=disc_num_layers,
+            use_actnorm=use_actnorm,
+            ndf=disc_ndf,
+        ).apply(weights_init)
+
+        self.discriminator_iter_start = disc_start
+        if disc_loss == "hinge":
+            self.disc_loss = hinge_d_loss
+        elif disc_loss == "vanilla":
+            self.disc_loss = vanilla_d_loss
+        else:
+            raise ValueError(f"Unknown GAN loss '{disc_loss}'.")
+
+        self.disc_factor = disc_factor
+        self.disc_conditional = disc_conditional
+
+        self.lpips = lpips.LPIPS(net="vgg")
+        for param in self.lpips.parameters():
             param.requires_grad = False
 
-    def get_reconstruction_loss(self, x: torch.Tensor, x_rec: torch.Tensor):
-        lpips_loss = self._lpips(x, x_rec).mean()
-        l1_loss = torch.mean(
-            F.l1_loss(x, x_rec, reduction="none").mean((1, 2, 3)) / self._data_variance
-        )
-        reconstruction_loss = lpips_loss + l1_loss
-
-        return reconstruction_loss
-
     def get_cycle_consistency_loss(self, distances, indices):
-        q_logits = -1 / 2 * distances / self._cycle_consistency_sigma
+        q_logits = -1 / 2 * distances / self.cycle_consistency_sigma
 
         q_logits = q_logits.flatten(0, 1)
         q_indices = indices.flatten()
@@ -144,27 +197,103 @@ class VitVQVae(CLModel):
 
         return F.cross_entropy(q_logits, q_indices)
 
-    def criterion(self, forward_output: ForwardOutput) -> CriterionOutput:
+    def calculate_adaptive_weight(self, nll_loss, g_loss, last_layer=None):
+        if last_layer is not None:
+            nll_grads = torch.autograd.grad(nll_loss, last_layer, retain_graph=True)[0]
+            g_grads = torch.autograd.grad(g_loss, last_layer, retain_graph=True)[0]
+        else:
+            nll_grads = torch.autograd.grad(
+                nll_loss, self.last_layer[0], retain_graph=True
+            )[0]
+            g_grads = torch.autograd.grad(
+                g_loss, self.last_layer[0], retain_graph=True
+            )[0]
+
+        d_weight = torch.norm(nll_grads) / (torch.norm(g_grads) + 1e-4)
+        d_weight = torch.clamp(d_weight, 0.0, 1e4).detach()
+        d_weight = d_weight * self.discriminator_weight
+
+        return d_weight
+
+    def discriminator_criterion(
+        self,
+        forward_output: ForwardOutput,
+        cond=None,
+    ) -> torch.Tensor:
+        if cond is None:
+            logits_real = self.discriminator(forward_output.x_target.detach())
+            logits_fake = self.discriminator(forward_output.x_recon.detach())
+        else:
+            logits_real = self.discriminator(
+                torch.cat((forward_output.x_target.detach(), cond), dim=1)
+            )
+            logits_fake = self.discriminator(
+                torch.cat((forward_output.x_recon.detach(), cond), dim=1)
+            )
+
+        disc_factor = adopt_weight(
+            self.disc_factor, self.global_step, threshold=self.discriminator_iter_start
+        )
+        d_loss = disc_factor * self.disc_loss(logits_real, logits_fake)
+
+        return d_loss
+
+    def reconstruction_criterion(
+        self, forward_output: ForwardOutput, cond=None
+    ) -> ReconstrcutionCriterionOutput:
         # Compute reconstruction loss
-        reconstruction_loss = self.get_reconstruction_loss(
-            forward_output.x_recon, forward_output.x_target
+        lpips_loss = self.lpips(forward_output.x_target, forward_output.x_recon).mean()
+        l1_loss = torch.abs(forward_output.x_target - forward_output.x_recon).mean()
+
+        reconstruction_loss = (
+            l1_loss * self.l1_loss_weight + lpips_loss * self.lpips_loss_weight
+        )
+
+        # Compute generator loss
+        if cond is None:
+            assert not self.disc_conditional
+            logits_fake = self.discriminator(forward_output.x_recon)
+        else:
+            assert self.disc_conditional
+            logits_fake = self.discriminator(
+                torch.cat((forward_output.x_recon, cond), dim=1)
+            )
+        generator_loss = -torch.mean(logits_fake)
+
+        try:
+            d_weight = self.calculate_adaptive_weight(
+                reconstruction_loss, generator_loss, last_layer=self.decoder.head.weight
+            )
+        except RuntimeError:
+            assert not self.training
+            d_weight = torch.tensor(0.0)
+
+        disc_factor = adopt_weight(
+            self.disc_factor, self.global_step, threshold=self.discriminator_iter_start
         )
 
         # Compute consistency loss
         latent_consistency_loss = torch.tensor(0.0, device=self.device)
-        # latent_consistency_loss = self.get_cycle_consistency_loss(
-        #     forward_output.z_distances, forward_output.z_indices
-        # )
-
         if forward_output.past_z_indices is not None:
             latent_consistency_loss += self.get_cycle_consistency_loss(
                 forward_output.past_z_distances, forward_output.past_z_indices
             )
 
-        return CriterionOutput(
+        # rescale losses
+        reconstruction_loss = reconstruction_loss
+        vq_loss = forward_output.vq_loss * self.vq_loss_weight
+        generator_loss = generator_loss * d_weight * disc_factor
+        latent_consistency_loss = latent_consistency_loss * self.lcl_weight
+
+        # compute final loss
+        loss = vq_loss + reconstruction_loss + generator_loss + latent_consistency_loss
+
+        return ReconstrcutionCriterionOutput(
+            loss=loss,
             vq_loss=forward_output.vq_loss,
-            reconstruction_loss=reconstruction_loss * self.rec_loss_weight,
-            latent_consistency_loss=latent_consistency_loss * self.lcl_weight,
+            reconstruction_loss=reconstruction_loss,
+            generator_loss=generator_loss,
+            latent_consistency_loss=latent_consistency_loss,
         )
 
     def get_image_embedding(self, full_features):
@@ -185,7 +314,7 @@ class VitVQVae(CLModel):
         fo_masked_features, fo_backward_indexes = self.encoder(x)
 
         # Quantize features
-        with torch.autocast(self._accelerator, dtype=torch.float32):
+        with torch.autocast(self.accelerator, dtype=torch.float32):
             (
                 fo_vq_loss,
                 fo_quantized_masked_features,
@@ -203,7 +332,7 @@ class VitVQVae(CLModel):
         so_masked_features, _ = self.encoder(x_recon)
 
         # Quantize features
-        with torch.autocast(self._accelerator, dtype=torch.float32):
+        with torch.autocast(self.accelerator, dtype=torch.float32):
             (
                 so_vq_loss,
                 so_quantized_masked_features,
@@ -263,7 +392,7 @@ class VitVQVae(CLModel):
         so_masked_features, so_backward_indexes = self.encoder(x_recon, ratio=0)
 
         # Quantize features
-        with torch.autocast(self._accelerator, dtype=torch.float32):
+        with torch.autocast(self.accelerator, dtype=torch.float32):
             (
                 so_vq_loss,
                 so_quantized_masked_features,
@@ -360,42 +489,63 @@ class VitVQVae(CLModel):
         )
 
     def training_step(self, batch, batch_idx):
+        qmae_opt, d_opt = self.optimizers()
+
         data, y, *_ = batch
-
         forward_output = self.forward(data, y)
-        criterion_output = self.criterion(forward_output)
 
-        loss = (
-            criterion_output.vq_loss
-            + criterion_output.reconstruction_loss
-            + criterion_output.latent_consistency_loss
-        )
+        # qmae + generator opt step
+        criterion_output = self.reconstruction_criterion(forward_output)
+        qmae_loss = criterion_output.loss / self.accumulate_batch_every
+
+        self.manual_backward(qmae_loss)
+
+        if (batch_idx + 1) % self.accumulate_batch_every == 0:
+            qmae_opt.step()
+            qmae_opt.zero_grad()
+
+        # generator opt step
+        discriminator_loss = self.discriminator_criterion(forward_output)
+        discriminator_loss = discriminator_loss / self.accumulate_batch_every
+
+        self.manual_backward(discriminator_loss)
+
+        if (batch_idx + 1) % self.accumulate_batch_every == 0:
+            d_opt.step()
+            d_opt.zero_grad()
 
         # LOGGING
         self.log_with_postfix(
-            f"train/loss",
-            loss.cpu().item(),
+            "train/loss",
+            criterion_output.loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/vq_loss",
+            "train/latent_consistency_loss",
+            criterion_output.latent_consistency_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            "train/generator_loss",
+            criterion_output.generator_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            "train/vq_loss",
             criterion_output.vq_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/reconstruction_loss",
+            "train/reconstruction_loss",
             criterion_output.reconstruction_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"train/perplexity",
+            "train/discriminator_loss",
+            discriminator_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            "train/perplexity",
             forward_output.perplexity.cpu().item(),
         )
 
-        self.log_with_postfix(
-            f"train/latent_consistency_loss",
-            criterion_output.latent_consistency_loss.cpu().item(),
-        )
-
         return {
-            "loss": loss,
+            "loss": criterion_output.loss + discriminator_loss,
             "forward_output": forward_output,
         }
 
@@ -403,53 +553,63 @@ class VitVQVae(CLModel):
         data, y, *_ = batch
 
         forward_output = self.forward(data, y)
-        criterion_output = self.criterion(forward_output)
 
-        loss = (
-            criterion_output.vq_loss
-            + criterion_output.reconstruction_loss
-            + criterion_output.latent_consistency_loss
-        )
+        criterion_output = self.reconstruction_criterion(forward_output)
+        discriminator_loss = self.discriminator_criterion(forward_output)
 
         # LOGGING
         self.log_with_postfix(
-            f"val/loss",
-            loss.cpu().item(),
+            "val/loss",
+            criterion_output.loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/vq_loss",
+            "val/vq_loss",
             criterion_output.vq_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/reconstruction_loss",
+            "val/reconstruction_loss",
             criterion_output.reconstruction_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/perplexity",
-            forward_output.perplexity.cpu().item(),
+            "val/latent_consistency_loss",
+            criterion_output.latent_consistency_loss.cpu().item(),
         )
         self.log_with_postfix(
-            f"val/latent_consistency_loss",
-            criterion_output.latent_consistency_loss.cpu().item(),
+            "val/discriminator_loss",
+            discriminator_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            "val/generator_loss",
+            criterion_output.generator_loss.cpu().item(),
+        )
+        self.log_with_postfix(
+            "val/perplexity",
+            forward_output.perplexity.cpu().item(),
         )
 
         return {
-            "loss": loss,
+            "loss": criterion_output.loss + discriminator_loss,
             "forward_output": forward_output,
         }
 
     def configure_optimizers(self):
-        optimizer = torch.optim.AdamW(
+        optimizer_qmae = torch.optim.AdamW(
             chain(
                 self.encoder.parameters(),
                 self.decoder.parameters(),
             ),
-            lr=self._learning_rate,
+            lr=self.learning_rate,
             betas=(0.9, 0.95),
-            weight_decay=self._weight_decay,
+            weight_decay=self.weight_decay,
         )
 
-        return optimizer
+        optimizer_loss = torch.optim.Adam(
+            self.discriminator.parameters(),
+            lr=self.learning_rate,
+            betas=(0.5, 0.9),
+        )
+
+        return [optimizer_qmae, optimizer_loss]
 
     def log_with_postfix(self, name: str, value: t.Any, *args, **kwargs):
         self.log_dict(

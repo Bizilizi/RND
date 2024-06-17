@@ -7,7 +7,7 @@ from pytorch_lightning.utilities.types import STEP_OUTPUT, DistributedDataParall
 
 import wandb
 
-from src.qmae_memory.model.vit_vq_vae import VitVQVae
+from src.qmae_memory.model.vit_vq_vae import QMAE
 
 
 class LogCodebookHistogram(Callback):
@@ -47,7 +47,7 @@ class LogCodebookHistogram(Callback):
         self, trainer: "pl.Trainer", pl_module: "pl.LightningModule"
     ) -> None:
 
-        model: VitVQVae = trainer.model
+        model: QMAE = trainer.model
         if isinstance(model, DistributedDataParallel):
             model = model.module
 
