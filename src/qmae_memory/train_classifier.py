@@ -22,11 +22,11 @@ def train_classifier_on_random_memory(
     vq_vae_model = strategy.model
 
     clf_head = EmbClassifier(
-        emb_dim=config.embedding_dim,
+        emb_dim=config.enc_embedding_dim,
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
         dataset_mode="gdumb",
-        num_epochs=config.max_epochs_lin_eval,
+        num_epochs=config.classifier_max_epochs,
         batch_size=128,
     ).to(device)
 
@@ -53,8 +53,8 @@ def train_classifier_on_random_memory(
         accelerator=strategy.accelerator,
         devices=strategy.devices,
         logger=strategy.train_logger,
-        max_epochs=config.max_epochs_lin_eval,
-        min_epochs=config.min_epochs_lin_eval,
+        max_epochs=config.classifier_max_epochs,
+        min_epochs=config.classifier_min_epochs,
     )
 
     trainer.fit(clf_head, datamodule=datamodule)
@@ -75,7 +75,7 @@ def train_classifier_on_all_classes(
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
         dataset_mode="all_cls",
-        num_epochs=config.max_epochs_lin_eval,
+        num_epochs=config.classifier_max_epochs,
         batch_size=128,
     ).to(device)
 
@@ -106,8 +106,8 @@ def train_classifier_on_all_classes(
         accelerator=strategy.accelerator,
         devices=strategy.devices,
         logger=strategy.train_logger,
-        max_epochs=config.max_epochs_lin_eval,
-        min_epochs=config.min_epochs_lin_eval,
+        max_epochs=config.classifier_max_epochs,
+        min_epochs=config.classifier_min_epochs,
     )
 
     trainer.fit(clf_head, datamodule=datamodule)
@@ -126,7 +126,7 @@ def train_classifier_on_observed_only_classes(
         num_classes=benchmark.n_classes,
         experience_step=strategy.experience_step,
         batch_size=128,
-        num_epochs=config.max_epochs_lin_eval,
+        num_epochs=config.classifier_max_epochs,
     ).to(device)
 
     val_dataset = ConcatDataset(
@@ -153,8 +153,8 @@ def train_classifier_on_observed_only_classes(
         accelerator=strategy.accelerator,
         devices=strategy.devices,
         logger=strategy.train_logger,
-        max_epochs=config.max_epochs_lin_eval,
-        min_epochs=config.min_epochs_lin_eval,
+        max_epochs=config.classifier_max_epochs,
+        min_epochs=config.classifier_min_epochs,
     )
 
     trainer.fit(clf_model, datamodule=datamodule)

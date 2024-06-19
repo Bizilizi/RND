@@ -5,7 +5,7 @@ from torch.utils.data import Dataset
 from src.qmae_memory.model.mae.encoder import take_indexes
 
 
-class ImageGPTDataset(Dataset):
+class GPTDataset(Dataset):
     def __init__(
         self,
         qmae_model,

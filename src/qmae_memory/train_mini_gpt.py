@@ -1,8 +1,6 @@
 import random
 
 from torch.nn import functional as F
-
-import math
 import typing as t
 import torch
 from einops import rearrange
@@ -22,6 +20,8 @@ from src.qmae_memory.data.image_gpt_dataset import GPTDataset
 from src.qmae_memory.model.transformer.image_gpt import ImageGPTForCausalImageModeling
 from src.qmae_memory.model.qmae import QMAE
 from torch.nn.parallel import DistributedDataParallel as DDP
+
+from src.qmae_memory.model.transformer.mingpt import GPT
 
 
 def init_token_embeddings(
@@ -73,7 +73,7 @@ def get_image_embedding(
 
 @torch.no_grad()
 def bootstrap_past_samples(
-    image_gpt: ImageGPTForCausalImageModeling,
+    gpt_model: GPT,
     qmae_model: QMAE,
     num_images: int,
     classes_seen_in_past,
@@ -100,14 +100,14 @@ def bootstrap_past_samples(
 
     for _ in range(num_images // num_images_per_batch):
         latent_indices, labels = sample_images(
-            image_gpt=image_gpt,
-            vq_vae_model=qmae_model,
+            transformer=gpt_model,
+            qmae_model=qmae_model,
             embedding=image_embeddings,
             sos_token=sos_token,
             temperature=config.temperature,
-            num_images=num_images_per_batch,
             classes_to_sample=classes_seen_in_past,
             accelerator=config.accelerator,
+            num_images=num_images_per_batch,
         )
 
         bootstrapped_dataset.add_data(
@@ -122,22 +122,65 @@ def bootstrap_past_samples(
     return dataset
 
 
-def learning_rate_schedule(warmup_steps, total_steps):
-    """Linear warmup for warmup_steps, with cosine annealing to 0 at total_steps"""
+def get_mini_gpt_optimizer(mini_gpt, learning_rate):
+    """
+    Following minGPT:
+    This long function is unfortunately doing something very simple and is being very defensive:
+    We are separating out all parameters of the model into two buckets: those that will experience
+    weight decay for regularization and those that won't (biases, and layernorm/embedding weights).
+    We are then returning the PyTorch optimizer object.
+    """
+    # separate out all parameters to those that will and won't experience regularizing weight decay
+    decay = set()
+    no_decay = set()
+    whitelist_weight_modules = (torch.nn.Linear,)
+    blacklist_weight_modules = (torch.nn.LayerNorm, torch.nn.Embedding)
+    for mn, m in mini_gpt.named_modules():
+        for pn, p in m.named_parameters():
+            fpn = '%s.%s' % (mn, pn) if mn else pn  # full param name
 
-    def learning_rate_fn(step):
-        if step < warmup_steps:
-            return float(step) / float(max(1, warmup_steps))
-        else:
-            progress = float(step - warmup_steps) / float(
-                max(1, total_steps - warmup_steps)
-            )
-            return 0.5 * (1.0 + math.cos(math.pi * progress))
+            if pn.endswith('bias'):
+                # all biases will not be decayed
+                no_decay.add(fpn)
+            elif pn.endswith('weight') and isinstance(m, whitelist_weight_modules):
+                # weights of whitelist modules will be weight decayed
+                decay.add(fpn)
+            elif pn.endswith('weight') and isinstance(m, blacklist_weight_modules):
+                # weights of blacklist modules will NOT be weight decayed
+                no_decay.add(fpn)
 
-    return learning_rate_fn
+    # special case the position embedding parameter in the root GPT module as not decayed
+    no_decay.add('pos_emb')
+
+    # validate that we considered every parameter
+    param_dict = {pn: p for pn, p in mini_gpt.named_parameters()}
+    inter_params = decay & no_decay
+    union_params = decay | no_decay
+    assert (
+        len(inter_params) == 0
+    ), "parameters %s made it into both decay/no_decay sets!" % (str(inter_params),)
+    assert (
+        len(param_dict.keys() - union_params) == 0
+    ), "parameters %s were not separated into either decay/no_decay set!" % (
+        str(param_dict.keys() - union_params),
+    )
+
+    # create the pytorch optimizer object
+    optim_groups = [
+        {
+            "params": [param_dict[pn] for pn in sorted(list(decay))],
+            "weight_decay": 0.01,
+        },
+        {
+            "params": [param_dict[pn] for pn in sorted(list(no_decay))],
+            "weight_decay": 0.0,
+        },
+    ]
+    optimizer = torch.optim.AdamW(optim_groups, lr=learning_rate, betas=(0.9, 0.95))
+    return optimizer
 
 
-def train_igpt(
+def train_mini_gpt(
     *,
     strategy: NaivePytorchLightning,
     config: TrainConfig,
@@ -177,28 +220,9 @@ def train_igpt(
     """
     n_positions = 16 * 16 + 1 + 1 + 1
 
-    configuration = ImageGPTConfig(
-        **{
-            "activation_function": "quick_gelu",
-            "attn_pdrop": 0.1,
-            "embd_pdrop": 0.1,
-            "initializer_range": 0.02,
-            "layer_norm_epsilon": 1e-05,
-            "model_type": "imagegpt",
-            "n_embd": config.enc_embedding_dim,
-            "n_head": 8,
-            "n_layer": n_layer,
-            "n_positions": n_positions,
-            "reorder_and_upcast_attn": False,
-            "resid_pdrop": 0.1,
-            "scale_attn_by_inverse_layer_idx": False,
-            "scale_attn_weights": True,
-            "tie_word_embeddings": False,
-            "use_cache": False,
-            "vocab_size": vocab_size,
-        }
+    mini_gpt = GPT(
+        vocab_size, n_positions, n_layer=n_layer, n_embd=config.enc_embedding_dim
     )
-    image_gpt = ImageGPTForCausalImageModeling(configuration)
 
     # init_token_embeddings(vq_vae_model, image_gpt, config, mask_token)
     image_embeddings = get_image_embedding(qmae_model, config, mask_token).to(
@@ -206,9 +230,9 @@ def train_igpt(
     )
 
     # Transfer models to corresponding device (DDP)
-    image_gpt = image_gpt.to(device)
+    mini_gpt = mini_gpt.to(device)
     if is_distributed:
-        image_gpt = DDP(image_gpt, device_ids=[local_rank], output_device=local_rank)
+        mini_gpt = DDP(mini_gpt, device_ids=[local_rank], output_device=local_rank)
 
     qmae_model.to(device)
     image_embeddings.to(device)
@@ -233,14 +257,10 @@ def train_igpt(
         epoch_num = config.gpt_num_epochs_min
 
     grad_scaler = torch.cuda.amp.GradScaler()
-    optimizer = torch.optim.Adam(image_gpt.parameters(), lr=3e-3)
-    exp_lr_scheduler = torch.optim.lr_scheduler.LambdaLR(
-        optimizer,
-        learning_rate_schedule(
-            500, epoch_num * len(data_loader) // config.gpt_accumulate_grad_batches
-        ),
-    )
+    optimizer = get_mini_gpt_optimizer(mini_gpt, learning_rate=config.gpt_learning_rate)
+
     loss_fn = torch.nn.CrossEntropyLoss().to(device)
+
     step = 0
     for i in trange(0, epoch_num):
         counter = i
@@ -249,12 +269,12 @@ def train_igpt(
         for batch in tqdm(data_loader):
             step += 1
 
-            masked_input_ids = batch["input_ids"].to(device)
+            input_ids = batch["input_ids"].to(device)
             with torch.autocast(device_type=config.accelerator, dtype=torch.float16):
-                output = image_gpt(input_ids=masked_input_ids)
+                output = mini_gpt(input_ids)
                 loss = loss_fn(
-                    output.logits[:, :-1].reshape(-1, output.logits.shape[-1]),
-                    masked_input_ids[..., 1:].reshape(-1),
+                    output[:, :-1].reshape(-1, output.shape[-1]),
+                    input_ids[..., 1:].reshape(-1),
                 )
 
             grad_scaler.scale(loss).backward()
@@ -263,7 +283,6 @@ def train_igpt(
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
                 optimizer.zero_grad(set_to_none=True)
-                exp_lr_scheduler.step()
 
             if local_rank == 0:
                 logger.log_metrics(
@@ -273,17 +292,16 @@ def train_igpt(
                     },
                     step=i,
                 )
-
         # Generate sampled images at the end of the epoch
         if local_rank == 0:
             if is_distributed:
-                sampler = image_gpt.module
+                sampler = mini_gpt.module
             else:
-                sampler = image_gpt
+                sampler = mini_gpt
 
             sample = sample_images(
-                image_gpt=sampler,
-                vq_vae_model=qmae_model,
+                transformer=sampler,
+                qmae_model=qmae_model,
                 embedding=image_embeddings,
                 sos_token=sos_token,
                 return_grid_only=True,
@@ -311,9 +329,9 @@ def train_igpt(
         # Save igpt model on every epoch
         if local_rank == 0:
             if is_distributed:
-                state_dict = image_gpt.module.state_dict()
+                state_dict = mini_gpt.module.state_dict()
             else:
-                state_dict = image_gpt.state_dict()
+                state_dict = mini_gpt.state_dict()
 
             for k, v in state_dict.items():
                 state_dict[k] = v.cpu()
@@ -324,15 +342,22 @@ def train_igpt(
             )
 
     if is_distributed:
-        return image_gpt.module
+        return mini_gpt.module
     else:
-        return image_gpt
+        return mini_gpt
+
+
+def top_k_logits(logits, k):
+    v, ix = torch.topk(logits, k)
+    out = logits.clone()
+    out[out < v[..., [-1]]] = -float('Inf')
+    return out
 
 
 @torch.no_grad()
 def sample_images(
-    image_gpt,
-    vq_vae_model,
+    transformer,
+    qmae_model,
     embedding,
     sos_token,
     classes_to_sample,
@@ -340,12 +365,14 @@ def sample_images(
     temperature=1.23,
     num_images=8 * 4 * 10,
     return_grid_only=False,
+    top_k=20,
+    sample=True,
 ):
-    image_gpt.eval()
-    vq_vae_model.eval()
+    transformer.eval()
+    qmae_model.eval()
 
-    device = vq_vae_model.device
-    decoder = vq_vae_model.decoder
+    device = qmae_model.device
+    decoder = qmae_model.decoder
 
     labels = torch.tensor(
         random.choices(classes_to_sample, k=num_images), device=device
@@ -361,30 +388,43 @@ def sample_images(
         ],
         dim=1,
     )
+    steps = 16 * 16 + 1
     with torch.autocast(device_type=accelerator, dtype=torch.float16):
-        igpt_output = image_gpt.generate(
-            input_ids=context,
-            max_length=16 * 16 + 3,
-            temperature=temperature,
-            do_sample=True,
-            top_k=45,
-            top_p=0.9,
-        )
-    igpt_output = igpt_output[:, 2:]
-    igpt_output[igpt_output >= sos_token] = 0
+        for k in range(steps):
+            logits = transformer(context)
+            # pluck the logits at the final step and scale by temperature
+            logits = logits[:, -1, :] / temperature
+
+            # optionally crop probabilities to only the top k options
+            if top_k is not None:
+                logits = top_k_logits(logits, top_k)
+
+            # apply softmax to convert to probabilities
+            probs = F.softmax(logits, dim=-1)
+            # sample from the distribution or take the most likely
+            if sample:
+                ix = torch.multinomial(probs, num_samples=1)
+            else:
+                _, ix = torch.topk(probs, k=1, dim=-1)
+
+            # append to the sequence and continue
+            context = torch.cat((context, ix), dim=1)
+
+    context = context[:, 2:]
+    context[context >= sos_token] = 0
+
+    quantized = rearrange(embedding(context), "b t c -> t b c")
+    features = quantized + decoder.pos_embedding
+
+    features = rearrange(features, "t b c -> b t c")
+    features = decoder.transformer(features)
+    features = rearrange(features, "b t c -> t b c")
+    features = features[1:]  # remove global feature
+
+    patches = decoder.head(features)
+    x_recon = decoder.patch2img(patches)
 
     if return_grid_only:
-        quantized = rearrange(embedding(igpt_output), "b t c -> t b c")
-        features = quantized + decoder.pos_embedding
-
-        features = rearrange(features, "t b c -> b t c")
-        features = decoder.transformer(features)
-        features = rearrange(features, "b t c -> t b c")
-        features = features[1:]  # remove global feature
-
-        patches = decoder.head(features)
-        x_recon = decoder.patch2img(patches)
-
         grid_image = make_grid(
             x_recon.cpu().data,
         )
@@ -393,4 +433,4 @@ def sample_images(
 
         return grid_image
     else:
-        return igpt_output, labels
+        return context, labels

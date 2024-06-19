@@ -8,7 +8,7 @@ from timm.models.vision_transformer import Block
 from torch import nn
 
 from src.qmae_memory.model.mae.encoder import take_indexes
-from src.qmae_memory.model.misc.image_gpt import ImageGPTConfig, ImageGPTModel
+from src.qmae_memory.model.transformer.image_gpt import ImageGPTConfig, ImageGPTModel
 from src.qmae_memory.model.misc.vit import VisionTransformer
 
 

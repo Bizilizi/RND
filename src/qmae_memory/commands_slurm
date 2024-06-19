@@ -32,12 +32,11 @@ python submitit_train.py \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 800 \
+    --max_epochs 1500 \
     --min_epochs 300 \
-    --embedding_dim 192 \
+    --embedding_dim 64 \
     --img_embedding_dim 2 \
-    --sampler_type diffusion \
-    --temperature 1 \
+    --temperature 1.23 \
     --igpt_num_layers 12 \
     --igpt_learning_rate 0.001 \
     --igpt_num_epochs_max 30 \
@@ -53,6 +52,6 @@ python submitit_train.py \
     --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
     --past_samples_rec_loss True \
     --num_workers 8 \
-    --num_embeddings 512 \
-    --num_embeddings_per_step 32 \
+    --num_embeddings 128 \
+    --num_embeddings_per_step 16 \
     --precision 16-mixed

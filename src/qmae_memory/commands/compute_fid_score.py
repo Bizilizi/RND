@@ -13,7 +13,7 @@ from src.qmae_memory.init_scrips import (
     get_benchmark,
     get_model,
 )
-from src.qmae_memory.model.misc.image_gpt import ImageGPTForCausalImageModeling
+from src.qmae_memory.model.transformer.image_gpt import ImageGPTForCausalImageModeling
 from src.qmae_memory.train_image_gpt import (
     bootstrap_past_samples,
 )
@@ -138,7 +138,7 @@ def calculate_fid_score_for_all_cl_steps(
             "initializer_range": 0.02,
             "layer_norm_epsilon": 1e-05,
             "model_type": "imagegpt",
-            "n_embd": config.embedding_dim,
+            "n_embd": config.enc_embedding_dim,
             "n_head": 8,
             "n_layer": 12,
             "n_positions": 16 * 16 + 3,

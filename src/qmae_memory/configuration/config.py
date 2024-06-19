@@ -6,25 +6,20 @@ from src.avalanche.configuration.config import BaseTrainConfig
 class TrainConfig(BaseTrainConfig):
     # Model
     num_embeddings: int
-    num_embeddings_per_step: int
-    embedding_dim: int
+    add_embeddings_per_step: int
+    enc_embedding_dim: int
     img_embedding_dim: int
     commitment_cost: float
     decay: float
-    quantize_features: bool
     num_tasks: int
     num_epochs_schedule: str
     bootstrapped_dataset_path: str
     dataset: str
     dataset_variance: float
-    memory_buffer_size: int
 
-    supervised: bool
-    use_lpips: bool
-    mask_ratio: float
+    mask_ratio: float = 0.75
     weight_decay: float
-    past_samples_rec_loss: bool
-    cycle_consistency_sigma: float
+    latent_consistency_sigma: float
 
     # weight
     l1_loss_weight: float
@@ -34,24 +29,24 @@ class TrainConfig(BaseTrainConfig):
     discriminator_weight: float
 
     # sampling
-    num_random_future_samples: int
     num_random_past_samples: int
     num_random_past_samples_schedule: str
-    future_samples_mode: str
     temperature: float
 
-    # igpt
-    num_gpt_layers: int
-    igpt_num_epochs_max: int
-    igpt_num_epochs_min: int
-    igpt_batch_size: int
-    igpt_mask_ratio: float
-    igpt_accumulate_grad_batches: int
-    igpt_mask_token_weight: float
+    # gpt
+    gpt_num_layers: int
+    gpt_num_epochs_max: int
+    gpt_num_epochs_min: int
+    gpt_batch_size: int
+    gpt_accumulate_grad_batches: int
+    gpt_learning_rate: float
+    gpt_mask_ratio: float
+    gpt_mask_token_weight: float
 
-    # training
-    max_epochs_lin_eval: int
-    min_epochs_lin_eval: int
+    # Classifier
+    classifier_max_epochs: int
+    classifier_min_epochs: int
+    classifier_batch_size: int
 
     @staticmethod
     def construct_typed_config(ini_config: ConfigParser) -> "TrainConfig":
@@ -63,11 +58,12 @@ class TrainConfig(BaseTrainConfig):
         """
 
         config = TrainConfig(
+            **ini_config["qmae"],
+            **ini_config["classifier"],
+            **ini_config["sampling"],
+            **ini_config["gpt"],
             **ini_config["training"],
             **ini_config["logging"],
-            **ini_config["model"],
-            **ini_config["sampling"],
-            **ini_config["igpt"],
         )
 
         return config

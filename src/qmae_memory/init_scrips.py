@@ -186,8 +186,8 @@ def get_evaluation_plugin(
 def get_model(config: TrainConfig, device: torch.device) -> QMAE:
     vae = QMAE(
         num_embeddings=config.num_embeddings,
-        num_embeddings_per_step=config.num_embeddings_per_step,
-        embedding_dim=config.embedding_dim,
+        num_embeddings_per_step=config.add_embeddings_per_step,
+        embedding_dim=config.enc_embedding_dim,
         img_embedding_dim=config.img_embedding_dim,
         commitment_cost=config.commitment_cost,
         decay=config.decay,
@@ -198,7 +198,6 @@ def get_model(config: TrainConfig, device: torch.device) -> QMAE:
             / 256
         ),
         weight_decay=config.weight_decay,
-        mask_ratio=config.mask_ratio,
         precision=config.precision,
         accelerator=config.accelerator,
         batch_size=config.batch_size * config.accumulate_grad_batches,
@@ -208,7 +207,7 @@ def get_model(config: TrainConfig, device: torch.device) -> QMAE:
         lpip_loss_weight=config.lpip_loss_weight,
         l1_loss_weight=config.l1_loss_weight,
         latent_consistency_loss_weight=config.latent_consistency_loss_weight,
-        cycle_consistency_sigma=config.cycle_consistency_sigma,
+        cycle_consistency_sigma=config.latent_consistency_sigma,
         disc_start=2_000,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")

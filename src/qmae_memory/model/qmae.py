@@ -84,7 +84,6 @@ class QMAE(CLModel):
         encoder_head=3,
         decoder_layer=4,
         decoder_head=3,
-        mask_ratio=0.75,
         # discriminator
         disc_start,
         disc_num_layers=3,
@@ -128,7 +127,6 @@ class QMAE(CLModel):
         self.img_embedding_dim = img_embedding_dim
 
         self.latent_sos_token = num_embeddings + 1
-        self.mask_ratio = mask_ratio
 
         self.precision_dtype = torch.half if precision == "16-mixed" else torch.float32
         self.accelerator = accelerator

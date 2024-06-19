@@ -19,7 +19,7 @@ from src.qmae_memory.init_scrips import (
 from src.qmae_memory.train_classifier import (
     train_classifier_on_observed_only_classes,
 )
-from src.qmae_memory.train_image_gpt import bootstrap_past_samples, train_igpt
+from src.qmae_memory.train_mini_gpt import train_mini_gpt, bootstrap_past_samples
 from src.qmae_memory.utils.copy_dataset import copy_dataset_to_tmp
 from src.qmae_memory.utils.wrap_empty_indices import (
     wrap_dataset,
@@ -46,7 +46,7 @@ def train_loop(
     if is_using_wandb and local_rank == 0:
         log_summary_table_to_wandb(benchmark.train_stream, benchmark.test_stream)
 
-    image_gpt = None
+    gpt_model = None
 
     for train_experience, test_experience in zip(
         benchmark.train_stream, benchmark.test_stream
@@ -68,7 +68,7 @@ def train_loop(
         if cl_strategy.experience_step != 0 and config.num_random_past_samples != 0:
             print(f"Bootstrap vae model..")
 
-            image_gpt.to(device)
+            gpt_model.to(device)
             cl_strategy.model.to(device)
 
             classes_seen_in_past = list(
@@ -78,7 +78,7 @@ def train_loop(
             )
 
             bootstrapped_dataset = bootstrap_past_samples(
-                image_gpt=image_gpt,
+                gpt_model=gpt_model,
                 qmae_model=cl_strategy.model,
                 num_images=get_num_random_past_samples(config, cl_strategy),
                 config=config,
@@ -105,17 +105,17 @@ def train_loop(
         if cl_strategy.experience_step > 0:
             cl_strategy.model.feature_quantization.extend_codebook()
 
-        cl_strategy.train(train_experience, [test_experience])
+        # cl_strategy.train(train_experience, [test_experience])
         cl_strategy.model.freeze()
 
         # Train new image gpt model
         print(f"Train igpt..")
-        image_gpt = train_igpt(
+        gpt_model = train_mini_gpt(
             strategy=cl_strategy,
             config=config,
             train_dataset=igpt_train_dataset,
             device=device,
-            n_layer=config.num_gpt_layers,
+            n_layer=config.gpt_num_layers,
             local_rank=local_rank,
             is_distributed=is_distributed,
             num_classes=benchmark.n_classes,
@@ -168,7 +168,7 @@ def main(args):
         wandb.run.name = args.experiment_name or (
             f"BS-{config.batch_size * config.accumulate_grad_batches} | "
             f"#Emb-{config.num_embeddings} | "
-            f"DEmb-{config.embedding_dim} | "
+            f"DEmb-{config.enc_embedding_dim} | "
         )
         wandb_params["name"] = wandb.run.name
         wandb_params["id"] = wandb.run.id

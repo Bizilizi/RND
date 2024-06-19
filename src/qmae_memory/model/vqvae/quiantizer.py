@@ -43,7 +43,10 @@ class VectorQuantizerEMA(nn.Module):
         self._epsilon = epsilon
 
     def extend_codebook(self) -> None:
-        # Extend embeddings
+        if self._num_embeddings_per_step == 0:
+            return
+
+            # Extend embeddings
         embedding_copy = self._embedding.weight.data.clone()
         num_embedding = embedding_copy.shape[0]
 
