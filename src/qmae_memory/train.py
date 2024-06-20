@@ -105,7 +105,7 @@ def train_loop(
         if cl_strategy.experience_step > 0:
             cl_strategy.model.feature_quantization.extend_codebook()
 
-        # cl_strategy.train(train_experience, [test_experience])
+        cl_strategy.train(train_experience, [test_experience])
         cl_strategy.model.freeze()
 
         # Train new image gpt model
