@@ -156,7 +156,11 @@ class QMAE(CLModel):
             decay,
         )
         self.decoder = MAEDecoder(
-            image_size, patch_size, embedding_dim, decoder_layer, decoder_head
+            image_size,
+            patch_size,
+            embedding_dim,
+            decoder_layer,
+            decoder_head,
         )
 
         # Losses
@@ -179,6 +183,8 @@ class QMAE(CLModel):
         self.disc_conditional = disc_conditional
 
         self.lpips = lpips.LPIPS(net="vgg")
+        for param in self.lpips.parameters():
+            param.requires_grad = False
 
     def get_cycle_consistency_loss(self, distances, indices):
         q_logits = -1 / 2 * distances / self.cycle_consistency_sigma

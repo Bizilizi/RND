@@ -187,8 +187,12 @@ def get_model(config: TrainConfig, device: torch.device) -> QMAE:
     vae = QMAE(
         num_embeddings=config.num_embeddings,
         num_embeddings_per_step=config.add_embeddings_per_step,
-        embedding_dim=config.enc_embedding_dim,
         img_embedding_dim=config.img_embedding_dim,
+        embedding_dim=config.enc_embedding_dim,
+        encoder_layer=config.enc_n_layers,
+        encoder_head=config.enc_n_heads,
+        decoder_layer=config.dec_n_layers,
+        decoder_head=config.dec_n_heads,
         commitment_cost=config.commitment_cost,
         decay=config.decay,
         learning_rate=(
@@ -208,7 +212,7 @@ def get_model(config: TrainConfig, device: torch.device) -> QMAE:
         l1_loss_weight=config.l1_loss_weight,
         latent_consistency_loss_weight=config.latent_consistency_loss_weight,
         cycle_consistency_sigma=config.latent_consistency_sigma,
-        disc_start=2_000,
+        disc_start=config.gan_loss_disc_start,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

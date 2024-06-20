@@ -7,16 +7,23 @@ class TrainConfig(BaseTrainConfig):
     # Model
     num_embeddings: int
     add_embeddings_per_step: int
-    enc_embedding_dim: int
     img_embedding_dim: int
-    commitment_cost: float
-    decay: float
+    enc_embedding_dim: int
+    enc_n_layers = 12
+    enc_n_heads = 3
+    dec_n_layers = 4
+    dec_n_heads = 3
+
+    # continual learning
     num_tasks: int
     num_epochs_schedule: str
     bootstrapped_dataset_path: str
     dataset: str
     dataset_variance: float
 
+    # quantisation
+    commitment_cost: float
+    decay: float
     mask_ratio: float = 0.75
     weight_decay: float
     latent_consistency_sigma: float
@@ -27,6 +34,7 @@ class TrainConfig(BaseTrainConfig):
     vq_loss_weight: float
     latent_consistency_loss_weight: float
     discriminator_weight: float
+    gan_loss_disc_start: float
 
     # sampling
     num_random_past_samples: int
