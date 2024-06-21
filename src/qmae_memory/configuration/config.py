@@ -34,7 +34,7 @@ class TrainConfig(BaseTrainConfig):
     vq_loss_weight: float
     latent_consistency_loss_weight: float
     discriminator_weight: float
-    gan_loss_disc_start: float
+    gan_loss_epoch_start: float
 
     # sampling
     num_random_past_samples: int

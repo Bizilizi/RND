@@ -85,7 +85,7 @@ class QMAE(CLModel):
         decoder_layer=4,
         decoder_head=3,
         # discriminator
-        disc_start,
+        gan_loss_epoch_start,
         disc_num_layers=3,
         disc_in_channels=3,
         disc_factor=1.0,
@@ -171,7 +171,7 @@ class QMAE(CLModel):
             ndf=disc_ndf,
         ).apply(weights_init)
 
-        self.discriminator_iter_start = disc_start
+        self.discriminator_epoch_start = gan_loss_epoch_start
         if disc_loss == "hinge":
             self.disc_loss = hinge_d_loss
         elif disc_loss == "vanilla":
@@ -226,7 +226,10 @@ class QMAE(CLModel):
             )
 
         disc_factor = adopt_weight(
-            self.disc_factor, self.global_step, threshold=self.discriminator_iter_start
+            self.disc_factor,
+            self.current_epoch,
+            threshold=self.discriminator_epoch_start,
+            value=0.0,
         )
         d_loss = disc_factor * self.disc_loss(logits_real, logits_fake)
 
@@ -262,7 +265,7 @@ class QMAE(CLModel):
             d_weight = torch.tensor(0.0)
 
         disc_factor = adopt_weight(
-            self.disc_factor, self.global_step, threshold=self.discriminator_iter_start
+            self.disc_factor, self.global_step, threshold=self.discriminator_epoch_start
         )
 
         # Compute consistency loss

@@ -212,7 +212,7 @@ def get_model(config: TrainConfig, device: torch.device) -> QMAE:
         l1_loss_weight=config.l1_loss_weight,
         latent_consistency_loss_weight=config.latent_consistency_loss_weight,
         cycle_consistency_sigma=config.latent_consistency_sigma,
-        disc_start=config.gan_loss_disc_start,
+        gan_loss_epoch_start=config.gan_loss_epoch_start,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

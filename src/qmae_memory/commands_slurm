@@ -23,7 +23,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "qmae-gan" \
+    --comment "qmae-gan dec4" \
     --project qmae-memory \
     --devices 0, \
     --group tests \
@@ -32,9 +32,10 @@ python submitit_train.py \
     --dataset cifar10 \
     --num_tasks 5 \
     --num_epochs_schedule warmup \
-    --max_epochs 1200 \
+    --max_epochs 800 \
     --min_epochs 300 \
     --enc_embedding_dim 192 \
+    --dec_n_layers 4 \
     --img_embedding_dim 2 \
     --temperature 1.23 \
     --gpt_num_layers 12 \
