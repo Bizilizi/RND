@@ -66,7 +66,6 @@ class PatchVITDiscriminator(torch.nn.Module):
         We patchify mask with the same patch size as image to
         figure out which path to leave off.  
         """
-        print(full_patches.shape, forward_indexes.shape)
         masked_patches = take_indexes(full_patches, forward_indexes)
         masked_patches = masked_patches[:remain_T]
         masked_patches = torch.cat(
