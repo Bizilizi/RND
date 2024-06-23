@@ -26,7 +26,7 @@ python submitit_train.py \
     --devices 0, \
     --group tests \
     --model qmae-memory \
-    --config src/qmae_memory/configuration/tiny_imgnet_patch_vit.ini \
+    --config src/qmae_memory/configuration/cifar10_patch_vit.ini \
     --num_tasks 1 \
     --max_epochs 1200 \
     --img_embedding_dim 2 \
