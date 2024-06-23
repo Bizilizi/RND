@@ -47,7 +47,7 @@ class GPTDataset(Dataset):
         x = image[None]
 
         encoder = self.qmae_model.encoder
-        features, backward_indexes = encoder(x, ratio=self.mask_ratio)
+        features, _, backward_indexes, _ = encoder(x, ratio=self.mask_ratio)
 
         if self.mask_ratio == 0:
             (

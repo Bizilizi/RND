@@ -9,7 +9,10 @@ from einops import rearrange
 from torch.nn import functional as F
 
 from src.avalanche.model.cl_model import CLModel
-from src.qmae_memory.model.loss.discriminator import NLayerDiscriminator, weights_init
+from src.qmae_memory.model.loss.patch_gan_discriminator import (
+    NLayerDiscriminator,
+    weights_init,
+)
 from src.qmae_memory.model.mae.decoder import MAEDecoder
 from src.qmae_memory.model.mae.encoder import MAEEncoder
 from src.qmae_memory.model.vqvae.quiantizer import (
@@ -34,6 +37,12 @@ class ForwardOutput:
 
     perplexity: torch.Tensor
     avg_probs: torch.Tensor
+
+    # masking arguments
+    present_forward_indexes: torch.Tensor
+    present_remain_T: int
+    past_forward_indexes: t.Optional[torch.Tensor]
+    past_remain_T: t.Optional[int]
 
 
 @dataclasses.dataclass
@@ -183,8 +192,6 @@ class QMAE(CLModel):
         self.disc_conditional = disc_conditional
 
         self.lpips = lpips.LPIPS(net="vgg")
-        for param in self.lpips.parameters():
-            param.requires_grad = False
 
     def get_cycle_consistency_loss(self, distances, indices):
         q_logits = -1 / 2 * distances / self.cycle_consistency_sigma
@@ -209,21 +216,40 @@ class QMAE(CLModel):
 
         return d_weight
 
+    def calculate_discriminator_logits(self, forward_output, detach=False):
+        num_present_images = forward_output.present_forward_indexes.shape[0]
+
+        # Get only present reconstruction images, detach if necessary
+        x_recon = forward_output.x_recon[:num_present_images]
+        if detach:
+            x_recon = x_recon.detach()
+
+        logits = self.discriminator(
+            x_recon,
+            forward_output.present_forward_indexes,
+            forward_output.present_remain_T,
+        )
+        if forward_output.past_forward_indexes:
+            # Get only past reconstructed images, detach if necessary
+            x_recon_past = forward_output.x_recon[num_present_images:]
+            if detach:
+                x_recon_past = x_recon_past.detach()
+
+            past_logits = self.discriminator(
+                x_recon_past,
+                forward_output.past_forward_indexes,
+                forward_output.past_remain_T,
+            )
+            logits = torch.cat([logits, past_logits])
+
+        return logits
+
     def discriminator_criterion(
         self,
         forward_output: ForwardOutput,
-        cond=None,
     ) -> torch.Tensor:
-        if cond is None:
-            logits_real = self.discriminator(forward_output.x_target.detach())
-            logits_fake = self.discriminator(forward_output.x_recon.detach())
-        else:
-            logits_real = self.discriminator(
-                torch.cat((forward_output.x_target.detach(), cond), dim=1)
-            )
-            logits_fake = self.discriminator(
-                torch.cat((forward_output.x_recon.detach(), cond), dim=1)
-            )
+        logits_real = self.calculate_discriminator_logits(forward_output, detach=True)
+        logits_fake = self.calculate_discriminator_logits(forward_output, detach=True)
 
         disc_factor = adopt_weight(
             self.disc_factor,
@@ -236,8 +262,10 @@ class QMAE(CLModel):
         return d_loss
 
     def reconstruction_criterion(
-        self, forward_output: ForwardOutput, cond=None
+        self,
+        forward_output: ForwardOutput,
     ) -> ReconstrcutionCriterionOutput:
+
         # Compute reconstruction loss
         lpips_loss = self.lpips(forward_output.x_target, forward_output.x_recon).mean()
         l1_loss = torch.abs(forward_output.x_target - forward_output.x_recon).mean()
@@ -247,13 +275,7 @@ class QMAE(CLModel):
         )
 
         # Compute generator loss
-        if cond is None:
-            logits_fake = self.discriminator(forward_output.x_recon)
-        else:
-            assert self.disc_conditional
-            logits_fake = self.discriminator(
-                torch.cat((forward_output.x_recon, cond), dim=1)
-            )
+        logits_fake = self.calculate_discriminator_logits(forward_output, detach=False)
         generator_loss = -torch.mean(logits_fake)
 
         try:
@@ -307,7 +329,12 @@ class QMAE(CLModel):
         fo_* - first order
         so_* - second_order
         """
-        fo_masked_features, fo_backward_indexes = self.encoder(x)
+        (
+            fo_masked_features,
+            fo_forward_indexes,
+            fo_backward_indexes,
+            fo_remain_T,
+        ) = self.encoder(x)
 
         # Quantize features
         with torch.autocast(self.accelerator, dtype=torch.float32):
@@ -325,7 +352,7 @@ class QMAE(CLModel):
         x_recon, mask = self.decoder(fo_quantized_masked_features, fo_backward_indexes)
 
         # Encode reconstructed image again to calculate lcl
-        so_masked_features, _ = self.encoder(x_recon)
+        so_masked_features, *_ = self.encoder(x_recon)
 
         # Quantize features
         with torch.autocast(self.accelerator, dtype=torch.float32):
@@ -352,6 +379,11 @@ class QMAE(CLModel):
             fo_vq_loss=fo_vq_loss,
             fo_perplexity=fo_perplexity,
             fo_avg_probs=fo_avg_probs,
+            # fo masking arguments
+            fo_forward_indexes=fo_forward_indexes,
+            fo_backward_indexes=fo_backward_indexes,
+            fo_remain_T=fo_remain_T,
+            # so
             so_masked_features=so_masked_features,
             so_quantized_masked_features=so_quantized_masked_features,
             so_z_indices=so_z_indices,
@@ -385,7 +417,12 @@ class QMAE(CLModel):
         so_* - second order
         """
 
-        so_masked_features, so_backward_indexes = self.encoder(x_recon, ratio=0)
+        (
+            so_masked_features,
+            so_forward_indexes,
+            so_backward_indexes,
+            so_remain_T,
+        ) = self.encoder(x_recon, ratio=0)
 
         # Quantize features
         with torch.autocast(self.accelerator, dtype=torch.float32):
@@ -414,6 +451,10 @@ class QMAE(CLModel):
             so_perplexity=so_perplexity,
             so_avg_probs=so_avg_probs,
             so_x_recon=so_x_recon,
+            # masking arguments
+            so_forward_indexes=so_forward_indexes,
+            so_backward_indexes=so_backward_indexes,
+            so_remain_T=so_remain_T,
         )
 
     def forward(self, data, y) -> ForwardOutput:
@@ -450,6 +491,12 @@ class QMAE(CLModel):
             + present_forward_output["so_avg_probs"]
         ) / 2
 
+        present_forward_indexes = present_forward_output["fo_forward_indexes"]
+        present_remain_T = present_forward_output["fo_remain_T"]
+
+        past_forward_indexes = None
+        past_remain_T = None
+
         if past_data_mask.any():
             past_input = data["indices"][past_data_mask]
             past_forward_output = self.past_data_forward(past_input)
@@ -470,6 +517,9 @@ class QMAE(CLModel):
             perplexity = perplexity + past_forward_output["so_perplexity"]
             avg_probs = (avg_probs * 2 + past_forward_output["so_avg_probs"]) / 3
 
+            past_forward_indexes = past_forward_output["so_forward_indexes"]
+            past_remain_T = past_forward_output["so_remain_T"]
+
         return ForwardOutput(
             x_recon=x_recon,
             x_target=x_target,
@@ -482,6 +532,10 @@ class QMAE(CLModel):
             vq_loss=vq_loss,
             perplexity=perplexity,
             avg_probs=avg_probs,
+            present_forward_indexes=present_forward_indexes,
+            present_remain_T=present_remain_T,
+            past_forward_indexes=past_forward_indexes,
+            past_remain_T=past_remain_T,
         )
 
     def training_step(self, batch, batch_idx):
@@ -497,6 +551,9 @@ class QMAE(CLModel):
         self.manual_backward(qmae_loss)
 
         if (batch_idx + 1) % self.accumulate_batch_every == 0:
+            self.clip_gradients(
+                d_opt, gradient_clip_val=5, gradient_clip_algorithm="norm"
+            )  # better be safe than sorry
             qmae_opt.step()
             qmae_opt.zero_grad()
 
@@ -507,6 +564,9 @@ class QMAE(CLModel):
         self.manual_backward(discriminator_loss)
 
         if (batch_idx + 1) % self.accumulate_batch_every == 0:
+            self.clip_gradients(
+                d_opt, gradient_clip_val=5, gradient_clip_algorithm="norm"
+            )  # better be safe than sorry
             d_opt.step()
             d_opt.zero_grad()
 

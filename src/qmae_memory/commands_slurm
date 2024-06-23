@@ -30,9 +30,9 @@ python submitit_train.py \
     --model qmae-memory \
     --config src/qmae_memory/configuration/train.ini \
     --dataset cifar10 \
-    --num_tasks 5 \
+    --num_tasks 1 \
     --num_epochs_schedule warmup \
-    --max_epochs 800 \
+    --max_epochs 1200 \
     --min_epochs 300 \
     --enc_embedding_dim 192 \
     --dec_n_layers 4 \

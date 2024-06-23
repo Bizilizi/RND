@@ -41,7 +41,7 @@ class ClassificationDataset(Dataset):
             x = x.to(vq_vae.device)
 
             with torch.no_grad():
-                features, _ = vq_vae.encoder(x, ratio=self.ratio)
+                features, *_ = vq_vae.encoder(x, ratio=self.ratio)
                 image_emb = vq_vae.get_image_embedding(features)
 
                 self.targets.append(y.cpu())

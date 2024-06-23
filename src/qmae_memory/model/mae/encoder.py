@@ -15,6 +15,22 @@ def random_indexes(size: int):
     return forward_indexes, backward_indexes
 
 
+def random_indexes_batch(size: int, batch_size: int, device: torch.device):
+    forward_indexes = torch.tile(torch.arange(size, device=device), (batch_size, 1))
+
+    # Shuffle each row independently
+    for i in range(batch_size):
+        forward_indexes[i] = forward_indexes[i][torch.randperm(size, device=device)]
+
+    # Compute backward indexes
+    _, backward_indexes = torch.sort(forward_indexes, dim=1)
+
+    forward_indexes = rearrange(forward_indexes, "b t -> t b")
+    backward_indexes = rearrange(backward_indexes, "b t -> t b")
+
+    return forward_indexes, backward_indexes
+
+
 def take_indexes(sequences, indexes):
     return torch.gather(
         sequences, 0, repeat(indexes, "t b -> t b c", c=sequences.shape[-1])
@@ -30,18 +46,14 @@ class PatchShuffle(torch.nn.Module):
         T, B, C = patches.shape
         remain_T = int(T * (1 - self.ratio))
 
-        indexes = [random_indexes(T) for _ in range(B)]
-        forward_indexes = torch.as_tensor(
-            np.stack([i[0] for i in indexes], axis=-1), dtype=torch.long
-        ).to(patches.device)
-        backward_indexes = torch.as_tensor(
-            np.stack([i[1] for i in indexes], axis=-1), dtype=torch.long
-        ).to(patches.device)
+        forward_indexes, backward_indexes = random_indexes_batch(
+            T, B, device=patches.device
+        )
 
         patches = take_indexes(patches, forward_indexes)
         patches = patches[:remain_T]
 
-        return patches, forward_indexes, backward_indexes
+        return patches, forward_indexes, backward_indexes, remain_T
 
 
 class MAEEncoder(torch.nn.Module):
@@ -90,7 +102,9 @@ class MAEEncoder(torch.nn.Module):
         else:
             self.shuffle.ratio = ratio
 
-        masked_patches, forward_indexes, backward_indexes = self.shuffle(full_patches)
+        masked_patches, forward_indexes, backward_indexes, remain_T = self.shuffle(
+            full_patches
+        )
         masked_patches = torch.cat(
             [self.cls_token.expand(-1, masked_patches.shape[1], -1), masked_patches],
             dim=0,
@@ -99,4 +113,4 @@ class MAEEncoder(torch.nn.Module):
         masked_features = self.layer_norm(self.transformer(masked_patches))
         masked_features = rearrange(masked_features, "b t c -> t b c")
 
-        return masked_features, backward_indexes
+        return masked_features, forward_indexes, backward_indexes, remain_T

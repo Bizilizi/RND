@@ -82,6 +82,6 @@ class NLayerDiscriminator(nn.Module):
         ]  # output 1 channel prediction map
         self.main = nn.Sequential(*sequence)
 
-    def forward(self, input):
+    def forward(self, input, *_):
         """Standard forward."""
         return self.main(input)
