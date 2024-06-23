@@ -185,16 +185,40 @@ def get_evaluation_plugin(
 
 def get_model(config: TrainConfig, device: torch.device) -> QMAE:
     vae = QMAE(
+        # quantisation
+        commitment_cost=config.commitment_cost,
+        decay=config.decay,
         num_embeddings=config.num_embeddings,
         num_embeddings_per_step=config.add_embeddings_per_step,
-        img_embedding_dim=config.img_embedding_dim,
         embedding_dim=config.enc_embedding_dim,
+        img_embedding_dim=config.img_embedding_dim,
+        # mae
+        image_size=config.image_size,
+        patch_size=config.patch_size,
         encoder_layer=config.enc_n_layers,
         encoder_head=config.enc_n_heads,
         decoder_layer=config.dec_n_layers,
         decoder_head=config.dec_n_heads,
-        commitment_cost=config.commitment_cost,
-        decay=config.decay,
+        # discriminator
+        discriminator_type=config.discriminator_type,
+        gan_loss_epoch_start=config.gan_loss_epoch_start,
+        disc_num_layers=config.disc_num_layers,
+        disc_num_heads=config.disc_num_heads,
+        disc_in_channels=config.disc_in_channels,
+        disc_factor=config.disc_factor,
+        disc_use_actnorm=config.disc_use_actnorm,
+        disc_ndf=config.disc_ndf,
+        disc_loss=config.disc_loss,
+        # loss weights
+        l1_loss_weight=config.l1_loss_weight,
+        lpip_loss_weight=config.lpip_loss_weight,
+        vq_loss_weight=config.vq_loss_weight,
+        latent_consistency_loss_weight=config.latent_consistency_loss_weight,
+        cycle_consistency_sigma=config.latent_consistency_sigma,
+        discriminator_weight=config.discriminator_weight,
+        # training
+        precision=config.precision,
+        accelerator=config.accelerator,
         learning_rate=(
             config.learning_rate
             * config.batch_size
@@ -202,17 +226,9 @@ def get_model(config: TrainConfig, device: torch.device) -> QMAE:
             / 256
         ),
         weight_decay=config.weight_decay,
-        precision=config.precision,
-        accelerator=config.accelerator,
         batch_size=config.batch_size * config.accumulate_grad_batches,
         accumulate_batch_every=config.accumulate_grad_batches,
         num_epochs=config.max_epochs,
-        vq_loss_weight=config.vq_loss_weight,
-        lpip_loss_weight=config.lpip_loss_weight,
-        l1_loss_weight=config.l1_loss_weight,
-        latent_consistency_loss_weight=config.latent_consistency_loss_weight,
-        cycle_consistency_sigma=config.latent_consistency_sigma,
-        gan_loss_epoch_start=config.gan_loss_epoch_start,
     )
     # vae = torch.compile(vae, mode="reduce-overhead")
 

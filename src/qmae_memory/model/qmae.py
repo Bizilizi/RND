@@ -13,6 +13,7 @@ from src.qmae_memory.model.loss.patch_gan_discriminator import (
     NLayerDiscriminator,
     weights_init,
 )
+from src.qmae_memory.model.loss.patch_vit_discriminator import PatchVITDiscriminator
 from src.qmae_memory.model.mae.decoder import MAEDecoder
 from src.qmae_memory.model.mae.encoder import MAEEncoder
 from src.qmae_memory.model.vqvae.quiantizer import (
@@ -94,12 +95,13 @@ class QMAE(CLModel):
         decoder_layer=4,
         decoder_head=3,
         # discriminator
+        discriminator_type='patch-vit',
         gan_loss_epoch_start,
         disc_num_layers=3,
+        disc_num_heads=3,
         disc_in_channels=3,
         disc_factor=1.0,
-        use_actnorm=False,
-        disc_conditional=False,
+        disc_use_actnorm=False,
         disc_ndf=64,
         disc_loss="hinge",
         # loss weights
@@ -173,12 +175,21 @@ class QMAE(CLModel):
         )
 
         # Losses
-        self.discriminator = NLayerDiscriminator(
-            input_nc=disc_in_channels,
-            n_layers=disc_num_layers,
-            use_actnorm=use_actnorm,
-            ndf=disc_ndf,
-        ).apply(weights_init)
+        if discriminator_type == 'patch-vit':
+            self.discriminator = PatchVITDiscriminator(
+                image_size=image_size,
+                patch_size=patch_size,
+                emb_dim=embedding_dim,
+                num_layer=disc_num_layers,
+                num_head=disc_num_heads,
+            )
+        else:
+            self.discriminator = NLayerDiscriminator(
+                input_nc=disc_in_channels,
+                n_layers=disc_num_layers,
+                use_actnorm=disc_use_actnorm,
+                ndf=disc_ndf,
+            ).apply(weights_init)
 
         self.discriminator_epoch_start = gan_loss_epoch_start
         if disc_loss == "hinge":
@@ -189,7 +200,6 @@ class QMAE(CLModel):
             raise ValueError(f"Unknown GAN loss '{disc_loss}'.")
 
         self.disc_factor = disc_factor
-        self.disc_conditional = disc_conditional
 
         self.lpips = lpips.LPIPS(net="vgg")
 

@@ -77,6 +77,5 @@ class PatchVITDiscriminator(torch.nn.Module):
         masked_features = self.transformer(masked_patches)
         masked_features = self.layer_norm(masked_features)
         masked_features = self.clf_head(masked_features)
-        masked_features = rearrange(masked_features, "b t c -> t b c")
 
         return masked_features

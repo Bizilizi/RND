@@ -14,6 +14,11 @@ class TrainConfig(BaseTrainConfig):
     dec_n_layers = 4
     dec_n_heads = 3
 
+    # dataset
+    dataset: str
+    image_size: int
+    patch_size: int
+
     # continual learning
     num_tasks: int
     num_epochs_schedule: str
@@ -33,8 +38,18 @@ class TrainConfig(BaseTrainConfig):
     lpip_loss_weight: float
     vq_loss_weight: float
     latent_consistency_loss_weight: float
+
+    # gan loss
+    discriminator_type: str
     discriminator_weight: float
     gan_loss_epoch_start: float
+    disc_num_layers: int
+    disc_num_heads: int
+    disc_in_channels: int
+    disc_factor: float
+    disc_use_actnorm: bool
+    disc_ndf: int
+    disc_loss: str
 
     # sampling
     num_random_past_samples: int
