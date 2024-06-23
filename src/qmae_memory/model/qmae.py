@@ -227,7 +227,7 @@ class QMAE(CLModel):
         return d_weight
 
     def calculate_discriminator_logits(self, forward_output, detach=False):
-        num_present_images = forward_output.present_forward_indexes.shape[0]
+        num_present_images = forward_output.present_forward_indexes.shape[1]
 
         # Get only present reconstruction images, detach if necessary
         x_recon = forward_output.x_recon[:num_present_images]
