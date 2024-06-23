@@ -26,9 +26,9 @@ python submitit_train.py \
     --devices 0, \
     --group tests \
     --model qmae-memory \
-    --config src/qmae_memory/configuration/cifar10_patch_vit \
+    --config src/qmae_memory/configuration/cifar10_path_gan.ini \
     --num_tasks 1 \
     --max_epochs 1200 \
     --img_embedding_dim 2 \
     --temperature 1.23 \
-    --wandb_dir /scratch/shared/beegfs/dzverev/wandb \
+    --wandb_dir /scratch/shared/beegfs/dzverev/wandb

@@ -2,7 +2,7 @@ import datetime
 import typing as t
 
 import torch
-from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100
+from avalanche.benchmarks import SplitCIFAR10, SplitCIFAR100, SplitTinyImageNet
 from pytorch_lightning import Callback
 
 from avalanche.evaluation.metrics import timing_metrics
@@ -155,6 +155,14 @@ def get_benchmark(config: TrainConfig, target_dataset_dir):
                     ),
                 ]
             ),
+        )
+    elif config.dataset == "tiny-imgnet":
+        config.dataset_variance = 1
+        return SplitTinyImageNet(
+            n_experiences=config.num_tasks,
+            return_task_id=True,
+            shuffle=True,
+            dataset_root=target_dataset_dir,
         )
 
 
