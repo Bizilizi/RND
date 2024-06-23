@@ -128,7 +128,6 @@ class NaivePytorchLightning(Naive):
             ),
             plugins=self.train_plugins,
             precision=self.precision,
-            accumulate_grad_batches=self.accumulate_grad_batches,
             log_every_n_steps=2,
         )
 
