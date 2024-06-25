@@ -55,6 +55,9 @@ class PatchVITDiscriminator(torch.nn.Module):
         trunc_normal_(self.pos_embedding, std=0.02)
 
     def forward(self, img, forward_indexes, remain_T):
+        if remain_T == 0:
+            return torch.tensor([], device=img.device)
+
         # create image patches
         patches = self.patchify(img)
         patches = rearrange(patches, "b c h w -> (h w) b c")

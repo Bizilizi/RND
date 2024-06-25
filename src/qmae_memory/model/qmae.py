@@ -104,6 +104,7 @@ class QMAE(CLModel):
         disc_use_actnorm=False,
         disc_ndf=64,
         disc_loss="hinge",
+        disc_train_steps=10,
         # loss weights
         l1_loss_weight: float = 1,
         lpip_loss_weight: float = 1,
@@ -191,6 +192,7 @@ class QMAE(CLModel):
                 ndf=disc_ndf,
             ).apply(weights_init)
 
+        self.disc_train_steps = disc_train_steps
         self.discriminator_epoch_start = gan_loss_epoch_start
         if disc_loss == "hinge":
             self.disc_loss = hinge_d_loss
@@ -226,11 +228,11 @@ class QMAE(CLModel):
 
         return d_weight
 
-    def calculate_discriminator_logits(self, forward_output, detach=False):
+    def calculate_discriminator_logits(self, imgs, forward_output, detach=False):
         num_present_images = forward_output.present_forward_indexes.shape[1]
 
         # Get only present reconstruction images, detach if necessary
-        x_recon = forward_output.x_recon[:num_present_images]
+        x_recon = imgs[:num_present_images]
         if detach:
             x_recon = x_recon.detach()
 
@@ -241,7 +243,7 @@ class QMAE(CLModel):
         )
         if forward_output.past_forward_indexes:
             # Get only past reconstructed images, detach if necessary
-            x_recon_past = forward_output.x_recon[num_present_images:]
+            x_recon_past = imgs[num_present_images:]
             if detach:
                 x_recon_past = x_recon_past.detach()
 
@@ -258,8 +260,12 @@ class QMAE(CLModel):
         self,
         forward_output: ForwardOutput,
     ) -> torch.Tensor:
-        logits_real = self.calculate_discriminator_logits(forward_output, detach=True)
-        logits_fake = self.calculate_discriminator_logits(forward_output, detach=True)
+        logits_real = self.calculate_discriminator_logits(
+            forward_output.x_target, forward_output, detach=True
+        )
+        logits_fake = self.calculate_discriminator_logits(
+            forward_output.x_recon, forward_output, detach=True
+        )
 
         disc_factor = adopt_weight(
             self.disc_factor,
@@ -267,7 +273,11 @@ class QMAE(CLModel):
             threshold=self.discriminator_epoch_start,
             value=0.0,
         )
-        d_loss = disc_factor * self.disc_loss(logits_real, logits_fake)
+
+        if logits_real.shape[0] and logits_fake.shape[0]:
+            d_loss = disc_factor * self.disc_loss(logits_real, logits_fake)
+        else:
+            d_loss = torch.tensor(0.0, device=self.device)
 
         return d_loss
 
@@ -285,7 +295,9 @@ class QMAE(CLModel):
         )
 
         # Compute generator loss
-        logits_fake = self.calculate_discriminator_logits(forward_output, detach=False)
+        logits_fake = self.calculate_discriminator_logits(
+            forward_output.x_recon, forward_output, detach=False
+        )
         generator_loss = -torch.mean(logits_fake)
 
         try:
@@ -562,20 +574,20 @@ class QMAE(CLModel):
 
         if (batch_idx + 1) % self.accumulate_batch_every == 0:
             self.clip_gradients(
-                d_opt, gradient_clip_val=5, gradient_clip_algorithm="norm"
+                d_opt, gradient_clip_val=0.5, gradient_clip_algorithm="norm"
             )  # better be safe than sorry
             qmae_opt.step()
             qmae_opt.zero_grad()
 
         # generator opt step
-        discriminator_loss = self.discriminator_criterion(forward_output)
-        discriminator_loss = discriminator_loss / self.accumulate_batch_every
+        for _ in range(self.disc_train_steps):
+            discriminator_loss = self.discriminator_criterion(forward_output)
+            discriminator_loss = discriminator_loss / self.accumulate_batch_every
 
-        self.manual_backward(discriminator_loss)
+            self.manual_backward(discriminator_loss)
 
-        if (batch_idx + 1) % self.accumulate_batch_every == 0:
             self.clip_gradients(
-                d_opt, gradient_clip_val=5, gradient_clip_algorithm="norm"
+                d_opt, gradient_clip_val=0.5, gradient_clip_algorithm="norm"
             )  # better be safe than sorry
             d_opt.step()
             d_opt.zero_grad()

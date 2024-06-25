@@ -50,6 +50,7 @@ class TrainConfig(BaseTrainConfig):
     disc_use_actnorm: bool
     disc_ndf: int
     disc_loss: str
+    disc_train_steps: int
 
     # sampling
     num_random_past_samples: int
