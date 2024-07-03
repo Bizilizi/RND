@@ -21,7 +21,7 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "qmae-gan patch-vit" \
+    --comment "qmae-gan patch-self-vit" \
     --project qmae-memory \
     --devices 0, \
     --group tests \
