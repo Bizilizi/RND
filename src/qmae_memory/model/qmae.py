@@ -184,6 +184,15 @@ class QMAE(CLModel):
                 num_layer=disc_num_layers,
                 num_head=disc_num_heads,
             )
+        if discriminator_type == 'patch-vit-self':
+            self.discriminator = PatchVITDiscriminator(
+                image_size=image_size,
+                patch_size=patch_size,
+                emb_dim=embedding_dim,
+                num_layer=disc_num_layers,
+                num_head=disc_num_heads,
+                mae_encoder=self.encoder,
+            )
         else:
             self.discriminator = NLayerDiscriminator(
                 input_nc=disc_in_channels,
@@ -580,9 +589,10 @@ class QMAE(CLModel):
             qmae_opt.zero_grad()
 
         # generator opt step
+        discriminator_loss = torch.tensor(0.0, device=self.device)
         for _ in range(self.disc_train_steps):
             discriminator_loss = self.discriminator_criterion(forward_output)
-            discriminator_loss = discriminator_loss / self.accumulate_batch_every
+            discriminator_loss = discriminator_loss
 
             self.manual_backward(discriminator_loss)
 

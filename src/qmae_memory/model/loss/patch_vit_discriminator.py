@@ -1,9 +1,6 @@
 import numpy as np
-import timm
 import torch
 from einops import rearrange, repeat
-from einops.layers.torch import Rearrange
-from numpy.random import choice
 from timm.models.layers import trunc_normal_
 from timm.models.vision_transformer import Block
 from torch import nn
@@ -30,6 +27,7 @@ class PatchVITDiscriminator(torch.nn.Module):
         emb_dim=192,
         num_layer=12,
         num_head=3,
+        mae_encoder=None,
     ) -> None:
         super().__init__()
 
@@ -41,12 +39,20 @@ class PatchVITDiscriminator(torch.nn.Module):
         self.patchify = torch.nn.Conv2d(3, emb_dim, patch_size, patch_size)
         self.patch_size = patch_size
 
-        self.transformer = torch.nn.Sequential(
-            *[Block(emb_dim, num_head) for _ in range(num_layer)]
-        )
+        if mae_encoder:
+            transformer = mae_encoder.transformer
+            layer_norm = mae_encoder.layer_norm
+        else:
+            transformer = torch.nn.Sequential(
+                *[Block(emb_dim, num_head) for _ in range(num_layer)]
+            )
+            layer_norm = torch.nn.LayerNorm(emb_dim)
 
-        self.layer_norm = torch.nn.LayerNorm(emb_dim)
-        self.clf_head = nn.Linear(emb_dim, 1)
+        self.discriminator = nn.Sequential(
+            transformer,
+            layer_norm,
+            nn.Linear(emb_dim, 1),
+        )
 
         self.init_weight()
 
@@ -77,8 +83,6 @@ class PatchVITDiscriminator(torch.nn.Module):
         )
         masked_patches = rearrange(masked_patches, "t b c -> b t c")
 
-        masked_features = self.transformer(masked_patches)
-        masked_features = self.layer_norm(masked_features)
-        masked_features = self.clf_head(masked_features)
+        logits = self.discriminator(masked_patches)
 
-        return masked_features
+        return logits
