@@ -318,7 +318,10 @@ class QMAE(CLModel):
             d_weight = torch.tensor(0.0)
 
         disc_factor = adopt_weight(
-            self.disc_factor, self.global_step, threshold=self.discriminator_epoch_start
+            self.disc_factor,
+            self.current_epoch,
+            threshold=self.discriminator_epoch_start,
+            value=0.0,
         )
 
         # Compute consistency loss
