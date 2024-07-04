@@ -39,7 +39,7 @@ class PatchVITDiscriminator(torch.nn.Module):
         self.patchify = torch.nn.Conv2d(3, emb_dim, patch_size, patch_size)
         self.patch_size = patch_size
 
-        if mae_encoder:
+        if mae_encoder is not None:
             transformer = mae_encoder.transformer
             layer_norm = mae_encoder.layer_norm
         else:
