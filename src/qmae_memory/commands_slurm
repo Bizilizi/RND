@@ -21,12 +21,13 @@ python submitit_train.py \
     --partition gpu \
     --timeout 1680 \
     --ngpus 1 \
-    --comment "qmae-gan patch-vit" \
+    --comment "qmae-gan patch-self-vit" \
     --project qmae-memory \
     --devices 0, \
     --group tests \
     --model qmae-memory \
     --config src/qmae_memory/configuration/cifar10_patch_vit.ini \
+    --discriminator_type patch-vit-self \
     --num_tasks 1 \
     --max_epochs 1200 \
     --img_embedding_dim 2 \
