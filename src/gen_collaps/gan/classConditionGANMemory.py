@@ -55,7 +55,7 @@ DATA_FIX: used as a fixed pre-trained model
 ============================================================================='''
 seed_torch(999)
 DATA_FIX = 'CELEBA'
-Num_epoch = 100_000
+Num_epoch = 2
 
 # select the name of the task from ['fish', 'bird', 'snake', 'dog', 'butterfly', 'insect']
 
@@ -71,8 +71,8 @@ config['training']['out_dir'] = out_path
 if not os.path.isdir(config['training']['out_dir']):
     os.makedirs(config['training']['out_dir'])
 
-config['synth_dataset_num_images'] = 8_000
-config['synth_dataset_batch_size'] = 128
+config['synth_dataset_num_images'] = 8
+config['synth_dataset_batch_size'] = 8
 
 
 def train(train_dataset, step_id, nlabels=102):
