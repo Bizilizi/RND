@@ -75,6 +75,7 @@ def load_synthetic_dataset(config, *, step_id):
     return [{'images': preprocess(image)} for image in synthetic_dataset]
 
 
+@torch.no_grad()
 def sample_synthetic_dataset(config, pipeline):
     synthetic_dataset_path = Path(config.output_dir) / 'synth_dataset'
     synthetic_dataset_path.mkdir(exist_ok=True, parents=True)
