@@ -8,7 +8,6 @@ from torchvision.transforms.functional import pil_to_tensor
 from torchvision.utils import save_image
 from torchvision.io.image import read_image
 
-from .config import TrainingConfig
 from diffusers.optimization import get_cosine_schedule_with_warmup
 from diffusers import DDPMScheduler
 from diffusers import DDPMPipeline
