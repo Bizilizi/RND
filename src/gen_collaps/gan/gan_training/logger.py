@@ -4,8 +4,9 @@ import torchvision
 
 
 class Logger(object):
-    def __init__(self, log_dir='./logs', img_dir='./imgs',
-                 monitoring=None, monitoring_dir=None):
+    def __init__(
+        self, log_dir='./logs', img_dir='./imgs', monitoring=None, monitoring_dir=None
+    ):
         self.stats = dict()
         self.log_dir = log_dir
         self.img_dir = img_dir
@@ -28,15 +29,18 @@ class Logger(object):
 
         if monitoring == 'telemetry':
             import telemetry
+
             self.tm = telemetry.ApplicationTelemetry()
             if self.tm.get_status() == 0:
                 print('Telemetry successfully connected.')
         elif monitoring == 'tensorboard':
             import tensorboardX
+
             self.tb = tensorboardX.SummaryWriter(monitoring_dir)
         else:
-            raise NotImplementedError('Monitoring tool "%s" not supported!'
-                                      % monitoring)
+            raise NotImplementedError(
+                'Monitoring tool "%s" not supported!' % monitoring
+            )
 
     def add(self, category, k, v, it):
         if category not in self.stats:
@@ -49,9 +53,7 @@ class Logger(object):
 
         k_name = '%s/%s' % (category, k)
         if self.monitoring == 'telemetry':
-            self.tm.metric_push_async({
-                'metric': k_name, 'value': v, 'it': it
-            })
+            self.tm.metric_push_async({'metric': k_name, 'value': v, 'it': it})
         elif self.monitoring == 'tensorboard':
             self.tb.add_scalar(k_name, v, it)
 
@@ -65,10 +67,10 @@ class Logger(object):
         imgs = torchvision.utils.make_grid(imgs, nrow=nrow, pad_value=1)
         torchvision.utils.save_image(imgs, outfile, nrow=nrow, pad_value=1)
 
-        if self.monitoring == 'tensorboard':
-            self.tb.add_image(class_name, imgs, it)
+        # if self.monitoring == 'tensorboard':
+        #     self.tb.add_image(class_name, imgs, it)
 
-    def get_last(self, category, k, default=0.):
+    def get_last(self, category, k, default=0.0):
         if category not in self.stats:
             return default
         elif k not in self.stats[category]:
