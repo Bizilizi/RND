@@ -38,8 +38,8 @@ class TrainingConfig:
     save_image_epochs = 10
     save_model_epochs = 30
     mixed_precision = "fp16"  # `no` for float32, `fp16` for automatic mixed precision
-    base_output_dir = "results"
-    output_dir = "results"
+    base_output_dir = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion"
+    output_dir = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion"
 
     push_to_hub = False  # whether to upload the saved model to the HF Hub
     hub_private_repo = False
