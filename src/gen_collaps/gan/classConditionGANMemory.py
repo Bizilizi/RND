@@ -267,7 +267,6 @@ def train(train_dataset, step_id, nlabels=102):
             d_lr = d_optimizer.param_groups[0]['lr']
             g_lr = g_optimizer.param_groups[0]['lr']
 
-            x_real = x_real['image']
             x_real, y = x_real.to(device), y.to(device)
             y.clamp_(None, nlabels - 1)
 
@@ -387,13 +386,18 @@ def sample_synthetic_dataset(config, device, evaluator, logger):
         logger.add_imgs(x, 'all', 100_000 + i, nrow=config['synth_dataset_batch_size'])
 
 
-preprocess = transforms.Compose(
-    [
-        transforms.Resize((64, 64)),
-        transforms.RandomHorizontalFlip(),
-        transforms.ToTensor(),
-    ]
-)
+def transform(examples):
+    preprocess = transforms.Compose(
+        [
+            transforms.Resize((config.image_size, config.image_size)),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+        ]
+    )
+
+    images = [preprocess(image.convert("RGB")) for image in examples["image"]]
+    return images
+
 
 initial_dataset = load_dataset("huggan/flowers-102-categories", split="train")
 initial_dataset.set_transform(transform)
