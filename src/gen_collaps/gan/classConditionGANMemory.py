@@ -389,7 +389,7 @@ def sample_synthetic_dataset(config, device, evaluator, logger):
 def transform(examples):
     preprocess = transforms.Compose(
         [
-            transforms.Resize((config.image_size, config.image_size)),
+            transforms.Resize((64, 64)),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
         ]
