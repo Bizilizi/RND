@@ -29,9 +29,9 @@ class TrainingConfig:
     image_size = 64  # the generated image resolution
     train_batch_size = 16
     eval_batch_size = 16  # how many images to sample during evaluation
-    synth_dataset_num_images = 8_000
-    synth_dataset_batch_size = 512
-    num_epochs = 50
+    synth_dataset_num_images = 100
+    synth_dataset_batch_size = 100
+    num_epochs = 2
     gradient_accumulation_steps = 1
     learning_rate = 1e-4
     lr_warmup_steps = 500
@@ -88,7 +88,7 @@ def sample_synthetic_dataset(config, pipeline):
 
         # save the image column
         images = make_image_grid(images, rows=len(images), cols=1)
-        save_image(images, synthetic_dataset_path / f'batch_{i}.jpg')
+        images.save(synthetic_dataset_path / f'batch_{i}.jpg')
 
 
 def train_loop(
