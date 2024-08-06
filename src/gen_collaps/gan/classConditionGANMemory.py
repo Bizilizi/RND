@@ -343,19 +343,27 @@ def train(train_dataset, step_id, nlabels=102):
 
 
 def load_synthetic_dataset(config):
-    synthetic_dataset = []
-    synthetic_dataset_path = Path(config['training']['out_dir']) / 'synth_dataset'
+    synthetic_images = []
+    synthetic_labels = []
+
+    synthetic_dataset_path = (
+        Path(config['training']['out_dir']) / 'synth_dataset' / 'all'
+    )
 
     # read dataset to memory
     sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"))
-    for batched_images in sample_images:
+    sample_labels = sorted(glob.glob(f"{synthetic_dataset_path}/*.pt"))
+
+    for batched_images, batched_labels in zip(sample_images, sample_labels):
         batched_images = read_image(batched_images)
-        synthetic_dataset.extend(
+
+        synthetic_images.extend(
             [
                 batched_images[:, i * 64 : (i + 1) * 64]
                 for i in range(batched_images.shape[-2] // 64)
             ]
         )
+        synthetic_labels.extend(synthetic_labels)
 
     # transform dataset
     preprocess = transforms.Compose(
@@ -365,7 +373,10 @@ def load_synthetic_dataset(config):
         ]
     )
 
-    return [preprocess(image) for image in synthetic_dataset]
+    return [
+        {'image': preprocess(image), 'label': label}
+        for image, label in zip(synthetic_images, synthetic_labels)
+    ]
 
 
 @torch.no_grad()
@@ -380,9 +391,10 @@ def sample_synthetic_dataset(config, device, evaluator, logger):
     ):
         ztest = zdist.sample((config['synth_dataset_batch_size'],)).to(device)
 
-        x = evaluator.create_samples(ztest)
+        x, y = evaluator.create_samples(ztest)
         logger.img_dir = str(synthetic_dataset_path)
         logger.add_imgs(x, 'all', 100_000 + i, nrow=config['synth_dataset_batch_size'])
+        torch.save(y, f'{str(synthetic_dataset_path)}/all/{100_000 + i}.pt')
 
 
 def transform(examples):
@@ -404,8 +416,8 @@ initial_dataset.set_transform(transform)
 STEP_ID = 0
 train(initial_dataset, step_id=STEP_ID)
 
-# for _ in range(12):
-#     STEP_ID += 1
-#
-#     synth_dataset = load_synthetic_dataset(config, step_id=STEP_ID - 1)
-#     train(synth_dataset, step_id=STEP_ID)
+for _ in range(12):
+    STEP_ID += 1
+
+    synth_dataset = load_synthetic_dataset(config, step_id=STEP_ID - 1)
+    train(synth_dataset, step_id=STEP_ID)
