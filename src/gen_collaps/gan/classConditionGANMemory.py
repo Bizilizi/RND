@@ -261,8 +261,11 @@ def train(train_dataset, step_id, nlabels=102):
 
         print('Start epoch %d...' % epoch_idx)
 
-        for x_real, y in tqdm(train_loader, leave=False, desc="Batch: "):
+        for batch_data in tqdm(train_loader, leave=False, desc="Batch: "):
             it += 1
+
+            x_real = batch_data['image']
+            y = batch_data['label']
 
             d_lr = d_optimizer.param_groups[0]['lr']
             g_lr = g_optimizer.param_groups[0]['lr']
@@ -396,10 +399,10 @@ def transform(examples):
     )
 
     images = [preprocess(image.convert("RGB")) for image in examples["image"]]
-    return images
+    return {'image': images, 'label': examples["label"]}
 
 
-initial_dataset = load_dataset("huggan/flowers-102-categories", split="train")
+initial_dataset = load_dataset("nelorth/oxford-flowers", split="train")
 initial_dataset.set_transform(transform)
 
 STEP_ID = 0
