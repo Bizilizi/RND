@@ -55,8 +55,8 @@ DATA_FIX: used as a fixed pre-trained model
 ============================================================================='''
 seed_torch(999)
 DATA_FIX = 'CELEBA'
-Num_epoch = 2
-
+# Num_epoch = 50_000 // 448
+Num_epoch = 1
 # select the name of the task from ['fish', 'bird', 'snake', 'dog', 'butterfly', 'insect']
 
 NNN = 7200
@@ -378,13 +378,9 @@ def sample_synthetic_dataset(config, device, evaluator, logger):
     for i in range(
         config['synth_dataset_num_images'] // config['synth_dataset_batch_size']
     ):
-        ytest = torch.tensor(
-            random.choices(list(range(102)), k=config['synth_dataset_batch_size']),
-            device=device,
-        )
         ztest = zdist.sample((config['synth_dataset_batch_size'],)).to(device)
 
-        x = evaluator.create_samples(ztest, ytest)
+        x = evaluator.create_samples(ztest)
         logger.img_dir = str(synthetic_dataset_path)
         logger.add_imgs(x, 'all', 100_000 + i, nrow=config['synth_dataset_batch_size'])
 
