@@ -6,7 +6,7 @@ from os import path
 import time
 import copy
 from pathlib import Path
-
+from torchvision import transforms
 import torch
 from torch import nn
 import numpy as np
@@ -351,7 +351,7 @@ def load_synthetic_dataset(config):
     )
 
     # read dataset to memory
-    sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"))
+    sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.png"))
     sample_labels = sorted(glob.glob(f"{synthetic_dataset_path}/*.pt"))
 
     for batched_images, batched_labels in zip(sample_images, sample_labels):
@@ -359,11 +359,11 @@ def load_synthetic_dataset(config):
 
         synthetic_images.extend(
             [
-                batched_images[:, i * 64 : (i + 1) * 64]
-                for i in range(batched_images.shape[-2] // 64)
+                batched_images[:, :, i * 64 : (i + 1) * 64]
+                for i in range(batched_images.shape[-1] // 64)
             ]
         )
-        synthetic_labels.extend(synthetic_labels)
+        synthetic_labels.extend(torch.load(batched_labels).tolist())
 
     # transform dataset
     preprocess = transforms.Compose(
@@ -373,10 +373,12 @@ def load_synthetic_dataset(config):
         ]
     )
 
-    return [
+    dataset = [
         {'image': preprocess(image), 'label': label}
         for image, label in zip(synthetic_images, synthetic_labels)
     ]
+
+    return dataset
 
 
 @torch.no_grad()
@@ -394,7 +396,7 @@ def sample_synthetic_dataset(config, device, evaluator, logger):
         x, y = evaluator.create_samples(ztest)
         logger.img_dir = str(synthetic_dataset_path)
         logger.add_imgs(x, 'all', 100_000 + i, nrow=config['synth_dataset_batch_size'])
-        torch.save(y, f'{str(synthetic_dataset_path)}/all/{100_000 + i}.pt')
+        torch.save(y.cpu(), f'{str(synthetic_dataset_path)}/all/{100_000 + i}.pt')
 
 
 def transform(examples):
