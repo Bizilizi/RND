@@ -419,5 +419,5 @@ train(initial_dataset, step_id=STEP_ID)
 for _ in range(12):
     STEP_ID += 1
 
-    synth_dataset = load_synthetic_dataset(config, step_id=STEP_ID - 1)
+    synth_dataset = load_synthetic_dataset(config)
     train(synth_dataset, step_id=STEP_ID)
