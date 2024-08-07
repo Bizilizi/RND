@@ -374,7 +374,7 @@ def load_synthetic_dataset(config):
     )
 
     dataset = [
-        {'image': preprocess(image), 'label': label}
+        {'image': preprocess(image), 'label': torch.tensor(label)}
         for image, label in zip(synthetic_images, synthetic_labels)
     ]
 
