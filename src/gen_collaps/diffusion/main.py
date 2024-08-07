@@ -69,6 +69,7 @@ def load_synthetic_dataset(config, *, step_id):
         [
             transforms.Resize((config.image_size, config.image_size)),
             transforms.RandomHorizontalFlip(),
+            transforms.Normalize([0.5], [0.5]),
         ]
     )
 
@@ -257,6 +258,7 @@ if __name__ == '__main__':
                 transforms.Resize((config.image_size, config.image_size)),
                 transforms.RandomHorizontalFlip(),
                 transforms.ToTensor(),
+                transforms.Normalize([0.5], [0.5]),
             ]
         )
 
