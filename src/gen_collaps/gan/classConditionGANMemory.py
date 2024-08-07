@@ -328,7 +328,7 @@ def train(train_dataset, step_id, nlabels=102):
                 # (iii) Backup if necessary
                 if ((it + 1) % backup_every) == 0:
                     print('Saving backup...')
-                    TrainModeSave = step_id + '_%08d_' % it
+                    TrainModeSave = str(step_id) + '_%08d_' % it
                     generator_test_part = save_adafm_only(generator_test)
                     torch.save(
                         generator_test_part, save_dir + TrainModeSave + 'Pre_generator'
