@@ -307,7 +307,7 @@ def train(train_dataset, step_id, nlabels=102):
                     )
                     tstart = time.time()
                     # print('Creating samples...')
-                    x = evaluator.create_samples(ztest, ytest)
+                    x, _ = evaluator.create_samples(ztest, ytest)
                     logger.add_imgs(x, 'all', it, nrow=2)
 
                 # # (ii) Compute inception if necessary
