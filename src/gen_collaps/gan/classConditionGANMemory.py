@@ -71,7 +71,7 @@ config['training']['out_dir'] = out_path
 if not os.path.isdir(config['training']['out_dir']):
     os.makedirs(config['training']['out_dir'])
 
-config['synth_dataset_num_images'] = 8
+config['synth_dataset_num_images'] = 40
 config['synth_dataset_batch_size'] = 8
 
 
