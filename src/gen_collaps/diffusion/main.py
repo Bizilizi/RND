@@ -283,15 +283,15 @@ if __name__ == '__main__':
 
     # RUN TRAINING ON STEP 0
     STEP_ID = 0
-    model = train_loop(
-        config,
-        model,
-        noise_scheduler,
-        optimizer,
-        train_dataloader,
-        lr_scheduler,
-        step_id=STEP_ID,
-    )
+    # model = train_loop(
+    #     config,
+    #     model,
+    #     noise_scheduler,
+    #     optimizer,
+    #     train_dataloader,
+    #     lr_scheduler,
+    #     step_id=STEP_ID,
+    # )
 
     # RUN TRAINING ON STEP i
     for _ in range(config.num_steps):
@@ -299,6 +299,9 @@ if __name__ == '__main__':
 
         # Load synthetic dataset from the previous step
         synthetic_dataset = load_synthetic_dataset(config, step_id=STEP_ID - 1)
+        train_dataloader = torch.utils.data.DataLoader(
+            synthetic_dataset, batch_size=config.train_batch_size, shuffle=True
+        )
 
         # Define training variables
         optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
@@ -307,10 +310,7 @@ if __name__ == '__main__':
             num_warmup_steps=config.lr_warmup_steps,
             num_training_steps=(len(train_dataloader) * config.num_epochs),
         )
-
-        train_dataloader = torch.utils.data.DataLoader(
-            synthetic_dataset, batch_size=config.train_batch_size, shuffle=True
-        )
+        noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
 
         model = train_loop(
             config,
