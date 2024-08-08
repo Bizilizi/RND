@@ -73,7 +73,7 @@ def load_synthetic_dataset(config, *, step_id):
         ]
     )
 
-    return [{'images': preprocess(image)} for image in synthetic_dataset]
+    return [{'images': preprocess(image).float()} for image in synthetic_dataset]
 
 
 @torch.no_grad()
