@@ -22,6 +22,45 @@ from torch.utils.data import Dataset
 from dataclasses import dataclass
 
 
+class SyntheticDataset(Dataset):
+    def __init__(self, config, step_id):
+        self.images = []
+        synthetic_dataset_path = (
+            Path(config.base_output_dir) / f"step_{step_id}" / 'synth_dataset'
+        )
+
+        # read dataset to memory
+        sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"))
+        for batched_images in sample_images:
+            batched_images = read_image(batched_images)
+            self.images.extend(
+                [
+                    batched_images[
+                        :, i * config.image_size : (i + 1) * config.image_size
+                    ]
+                    for i in range(batched_images.shape[-2] // config.image_size)
+                ]
+            )
+
+        # transform dataset
+        self.preprocess = transforms.Compose(
+            [
+                transforms.Resize((config.image_size, config.image_size)),
+                transforms.RandomHorizontalFlip(),
+                transforms.Normalize([0.5], [0.5]),
+            ]
+        )
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, item):
+        image = self.images[item]
+        image = self.preprocess(image.float())
+
+        return {"images": image}
+
+
 @dataclass
 class TrainingConfig:
     num_steps = 12
@@ -45,35 +84,6 @@ class TrainingConfig:
     hub_private_repo = False
     overwrite_output_dir = True  # overwrite the old model when re-running the notebook
     seed = 0
-
-
-def load_synthetic_dataset(config, *, step_id):
-    synthetic_dataset = []
-    synthetic_dataset_path = (
-        Path(config.base_output_dir) / f"step_{step_id}" / 'synth_dataset'
-    )
-
-    # read dataset to memory
-    sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"))
-    for batched_images in sample_images:
-        batched_images = read_image(batched_images)
-        synthetic_dataset.extend(
-            [
-                batched_images[:, i * config.image_size : (i + 1) * config.image_size]
-                for i in range(batched_images.shape[-2] // config.image_size)
-            ]
-        )
-
-    # transform dataset
-    preprocess = transforms.Compose(
-        [
-            transforms.Resize((config.image_size, config.image_size)),
-            transforms.RandomHorizontalFlip(),
-            transforms.Normalize([0.5], [0.5]),
-        ]
-    )
-
-    return [{'images': preprocess(image.float())} for image in synthetic_dataset]
 
 
 @torch.no_grad()
@@ -267,7 +277,7 @@ if __name__ == '__main__':
 
     # dataset = load_dataset("huggan/flowers-102-categories", split="train")
     # dataset.set_transform(transform)
-    dataset = load_synthetic_dataset(config, step_id=0)
+    dataset = SyntheticDataset(config, step_id=0)
 
     # Define training variables
     train_dataloader = torch.utils.data.DataLoader(
@@ -283,7 +293,7 @@ if __name__ == '__main__':
     noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
 
     # RUN TRAINING ON STEP 0
-    STEP_ID = 0
+    STEP_ID = 1
     model = train_loop(
         config,
         model,
@@ -299,7 +309,7 @@ if __name__ == '__main__':
         STEP_ID += 1
 
         # Load synthetic dataset from the previous step
-        synthetic_dataset = load_synthetic_dataset(config, step_id=STEP_ID - 1)
+        synthetic_dataset = SyntheticDataset(config, step_id=STEP_ID - 1)
         train_dataloader = torch.utils.data.DataLoader(
             synthetic_dataset, batch_size=config.train_batch_size, shuffle=True
         )
