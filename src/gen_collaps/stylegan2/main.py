@@ -501,7 +501,12 @@ def main():
     # Set configurations and override some
     experiment.configs(
         configs,
-        {'device.cuda_device': 0, 'image_size': 64, 'log_generated_interval': 200},
+        {
+            'device.cuda_device': 0,
+            'image_size': 64,
+            'log_generated_interval': 200,
+            'experiments_path': '/scratch/shared/beegfs/dzverev/gen_collaps/stylegan',
+        },
     )
 
     # Initialize
