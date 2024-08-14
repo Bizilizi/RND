@@ -36,6 +36,7 @@ import torch
 import torch.utils.data
 import torchvision
 from PIL import Image
+from datasets import load_dataset
 
 from labml import tracker, lab, monit, experiment
 from labml.configs import BaseConfigs
@@ -187,8 +188,23 @@ class Configs(BaseConfigs):
         """
         ### Initialize
         """
+
         # Create dataset
-        dataset = Dataset(self.dataset_path, self.image_size)
+        def transform(examples):
+            preprocess = torchvision.transforms.Compose(
+                [
+                    torchvision.transforms.Resize(self.image_size),
+                    torchvision.transforms.RandomHorizontalFlip(),
+                    torchvision.transforms.ToTensor(),
+                ]
+            )
+
+            images = [preprocess(image.convert("RGB")) for image in examples["image"]]
+            return {'image': images, 'label': examples["label"]}
+
+        dataset = load_dataset("nelorth/oxford-flowers", split="train")
+        dataset.set_transform(transform)
+
         # Create data loader
         dataloader = torch.utils.data.DataLoader(
             dataset,
