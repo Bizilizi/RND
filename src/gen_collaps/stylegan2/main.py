@@ -74,7 +74,7 @@ class Dataset(torch.utils.data.Dataset):
         self.transform = torchvision.transforms.Compose(
             [
                 # Resize the image
-                torchvision.transforms.Resize(image_size),
+                torchvision.transforms.Resize((image_size, image_size)),
                 torchvision.transforms.RandomHorizontalFlip(),
                 # Convert to PyTorch tensor
                 torchvision.transforms.ToTensor(),
