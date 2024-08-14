@@ -494,6 +494,7 @@ def main():
     """
 
     # Create an experiment
+    lab.configure({'path': '/scratch/shared/beegfs/dzverev/gen_collaps/stylegan'})
     experiment.create(name='stylegan2')
     # Create configurations object
     configs = Configs()
@@ -505,7 +506,6 @@ def main():
             'device.cuda_device': 0,
             'image_size': 64,
             'log_generated_interval': 200,
-            'experiments_path': '/scratch/shared/beegfs/dzverev/gen_collaps/stylegan',
         },
     )
 
