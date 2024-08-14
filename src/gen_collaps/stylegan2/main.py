@@ -60,7 +60,7 @@ class Dataset(torch.utils.data.Dataset):
     This loads the training dataset and resize it to the give image size.
     """
 
-    def __init__(self, path: str, image_size: int):
+    def __init__(self, image_size: int):
         """
         * `path` path to the folder containing the images
         * `image_size` size of the image
@@ -68,7 +68,7 @@ class Dataset(torch.utils.data.Dataset):
         super().__init__()
 
         # Get the paths of all `jpg` files
-        self.paths = [p for p in Path(path).glob(f'**/*.jpg')]
+        self.dataset = load_dataset("nelorth/oxford-flowers", split="train")
 
         # Transformation
         self.transform = torchvision.transforms.Compose(
@@ -83,13 +83,12 @@ class Dataset(torch.utils.data.Dataset):
 
     def __len__(self):
         """Number of images"""
-        return len(self.paths)
+        return len(self.dataset)
 
     def __getitem__(self, index):
         """Get the the `index`-th image"""
-        path = self.paths[index]
-        img = Image.open(path)
-        return self.transform(img)
+        data = self.dataset[index]
+        return self.transform(data['image'])
 
 
 class Configs(BaseConfigs):
@@ -190,20 +189,7 @@ class Configs(BaseConfigs):
         """
 
         # Create dataset
-        def transform(examples):
-            preprocess = torchvision.transforms.Compose(
-                [
-                    torchvision.transforms.Resize(self.image_size),
-                    torchvision.transforms.RandomHorizontalFlip(),
-                    torchvision.transforms.ToTensor(),
-                ]
-            )
-
-            images = [preprocess(image.convert("RGB")) for image in examples["image"]]
-            return images
-
-        dataset = load_dataset("nelorth/oxford-flowers", split="train")
-        dataset.set_transform(transform)
+        dataset = Dataset(image_size=self.image_size)
 
         # Create data loader
         dataloader = torch.utils.data.DataLoader(
