@@ -200,7 +200,7 @@ class Configs(BaseConfigs):
             )
 
             images = [preprocess(image.convert("RGB")) for image in examples["image"]]
-            return {'image': images, 'label': examples["label"]}
+            return images
 
         dataset = load_dataset("nelorth/oxford-flowers", split="train")
         dataset.set_transform(transform)
@@ -496,6 +496,7 @@ def main():
     # Create an experiment
     lab.configure({'path': '/scratch/shared/beegfs/dzverev/gen_collaps/stylegan'})
     experiment.create(name='stylegan2')
+
     # Create configurations object
     configs = Configs()
 
