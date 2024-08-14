@@ -265,8 +265,9 @@ if __name__ == '__main__':
         images = [preprocess(image.convert("RGB")) for image in examples["image"]]
         return {"images": images}
 
-    dataset = load_dataset("huggan/flowers-102-categories", split="train")
-    dataset.set_transform(transform)
+    # dataset = load_dataset("huggan/flowers-102-categories", split="train")
+    # dataset.set_transform(transform)
+    dataset = load_synthetic_dataset(config, step_id=0)
 
     # Define training variables
     train_dataloader = torch.utils.data.DataLoader(
@@ -283,15 +284,15 @@ if __name__ == '__main__':
 
     # RUN TRAINING ON STEP 0
     STEP_ID = 0
-    # model = train_loop(
-    #     config,
-    #     model,
-    #     noise_scheduler,
-    #     optimizer,
-    #     train_dataloader,
-    #     lr_scheduler,
-    #     step_id=STEP_ID,
-    # )
+    model = train_loop(
+        config,
+        model,
+        noise_scheduler,
+        optimizer,
+        train_dataloader,
+        lr_scheduler,
+        step_id=STEP_ID,
+    )
 
     # RUN TRAINING ON STEP i
     for _ in range(config.num_steps):
