@@ -27,6 +27,8 @@ You can find the download instruction in this
 [discussion on fast.ai](https://forums.fast.ai/t/download-celeba-hq-dataset/45873/3).
 Save the images inside [`data/stylegan` folder](#dataset_path).
 """
+import argparse
+import glob
 
 import math
 from pathlib import Path
@@ -36,9 +38,14 @@ import torch
 import torch.utils.data
 import torchvision
 from PIL import Image
+from diffusers.utils import make_image_grid
+from torchvision.io import read_image
+
 from datasets import load_dataset
 
 from labml import tracker, lab, monit, experiment
+from labml.internal.experiment import experiment_singleton
+
 from labml.configs import BaseConfigs
 from labml_helpers.device import DeviceConfigs
 from labml_helpers.train_valid import ModeState, hook_model_outputs
@@ -53,7 +60,44 @@ from labml_nn.gan.wasserstein import DiscriminatorLoss, GeneratorLoss
 from labml_nn.utils import cycle_dataloader
 
 
-class Dataset(torch.utils.data.Dataset):
+class SyntheticDataset(torch.utils.data.Dataset):
+    def __init__(self, config, run_path):
+        self.images = []
+        synthetic_dataset_path = Path(run_path) / "synth_dataset"
+
+        # read dataset to memory
+        sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"))
+        for batched_images in sample_images:
+            batched_images = read_image(batched_images)
+            self.images.extend(
+                [
+                    batched_images[
+                        :, i * config.image_size : (i + 1) * config.image_size
+                    ].float()
+                    / 255
+                    for i in range(batched_images.shape[-2] // config.image_size)
+                ]
+            )
+
+        # transform dataset
+        self.preprocess = torchvision.transforms.Compose(
+            [
+                torchvision.transforms.Resize((config.image_size, config.image_size)),
+                torchvision.transforms.RandomHorizontalFlip(),
+            ]
+        )
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, item):
+        image = self.images[item]
+        image = self.preprocess(image)
+
+        return {"images": image}
+
+
+class InitialDataset(torch.utils.data.Dataset):
     """
     ## Dataset
 
@@ -89,6 +133,20 @@ class Dataset(torch.utils.data.Dataset):
         """Get the the `index`-th image"""
         data = self.dataset[index]
         return self.transform(data["image"])
+
+
+@torch.no_grad()
+def sample_synthetic_dataset(configs, run_path):
+    synthetic_dataset_path = Path(run_path) / "synth_dataset"
+    synthetic_dataset_path.mkdir(exist_ok=True, parents=True)
+
+    for i in range(
+        configs.synth_dataset_num_images // configs.synth_dataset_batch_size + 1
+    ):
+        images, _ = configs.generate_images(configs.synth_dataset_batch_size)
+        torchvision.utils.save_image(
+            images, fp=f"{synthetic_dataset_path}/batch_{i}.jpg", nrow=1
+        )
 
 
 class Configs(BaseConfigs):
@@ -183,13 +241,14 @@ class Configs(BaseConfigs):
     # Save the images inside `data/stylegan` folder.
     dataset_path: str = "./data/102flowers/"
 
-    def init(self):
+    # Synthetic dataset
+    synth_dataset_num_images: int = 8000
+    synth_dataset_batch_size: int = 128
+
+    def init(self, dataset, init_layers: bool = True):
         """
         ### Initialize
         """
-
-        # Create dataset
-        dataset = Dataset(image_size=self.image_size)
 
         # Create data loader
         dataloader = torch.utils.data.DataLoader(
@@ -207,8 +266,9 @@ class Configs(BaseConfigs):
         log_resolution = int(math.log2(self.image_size))
 
         # Create discriminator and generator
-        self.discriminator = Discriminator(log_resolution).to(self.device)
-        self.generator = Generator(log_resolution, self.d_latent).to(self.device)
+        if init_layers:
+            self.discriminator = Discriminator(log_resolution).to(self.device)
+            self.generator = Generator(log_resolution, self.d_latent).to(self.device)
         # Get number of generator blocks for creating style and noise inputs
         self.n_gen_blocks = self.generator.n_blocks
         # Create mapping network
@@ -450,9 +510,17 @@ class Configs(BaseConfigs):
 
         # Log generated images
         if (idx + 1) % self.log_generated_interval == 0:
-            tracker.add(
-                "generated", torch.cat([generated_images[:6], real_images[:3]], dim=0)
+            logged_images = torch.cat([generated_images[:6], real_images[:3]], dim=0)
+            samples_path = Path(experiment_singleton().run.run_path) / 'samples'
+            samples_path.mkdir(parents=True, exist_ok=True)
+
+            tracker.add("generated", logged_images)
+            torchvision.utils.save_image(
+                logged_images,
+                fp=f"{samples_path}/samples_{idx}.png",
+                nrow=3,
             )
+
         # Save model checkpoints
         if (idx + 1) % self.save_checkpoint_interval == 0:
             experiment.save_checkpoint()
@@ -474,17 +542,21 @@ class Configs(BaseConfigs):
                 tracker.new_line()
 
 
-def main():
+def init_experiment(step_id):
+    # Create an experiment
+    lab_path = Path(
+        f"/scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_{step_id}"
+    )
+    lab_path.mkdir(exist_ok=True, parents=True)
+
+    lab.configure({"path": str(lab_path)})
+    experiment.create(name="stylegan2")
+
+
+def train(configs, step_id):
     """
     ### Train StyleGAN2
     """
-
-    # Create an experiment
-    lab.configure({"path": "/scratch/shared/beegfs/dzverev/gen_collaps/stylegan"})
-    experiment.create(name="stylegan2")
-
-    # Create configurations object
-    configs = Configs()
 
     # Set configurations and override some
     experiment.configs(
@@ -496,8 +568,6 @@ def main():
         },
     )
 
-    # Initialize
-    configs.init()
     # Set models for saving and loading
     experiment.add_pytorch_models(
         mapping_network=configs.mapping_network,
@@ -506,11 +576,39 @@ def main():
     )
 
     # Start the experiment
-    with experiment.start():
+    with experiment.start() as exp_watcher:
         # Run the training loop
         configs.train()
+        sample_synthetic_dataset(configs, experiment_singleton().run.run_path)
+
+
+def main(initial_step: int = 0):
+    # Create configurations object
+    configs = Configs()
+    STEP_ID = initial_step
+
+    if initial_step == 0:
+        # Initial dataset
+        dataset = InitialDataset(image_size=configs.image_size)
+        configs.init(dataset)
+
+        init_experiment(step_id=STEP_ID)
+        train(configs, step_id=STEP_ID)
+
+    for _ in range(12):
+        STEP_ID += 1
+
+        dataset = SyntheticDataset(configs, experiment_singleton().run.run_path)
+        configs.init(dataset, init_layers=False)
+
+        init_experiment(step_id=STEP_ID)
+        train(configs, step_id=STEP_ID)
 
 
 #
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="stylegan trainer")
+    parser.add_argument("--initial_step", type=int, help="initial step", default=0)
+    args = parser.parse_args()
+
+    main(args.initial_step)
