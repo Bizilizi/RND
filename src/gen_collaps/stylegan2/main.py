@@ -553,7 +553,7 @@ def init_experiment(step_id):
     experiment.create(name="stylegan2")
 
 
-def train(configs, step_id):
+def train(configs, step_id, dataset, init_layers=True):
     """
     ### Train StyleGAN2
     """
@@ -566,6 +566,7 @@ def train(configs, step_id):
             "log_generated_interval": 200,
         },
     )
+    configs.init(dataset, init_layers=init_layers)
 
     # Set models for saving and loading
     experiment.add_pytorch_models(
@@ -591,9 +592,7 @@ def main(initial_step: int = 0):
         dataset = InitialDataset(image_size=configs.image_size)
 
         init_experiment(step_id=STEP_ID)
-        configs.init(dataset)
-
-        train(configs, step_id=STEP_ID)
+        train(configs, dataset=dataset, step_id=STEP_ID)
 
     for _ in range(12):
         STEP_ID += 1
@@ -601,9 +600,7 @@ def main(initial_step: int = 0):
         dataset = SyntheticDataset(configs, experiment_singleton().run.run_path)
 
         init_experiment(step_id=STEP_ID)
-        configs.init(dataset, init_layers=False)
-
-        train(configs, step_id=STEP_ID)
+        train(configs, dataset=dataset, step_id=STEP_ID, init_layers=False)
 
 
 #
