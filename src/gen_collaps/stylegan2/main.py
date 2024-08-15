@@ -563,7 +563,6 @@ def train(configs, step_id):
         configs,
         {
             "device.cuda_device": 0,
-            "image_size": 64,
             "log_generated_interval": 200,
         },
     )
