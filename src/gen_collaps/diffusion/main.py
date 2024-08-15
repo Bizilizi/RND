@@ -37,7 +37,8 @@ class SyntheticDataset(Dataset):
                 [
                     batched_images[
                         :, i * config.image_size : (i + 1) * config.image_size
-                    ]
+                    ].float()
+                    // 255
                     for i in range(batched_images.shape[-2] // config.image_size)
                 ]
             )
@@ -56,7 +57,7 @@ class SyntheticDataset(Dataset):
 
     def __getitem__(self, item):
         image = self.images[item]
-        image = self.preprocess(image.float())
+        image = self.preprocess()
 
         return {"images": image}
 
@@ -105,14 +106,25 @@ def sample_synthetic_dataset(config, pipeline):
 def train_loop(
     config,
     model,
-    noise_scheduler,
-    optimizer,
-    train_dataloader,
-    lr_scheduler,
+    dataset,
     *,
     step_id,
 ):
     config.output_dir = f"{config.base_output_dir}/step_{step_id}"
+
+    # Define training variables
+    train_dataloader = torch.utils.data.DataLoader(
+        dataset, batch_size=config.train_batch_size, shuffle=True
+    )
+
+    optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
+    lr_scheduler = get_cosine_schedule_with_warmup(
+        optimizer=optimizer,
+        num_warmup_steps=config.lr_warmup_steps,
+        num_training_steps=(len(train_dataloader) * config.num_epochs),
+    )
+    noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
+
     # Initialize accelerator and tensorboard logging
     accelerator = Accelerator(
         mixed_precision=config.mixed_precision,
@@ -279,28 +291,12 @@ if __name__ == '__main__':
     # dataset.set_transform(transform)
     dataset = SyntheticDataset(config, step_id=0)
 
-    # Define training variables
-    train_dataloader = torch.utils.data.DataLoader(
-        dataset, batch_size=config.train_batch_size, shuffle=True
-    )
-
-    optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
-    lr_scheduler = get_cosine_schedule_with_warmup(
-        optimizer=optimizer,
-        num_warmup_steps=config.lr_warmup_steps,
-        num_training_steps=(len(train_dataloader) * config.num_epochs),
-    )
-    noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
-
     # RUN TRAINING ON STEP 0
     STEP_ID = 1
     model = train_loop(
         config,
         model,
-        noise_scheduler,
-        optimizer,
-        train_dataloader,
-        lr_scheduler,
+        dataset,
         step_id=STEP_ID,
     )
 
@@ -310,25 +306,10 @@ if __name__ == '__main__':
 
         # Load synthetic dataset from the previous step
         synthetic_dataset = SyntheticDataset(config, step_id=STEP_ID - 1)
-        train_dataloader = torch.utils.data.DataLoader(
-            synthetic_dataset, batch_size=config.train_batch_size, shuffle=True
-        )
-
-        # Define training variables
-        optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
-        lr_scheduler = get_cosine_schedule_with_warmup(
-            optimizer=optimizer,
-            num_warmup_steps=config.lr_warmup_steps,
-            num_training_steps=(len(train_dataloader) * config.num_epochs),
-        )
-        noise_scheduler = DDPMScheduler(num_train_timesteps=1000)
 
         model = train_loop(
             config,
             model,
-            noise_scheduler,
-            optimizer,
-            train_dataloader,
-            lr_scheduler,
+            synthetic_dataset,
             step_id=STEP_ID,
         )
