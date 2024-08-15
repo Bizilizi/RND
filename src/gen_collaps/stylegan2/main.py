@@ -190,7 +190,7 @@ class Configs(BaseConfigs):
     # Batch size
     batch_size: int = 32
     # Dimensionality of $z$ and $w$
-    d_latent: int = 512
+    d_latent: int = 256
     # Height/width of the image
     image_size: int = 64
     # Number of layers in the mapping network
