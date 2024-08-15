@@ -88,7 +88,7 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         """Get the the `index`-th image"""
         data = self.dataset[index]
-        return self.transform(data['image'])
+        return self.transform(data["image"])
 
 
 class Configs(BaseConfigs):
@@ -220,9 +220,9 @@ class Configs(BaseConfigs):
 
         # Add model hooks to monitor layer outputs
         if self.log_layer_outputs:
-            hook_model_outputs(self.mode, self.discriminator, 'discriminator')
-            hook_model_outputs(self.mode, self.generator, 'generator')
-            hook_model_outputs(self.mode, self.mapping_network, 'mapping_network')
+            hook_model_outputs(self.mode, self.discriminator, "discriminator")
+            hook_model_outputs(self.mode, self.generator, "generator")
+            hook_model_outputs(self.mode, self.mapping_network, "mapping_network")
 
         # Discriminator and generator losses
         self.discriminator_loss = DiscriminatorLoss().to(self.device)
@@ -339,7 +339,7 @@ class Configs(BaseConfigs):
         """
 
         # Train the discriminator
-        with monit.section('Discriminator'):
+        with monit.section("Discriminator"):
             # Reset gradients
             self.discriminator_optimizer.zero_grad()
 
@@ -372,7 +372,7 @@ class Configs(BaseConfigs):
                     if (idx + 1) % self.lazy_gradient_penalty_interval == 0:
                         # Calculate and log gradient penalty
                         gp = self.gradient_penalty(real_images, real_output)
-                        tracker.add('loss.gp', gp)
+                        tracker.add("loss.gp", gp)
                         # Multiply by coefficient and add gradient penalty
                         disc_loss = (
                             disc_loss
@@ -386,11 +386,11 @@ class Configs(BaseConfigs):
                     disc_loss.backward()
 
                     # Log discriminator loss
-                    tracker.add('loss.discriminator', disc_loss)
+                    tracker.add("loss.discriminator", disc_loss)
 
             if (idx + 1) % self.log_generated_interval == 0:
                 # Log discriminator model parameters occasionally
-                tracker.add('discriminator', self.discriminator)
+                tracker.add("discriminator", self.discriminator)
 
             # Clip gradients for stabilization
             torch.nn.utils.clip_grad_norm_(
@@ -400,7 +400,7 @@ class Configs(BaseConfigs):
             self.discriminator_optimizer.step()
 
         # Train the generator
-        with monit.section('Generator'):
+        with monit.section("Generator"):
             # Reset gradients
             self.generator_optimizer.zero_grad()
             self.mapping_network_optimizer.zero_grad()
@@ -424,19 +424,19 @@ class Configs(BaseConfigs):
                     plp = self.path_length_penalty(w, generated_images)
                     # Ignore if `nan`
                     if not torch.isnan(plp):
-                        tracker.add('loss.plp', plp)
+                        tracker.add("loss.plp", plp)
                         gen_loss = gen_loss + plp
 
                 # Calculate gradients
                 gen_loss.backward()
 
                 # Log generator loss
-                tracker.add('loss.generator', gen_loss)
+                tracker.add("loss.generator", gen_loss)
 
             if (idx + 1) % self.log_generated_interval == 0:
                 # Log discriminator model parameters occasionally
-                tracker.add('generator', self.generator)
-                tracker.add('mapping_network', self.mapping_network)
+                tracker.add("generator", self.generator)
+                tracker.add("mapping_network", self.mapping_network)
 
             # Clip gradients for stabilization
             torch.nn.utils.clip_grad_norm_(self.generator.parameters(), max_norm=1.0)
@@ -451,7 +451,7 @@ class Configs(BaseConfigs):
         # Log generated images
         if (idx + 1) % self.log_generated_interval == 0:
             tracker.add(
-                'generated', torch.cat([generated_images[:6], real_images[:3]], dim=0)
+                "generated", torch.cat([generated_images[:6], real_images[:3]], dim=0)
             )
         # Save model checkpoints
         if (idx + 1) % self.save_checkpoint_interval == 0:
@@ -480,8 +480,8 @@ def main():
     """
 
     # Create an experiment
-    lab.configure({'path': '/scratch/shared/beegfs/dzverev/gen_collaps/stylegan'})
-    experiment.create(name='stylegan2')
+    lab.configure({"path": "/scratch/shared/beegfs/dzverev/gen_collaps/stylegan"})
+    experiment.create(name="stylegan2")
 
     # Create configurations object
     configs = Configs()
@@ -490,9 +490,9 @@ def main():
     experiment.configs(
         configs,
         {
-            'device.cuda_device': 0,
-            'image_size': 64,
-            'log_generated_interval': 200,
+            "device.cuda_device": 0,
+            "image_size": 64,
+            "log_generated_interval": 200,
         },
     )
 
@@ -512,5 +512,5 @@ def main():
 
 
 #
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

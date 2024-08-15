@@ -83,7 +83,7 @@ def train_loop(
         ]
     )
 
-    if config.sampler_type == 'igpt':
+    if config.sampler_type == "igpt":
         print(f"Train igpt..")
         image_gpt = train_igpt(
             strategy=cl_strategy,
@@ -107,7 +107,7 @@ def train_loop(
             )
             for temperature in temperatures
         }
-    elif config.sampler_type == 'diffusion':
+    elif config.sampler_type == "diffusion":
         print(f"Train diffusion..")
         diffusion = train_diffusion(
             strategy=cl_strategy,

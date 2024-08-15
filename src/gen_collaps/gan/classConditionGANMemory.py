@@ -20,7 +20,7 @@ from torchvision.utils import save_image
 
 def seed_torch(seed=1029):
     random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -49,57 +49,57 @@ from gan_training.config import (
     build_lr_scheduler,
 )
 
-''' ===================--- Set the traning mode ---==========================
+""" ===================--- Set the traning mode ---==========================
 DATA: going to train
 DATA_FIX: used as a fixed pre-trained model
-============================================================================='''
+============================================================================="""
 seed_torch(999)
-DATA_FIX = 'CELEBA'
+DATA_FIX = "CELEBA"
 Num_epoch = 50_000 // 448
 # select the name of the task from ['fish', 'bird', 'snake', 'dog', 'butterfly', 'insect']
 
 NNN = 7200
-image_path = './data/102flowers/'
-main_path = '.'
-out_path = '/scratch/shared/beegfs/dzverev/gen_collaps/gan'
+image_path = "./data/102flowers/"
+main_path = "."
+out_path = "/scratch/shared/beegfs/dzverev/gen_collaps/gan"
 
-config_path = main_path + '/configs/' + 'classcondition' + '_celeba.yaml'
-config = load_config(config_path, 'configs/default.yaml')
-config['data']['train_dir'] = image_path
-config['training']['out_dir'] = out_path
+config_path = main_path + "/configs/" + "classcondition" + "_celeba.yaml"
+config = load_config(config_path, "configs/default.yaml")
+config["data"]["train_dir"] = image_path
+config["training"]["out_dir"] = out_path
 
-if not os.path.isdir(config['training']['out_dir']):
-    os.makedirs(config['training']['out_dir'])
+if not os.path.isdir(config["training"]["out_dir"]):
+    os.makedirs(config["training"]["out_dir"])
 
-config['synth_dataset_num_images'] = 8_000
-config['synth_dataset_batch_size'] = 128
+config["synth_dataset_num_images"] = 8_000
+config["synth_dataset_batch_size"] = 128
 
 
 def train(train_dataset, step_id, nlabels=102):
-    config['training']['out_dir'] = out_path + f'/step_{step_id}'
-    if not os.path.isdir(config['training']['out_dir']):
-        os.makedirs(config['training']['out_dir'])
+    config["training"]["out_dir"] = out_path + f"/step_{step_id}"
+    if not os.path.isdir(config["training"]["out_dir"]):
+        os.makedirs(config["training"]["out_dir"])
 
     if 1:
         # Short hands
-        batch_size = config['training']['batch_size']
-        d_steps = config['training']['d_steps']
-        restart_every = config['training']['restart_every']
-        inception_every = config['training']['inception_every']
-        save_every = config['training']['save_every']
-        backup_every = config['training']['backup_every']
-        sample_nlabels = config['training']['sample_nlabels']
-        dim_z = config['z_dist']['dim']
+        batch_size = config["training"]["batch_size"]
+        d_steps = config["training"]["d_steps"]
+        restart_every = config["training"]["restart_every"]
+        inception_every = config["training"]["inception_every"]
+        save_every = config["training"]["save_every"]
+        backup_every = config["training"]["backup_every"]
+        sample_nlabels = config["training"]["sample_nlabels"]
+        dim_z = config["z_dist"]["dim"]
 
-        out_dir = config['training']['out_dir']
-        checkpoint_dir = path.join(out_dir, 'chkpts')
+        out_dir = config["training"]["out_dir"]
+        checkpoint_dir = path.join(out_dir, "chkpts")
 
         # Create missing directories
         if not path.exists(out_dir):
             os.makedirs(out_dir)
         if not path.exists(checkpoint_dir):
             os.makedirs(checkpoint_dir)
-        shutil.copyfile(sys.argv[0], out_dir + '/training_script.py')
+        shutil.copyfile(sys.argv[0], out_dir + "/training_script.py")
 
         # Logger
         checkpoint_io = CheckpointIO(checkpoint_dir=checkpoint_dir)
@@ -110,7 +110,7 @@ def train(train_dataset, step_id, nlabels=102):
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=batch_size,
-            num_workers=config['training']['nworkers'],
+            num_workers=config["training"]["nworkers"],
             shuffle=True,
             pin_memory=True,
             sampler=None,
@@ -131,26 +131,26 @@ def train(train_dataset, step_id, nlabels=102):
 
         # Number of labels
         # print('nlabels=======================', nlabels)
-        nlabels = min(nlabels, config['data']['nlabels'])
+        nlabels = min(nlabels, config["data"]["nlabels"])
         sample_nlabels = min(nlabels, sample_nlabels)
 
         # Create models
-        ''' --------- Choose the fixed layer ---------------'''
+        """ --------- Choose the fixed layer ---------------"""
         generator, discriminator = build_models(config)
 
         generator = load_model_norm(generator)
         discriminator = load_model_norm(discriminator, is_G=False)
 
         for name, param in generator.named_parameters():
-            if name.find('AdaFM_') >= 0:
+            if name.find("AdaFM_") >= 0:
                 param.requires_grad = True
             else:
                 param.requires_grad = False
 
         for name, param in discriminator.named_parameters():
-            if name.find('AdaFM_') >= 0:
+            if name.find("AdaFM_") >= 0:
                 param.requires_grad = True
-            elif name.find('fc') >= 0:
+            elif name.find("fc") >= 0:
                 param.requires_grad = True
             else:
                 param.requires_grad = False
@@ -181,16 +181,16 @@ def train(train_dataset, step_id, nlabels=102):
 
         # Logger
         logger = Logger(
-            log_dir=path.join(out_dir, 'logs'),
-            img_dir=path.join(out_dir, 'imgs'),
-            monitoring=config['training']['monitoring'],
-            monitoring_dir=path.join(out_dir, 'monitoring'),
+            log_dir=path.join(out_dir, "logs"),
+            img_dir=path.join(out_dir, "imgs"),
+            monitoring=config["training"]["monitoring"],
+            monitoring_dir=path.join(out_dir, "monitoring"),
         )
 
         # Distributions
         ydist = get_ydist(nlabels, device=device)
         zdist = get_zdist(
-            config['z_dist']['type'], config['z_dist']['dim'], device=device
+            config["z_dist"]["type"], config["z_dist"]["dim"], device=device
         )
 
         # Save for tests
@@ -199,10 +199,10 @@ def train(train_dataset, step_id, nlabels=102):
         ytest.clamp_(None, nlabels - 1)
         ytest = ytest.to(device)
         ztest = zdist.sample((ntest,)).to(device)
-        utils.save_images(x_real, path.join(out_dir, 'real.png'))
+        utils.save_images(x_real, path.join(out_dir, "real.png"))
 
         # Test generator
-        if config['training']['take_model_average']:
+        if config["training"]["take_model_average"]:
             generator_test = copy.deepcopy(generator)
             checkpoint_io.register_modules(generator_test=generator_test)
         else:
@@ -222,8 +222,8 @@ def train(train_dataset, step_id, nlabels=102):
         epoch_idx = -1
         # Reinitialize model average if needed
         if (
-            config['training']['take_model_average']
-            and config['training']['model_average_reinit']
+            config["training"]["take_model_average"]
+            and config["training"]["model_average_reinit"]
         ):
             update_average(generator_test, generator, 0.0)
         # Learning rate anneling
@@ -236,14 +236,14 @@ def train(train_dataset, step_id, nlabels=102):
             discriminator,
             g_optimizer,
             d_optimizer,
-            gan_type=config['training']['gan_type'],
-            reg_type=config['training']['reg_type'],
-            reg_param=config['training']['reg_param'],
+            gan_type=config["training"]["gan_type"],
+            reg_type=config["training"]["reg_type"],
+            reg_param=config["training"]["reg_param"],
         )
 
     # Training loop
-    print('Start training...')
-    save_dir = config['training']['out_dir'] + '/models/'
+    print("Start training...")
+    save_dir = config["training"]["out_dir"] + "/models/"
     if not os.path.isdir(save_dir):
         os.makedirs(save_dir)
 
@@ -258,16 +258,16 @@ def train(train_dataset, step_id, nlabels=102):
 
     for epoch_idx in trange(Num_epoch, desc="Epoch: "):
 
-        print('Start epoch %d...' % epoch_idx)
+        print("Start epoch %d..." % epoch_idx)
 
         for batch_data in tqdm(train_loader, leave=False, desc="Batch: "):
             it += 1
 
-            x_real = batch_data['image']
-            y = batch_data['label']
+            x_real = batch_data["image"]
+            y = batch_data["label"]
 
-            d_lr = d_optimizer.param_groups[0]['lr']
-            g_lr = g_optimizer.param_groups[0]['lr']
+            d_lr = d_optimizer.param_groups[0]["lr"]
+            g_lr = g_optimizer.param_groups[0]["lr"]
 
             x_real, y = x_real.to(device), y.to(device)
             y.clamp_(None, nlabels - 1)
@@ -276,11 +276,11 @@ def train(train_dataset, step_id, nlabels=102):
             z = zdist.sample((batch_size,))
             gloss, x_fake, _ = trainer.generator_trainstep(y, z)
 
-            if config['training']['take_model_average']:
+            if config["training"]["take_model_average"]:
                 update_average(
                     generator_test,
                     generator,
-                    beta=config['training']['model_average_beta'],
+                    beta=config["training"]["model_average_beta"],
                 )
 
             # Discriminator updates
@@ -293,7 +293,7 @@ def train(train_dataset, step_id, nlabels=102):
             with torch.no_grad():
 
                 # (i) Sample if necessary
-                if (it % config['training']['sample_every']) == 0:
+                if (it % config["training"]["sample_every"]) == 0:
                     d_fix, d_update = (
                         discriminator.conv_img.weight[1, 1, 1, 1],
                         discriminator.fc.weight[0, 1],
@@ -301,13 +301,13 @@ def train(train_dataset, step_id, nlabels=102):
                     g_fix, g_update = generator.conv_img.weight[1, 1, 1, 1], 0.0
 
                     print(
-                        '[epoch %0d, it %4d] g_loss = %.4f, d_loss = %.4f, reg=%.4f, time=%.2f'
+                        "[epoch %0d, it %4d] g_loss = %.4f, d_loss = %.4f, reg=%.4f, time=%.2f"
                         % (epoch_idx, it, gloss, dloss, reg, time.time() - tstart)
                     )
                     tstart = time.time()
                     # print('Creating samples...')
                     x, _ = evaluator.create_samples(ztest, ytest)
-                    logger.add_imgs(x, 'all', it, nrow=2)
+                    logger.add_imgs(x, "all", it, nrow=2)
 
                 # # (ii) Compute inception if necessary
                 # if inception_every > 0 and ((it + 2) % inception_every) == 0:
@@ -327,11 +327,11 @@ def train(train_dataset, step_id, nlabels=102):
 
                 # (iii) Backup if necessary
                 if ((it + 1) % backup_every) == 0:
-                    print('Saving backup...')
-                    TrainModeSave = str(step_id) + '_%08d_' % it
+                    print("Saving backup...")
+                    TrainModeSave = str(step_id) + "_%08d_" % it
                     generator_test_part = save_adafm_only(generator_test)
                     torch.save(
-                        generator_test_part, save_dir + TrainModeSave + 'Pre_generator'
+                        generator_test_part, save_dir + TrainModeSave + "Pre_generator"
                     )
                 # if it + 1 == 60000:
                 #     TrainModeSave = DATA + '_%08d_' % it
@@ -346,7 +346,7 @@ def load_synthetic_dataset(config):
     synthetic_labels = []
 
     synthetic_dataset_path = (
-        Path(config['training']['out_dir']) / 'synth_dataset' / 'all'
+        Path(config["training"]["out_dir"]) / "synth_dataset" / "all"
     )
 
     # read dataset to memory
@@ -373,7 +373,7 @@ def load_synthetic_dataset(config):
     )
 
     dataset = [
-        {'image': preprocess(image).float(), 'label': torch.tensor(label)}
+        {"image": preprocess(image).float(), "label": torch.tensor(label)}
         for image, label in zip(synthetic_images, synthetic_labels)
     ]
 
@@ -382,20 +382,20 @@ def load_synthetic_dataset(config):
 
 @torch.no_grad()
 def sample_synthetic_dataset(config, device, evaluator, logger):
-    synthetic_dataset_path = Path(config['training']['out_dir']) / 'synth_dataset'
+    synthetic_dataset_path = Path(config["training"]["out_dir"]) / "synth_dataset"
     synthetic_dataset_path.mkdir(exist_ok=True, parents=True)
 
-    zdist = get_zdist(config['z_dist']['type'], config['z_dist']['dim'], device=device)
+    zdist = get_zdist(config["z_dist"]["type"], config["z_dist"]["dim"], device=device)
 
     for i in range(
-        config['synth_dataset_num_images'] // config['synth_dataset_batch_size']
+        config["synth_dataset_num_images"] // config["synth_dataset_batch_size"]
     ):
-        ztest = zdist.sample((config['synth_dataset_batch_size'],)).to(device)
+        ztest = zdist.sample((config["synth_dataset_batch_size"],)).to(device)
 
         x, y = evaluator.create_samples(ztest)
         logger.img_dir = str(synthetic_dataset_path)
-        logger.add_imgs(x, 'all', 100_000 + i, nrow=config['synth_dataset_batch_size'])
-        torch.save(y.cpu(), f'{str(synthetic_dataset_path)}/all/{100_000 + i}.pt')
+        logger.add_imgs(x, "all", 100_000 + i, nrow=config["synth_dataset_batch_size"])
+        torch.save(y.cpu(), f"{str(synthetic_dataset_path)}/all/{100_000 + i}.pt")
 
 
 def transform(examples):
@@ -408,7 +408,7 @@ def transform(examples):
     )
 
     images = [preprocess(image.convert("RGB")) for image in examples["image"]]
-    return {'image': images, 'label': examples["label"]}
+    return {"image": images, "label": examples["label"]}
 
 
 initial_dataset = load_dataset("nelorth/oxford-flowers", split="train")

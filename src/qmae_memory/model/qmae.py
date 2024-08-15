@@ -95,7 +95,7 @@ class QMAE(CLModel):
         decoder_layer=4,
         decoder_head=3,
         # discriminator
-        discriminator_type='patch-vit',
+        discriminator_type="patch-vit",
         gan_loss_epoch_start,
         disc_num_layers=3,
         disc_num_heads=3,
@@ -176,7 +176,7 @@ class QMAE(CLModel):
         )
 
         # Losses
-        if discriminator_type == 'patch-vit':
+        if discriminator_type == "patch-vit":
             self.discriminator = PatchVITDiscriminator(
                 image_size=image_size,
                 patch_size=patch_size,
@@ -184,7 +184,7 @@ class QMAE(CLModel):
                 num_layer=disc_num_layers,
                 num_head=disc_num_heads,
             )
-        if discriminator_type == 'patch-vit-self':
+        if discriminator_type == "patch-vit-self":
             self.discriminator = PatchVITDiscriminator(
                 image_size=image_size,
                 patch_size=patch_size,
@@ -536,9 +536,9 @@ class QMAE(CLModel):
             past_forward_output = self.past_data_forward(past_input)
 
             # extend reconstruction objectives
-            x_recon = torch.cat([x_recon, past_forward_output['so_x_recon']])
+            x_recon = torch.cat([x_recon, past_forward_output["so_x_recon"]])
             x_target = torch.cat(
-                [x_target, past_forward_output['x_recon'].clone().detach()]
+                [x_target, past_forward_output["x_recon"].clone().detach()]
             )
 
             # extend lcl objective (lcl - latent consistency loss)

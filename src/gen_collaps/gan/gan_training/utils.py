@@ -27,8 +27,8 @@ def get_nsamples(data_loader, N):
     n = 0
     while n < N:
         data = next(iter(data_loader))
-        x_next = data['image']
-        y_next = data['label']
+        x_next = data["image"]
+        y_next = data["label"]
         x.append(x_next)
         y.append(y_next)
         n += x_next.size(0)

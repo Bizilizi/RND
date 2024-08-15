@@ -397,9 +397,9 @@ class VitVQVae(CLModel):
             past_forward_output = self.past_data_forward(past_input)
 
             # extend reconstruction objectives
-            x_recon = torch.cat([x_recon, past_forward_output['so_x_recon']])
+            x_recon = torch.cat([x_recon, past_forward_output["so_x_recon"]])
             x_target = torch.cat(
-                [x_target, past_forward_output['x_recon'].clone().detach()]
+                [x_target, past_forward_output["x_recon"].clone().detach()]
             )
 
             # extend lcl objective (lcl - latent consistency loss)

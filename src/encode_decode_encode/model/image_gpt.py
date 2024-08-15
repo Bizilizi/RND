@@ -162,15 +162,19 @@ def load_tf_weights_in_imagegpt(model, config, imagegpt_checkpoint_path):
                 array.reshape(config.enc_embedding_dim, config.enc_embedding_dim)
             ).T
         elif name[-1] == "k_proj":
-            pointer.data[:, config.enc_embedding_dim: 2 * config.enc_embedding_dim] = torch.from_numpy(
+            pointer.data[
+                :, config.enc_embedding_dim : 2 * config.enc_embedding_dim
+            ] = torch.from_numpy(
                 array.reshape(config.enc_embedding_dim, config.enc_embedding_dim)
             ).T
         elif name[-1] == "v_proj":
-            pointer.data[:, 2 * config.enc_embedding_dim:] = torch.from_numpy(
+            pointer.data[:, 2 * config.enc_embedding_dim :] = torch.from_numpy(
                 array.reshape(config.enc_embedding_dim, config.enc_embedding_dim)
             ).T
         elif len(name) == 3 and name[1] == "attn" and name[2] == "c_proj":
-            pointer.data = torch.from_numpy(array.reshape(config.enc_embedding_dim, config.enc_embedding_dim))
+            pointer.data = torch.from_numpy(
+                array.reshape(config.enc_embedding_dim, config.enc_embedding_dim)
+            )
         elif name[-1] == "wtet":
             pointer.data = torch.from_numpy(array)
         elif name[-1] == "wte":

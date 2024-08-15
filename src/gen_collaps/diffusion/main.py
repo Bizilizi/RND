@@ -26,7 +26,7 @@ class SyntheticDataset(Dataset):
     def __init__(self, config, step_id):
         self.images = []
         synthetic_dataset_path = (
-            Path(config.base_output_dir) / f"step_{step_id}" / 'synth_dataset'
+            Path(config.base_output_dir) / f"step_{step_id}" / "synth_dataset"
         )
 
         # read dataset to memory
@@ -38,7 +38,7 @@ class SyntheticDataset(Dataset):
                     batched_images[
                         :, i * config.image_size : (i + 1) * config.image_size
                     ].float()
-                    // 255
+                    / 255
                     for i in range(batched_images.shape[-2] // config.image_size)
                 ]
             )
@@ -57,7 +57,7 @@ class SyntheticDataset(Dataset):
 
     def __getitem__(self, item):
         image = self.images[item]
-        image = self.preprocess()
+        image = self.preprocess(image)
 
         return {"images": image}
 
@@ -89,18 +89,18 @@ class TrainingConfig:
 
 @torch.no_grad()
 def sample_synthetic_dataset(config, pipeline):
-    synthetic_dataset_path = Path(config.output_dir) / 'synth_dataset'
+    synthetic_dataset_path = Path(config.output_dir) / "synth_dataset"
     synthetic_dataset_path.mkdir(exist_ok=True, parents=True)
 
     for i in range(config.synth_dataset_num_images // config.synth_dataset_batch_size):
         images = pipeline(
             batch_size=config.synth_dataset_batch_size,
-            generator=torch.Generator(device='cuda').manual_seed(config.seed),
+            generator=torch.Generator(device="cuda").manual_seed(config.seed),
         ).images
 
         # save the image column
         images = make_image_grid(images, rows=len(images), cols=1)
-        images.save(synthetic_dataset_path / f'batch_{i}.jpg')
+        images.save(synthetic_dataset_path / f"batch_{i}.jpg")
 
 
 def train_loop(
@@ -224,7 +224,7 @@ def evaluate(config, epoch, pipeline):
     # The default pipeline output type is `List[PIL.Image]`
     images = pipeline(
         batch_size=config.eval_batch_size,
-        generator=torch.Generator(device='cpu').manual_seed(config.seed),
+        generator=torch.Generator(device="cpu").manual_seed(config.seed),
         # Use a separate torch generator to avoid rewinding the random state of the main training loop
     ).images
 
@@ -237,7 +237,7 @@ def evaluate(config, epoch, pipeline):
     image_grid.save(f"{test_dir}/{epoch:04d}.png")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     config = TrainingConfig()
 
     # Define model

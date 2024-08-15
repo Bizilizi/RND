@@ -38,16 +38,16 @@ class AbsorbingDiffusion(nn.Module):
         self.loss_type = loss_type
         self.mask_schedule = mask_schedule
 
-        self.register_buffer('Lt_history', torch.zeros(self.num_timesteps + 1))
-        self.register_buffer('Lt_count', torch.zeros(self.num_timesteps + 1))
-        self.register_buffer('loss_history', torch.zeros(self.num_timesteps + 1))
+        self.register_buffer("Lt_history", torch.zeros(self.num_timesteps + 1))
+        self.register_buffer("Lt_count", torch.zeros(self.num_timesteps + 1))
+        self.register_buffer("loss_history", torch.zeros(self.num_timesteps + 1))
 
-        assert self.mask_schedule in ['random', 'fixed']
+        assert self.mask_schedule in ["random", "fixed"]
 
-    def sample_time(self, b, device, method='uniform'):
-        if method == 'importance':
+    def sample_time(self, b, device, method="uniform"):
+        if method == "importance":
             if not (self.Lt_count > 10).all():
-                return self.sample_time(b, device, method='uniform')
+                return self.sample_time(b, device, method="uniform")
 
             Lt_sqrt = torch.sqrt(self.Lt_history + 1e-10) + 0.0001
             Lt_sqrt[0] = Lt_sqrt[1]  # Overwrite decoder term with L1.
@@ -59,7 +59,7 @@ class AbsorbingDiffusion(nn.Module):
 
             return t, pt
 
-        elif method == 'uniform':
+        elif method == "uniform":
             t = torch.randint(1, self.num_timesteps + 1, (b,), device=device).long()
             pt = torch.ones_like(t).float() / self.num_timesteps
             return t, pt
@@ -108,12 +108,12 @@ class AbsorbingDiffusion(nn.Module):
         b, device = x_0.size(0), x_0.device
 
         # choose what time steps to compute loss at
-        t, pt = self.sample_time(b, device, 'uniform')
+        t, pt = self.sample_time(b, device, "uniform")
 
         # make x noisy and denoise
-        if self.mask_schedule == 'random':
+        if self.mask_schedule == "random":
             x_t, x_0_ignore, mask = self.q_sample(x_0=x_0, t=t)
-        elif self.mask_schedule == 'fixed':
+        elif self.mask_schedule == "fixed":
             x_t, x_0_ignore, mask = self.q_sample_mlm(x_0=x_0, t=t)
 
         # sample p(x_0 | x_t)
@@ -135,18 +135,18 @@ class AbsorbingDiffusion(nn.Module):
 
         # Always compute ELBO for comparison purposes
         cross_entropy_loss = F.cross_entropy(
-            x_0_hat_logits, x_0_ignore, ignore_index=-1, reduction='none'
+            x_0_hat_logits, x_0_ignore, ignore_index=-1, reduction="none"
         ).sum(1)
         vb_loss = cross_entropy_loss / t
         vb_loss = vb_loss / pt
         vb_loss = vb_loss / (math.log(2) * x_0.shape[1:].numel())
-        if self.loss_type == 'elbo':
+        if self.loss_type == "elbo":
             loss = vb_loss
-        elif self.loss_type == 'mlm':
+        elif self.loss_type == "mlm":
             denom = mask.float().sum(1)
             denom[denom == 0] = 1  # prevent divide by 0 errors.
             loss = cross_entropy_loss / denom
-        elif self.loss_type == 'reweighted_elbo':
+        elif self.loss_type == "reweighted_elbo":
             weight = 1 - (t / self.num_timesteps)
             loss = weight * cross_entropy_loss
             loss = loss / (math.log(2) * x_0.shape[1:].numel())
@@ -196,7 +196,7 @@ class AbsorbingDiffusion(nn.Module):
         sample_steps = list(range(1, sample_steps + 1))
 
         for t in reversed(sample_steps):
-            print(f'Sample timestep {t:4d}', end='\r')
+            print(f"Sample timestep {t:4d}", end="\r")
             t = torch.full((b,), t, device=device, dtype=torch.long)
 
             # where to unmask
@@ -223,7 +223,7 @@ class AbsorbingDiffusion(nn.Module):
         )
 
         for t in reversed(sample_steps):
-            print(f'Sample timestep {t:4d}', end='\r')
+            print(f"Sample timestep {t:4d}", end="\r")
             t = torch.full((b,), t, device=device, dtype=torch.long)
             x_t, _, _ = self.q_sample(x_0, t)
             x_0_logits = self._denoise_fn(x_t, t=t)
@@ -240,12 +240,12 @@ class AbsorbingDiffusion(nn.Module):
         b, device = x_0.size(0), x_0.device
         elbo = 0.0
         for t in reversed(list(range(1, self.num_timesteps + 1))):
-            print(f'Sample timestep {t:4d}', end='\r')
+            print(f"Sample timestep {t:4d}", end="\r")
             t = torch.full((b,), t, device=device, dtype=torch.long)
             x_t, x_0_ignore, _ = self.q_sample(x_0=x_0, t=t)
             x_0_hat_logits = self._denoise_fn(x_t, t=t).permute(0, 2, 1)
             cross_entropy_loss = F.cross_entropy(
-                x_0_hat_logits, x_0_ignore, ignore_index=-1, reduction='none'
+                x_0_hat_logits, x_0_ignore, ignore_index=-1, reduction="none"
             ).sum(1)
             elbo += cross_entropy_loss / t
         return elbo
@@ -263,10 +263,10 @@ class AbsorbingDiffusion(nn.Module):
 
         autoregressive_step = 0
         for t in tqdm(list(reversed(list(range(1, time_steps + 1))))):
-            t = torch.full((num_samples,), t, device='cuda', dtype=torch.long)
+            t = torch.full((num_samples,), t, device="cuda", dtype=torch.long)
 
-            unmasking_method = 'autoregressive'
-            if unmasking_method == 'random':
+            unmasking_method = "autoregressive"
+            if unmasking_method == "random":
                 # where to unmask
                 changes = torch.rand(
                     x_t.shape, device=device
@@ -277,7 +277,7 @@ class AbsorbingDiffusion(nn.Module):
                 )
                 # update mask with changes
                 unmasked = torch.bitwise_or(unmasked, changes)
-            elif unmasking_method == 'autoregressive':
+            elif unmasking_method == "autoregressive":
                 changes = torch.zeros(x_t.shape, device=device).bool()
                 index = (
                     int(autoregressive_step / shape[1]),
@@ -289,10 +289,10 @@ class AbsorbingDiffusion(nn.Module):
 
             # keep track of PoE probabilities
             x_0_probs = torch.zeros(
-                (num_samples,) + shape + (self.codebook_size,), device='cuda'
+                (num_samples,) + shape + (self.codebook_size,), device="cuda"
             )
             # keep track of counts
-            count = torch.zeros((num_samples,) + shape, device='cuda')
+            count = torch.zeros((num_samples,) + shape, device="cuda")
 
             # TODO: Monte carlo approximate this instead
             for i in range(0, x_lim + 1, step):

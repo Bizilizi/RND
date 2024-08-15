@@ -13,7 +13,7 @@ class ActNorm(nn.Module):
         self.scale = nn.Parameter(torch.ones(1, num_features, 1, 1))
         self.allow_reverse_init = allow_reverse_init
 
-        self.register_buffer('initialized', torch.tensor(0, dtype=torch.uint8))
+        self.register_buffer("initialized", torch.tensor(0, dtype=torch.uint8))
 
     def initialize(self, input):
         with torch.no_grad():

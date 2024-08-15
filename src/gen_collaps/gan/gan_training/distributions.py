@@ -4,11 +4,11 @@ from torch import distributions
 
 def get_zdist(dist_name, dim, device=None):
     # Get distribution
-    if dist_name == 'uniform':
+    if dist_name == "uniform":
         low = -torch.ones(dim, device=device)
         high = torch.ones(dim, device=device)
         zdist = distributions.Uniform(low, high)
-    elif dist_name == 'gauss':
+    elif dist_name == "gauss":
         mu = torch.zeros(dim, device=device)
         scale = torch.ones(dim, device=device)
         zdist = distributions.Normal(mu, scale)
@@ -36,8 +36,8 @@ def interpolate_sphere(z1, z2, t):
     p = p / z1.pow(2).sum(dim=-1, keepdim=True).sqrt()
     p = p / z2.pow(2).sum(dim=-1, keepdim=True).sqrt()
     omega = torch.acos(p)
-    s1 = torch.sin((1-t)*omega)/torch.sin(omega)
-    s2 = torch.sin(t*omega)/torch.sin(omega)
+    s1 = torch.sin((1 - t) * omega) / torch.sin(omega)
+    s2 = torch.sin(t * omega) / torch.sin(omega)
     z = s1 * z1 + s2 * z2
 
     return z

@@ -29,7 +29,7 @@ class ResNet(pl.LightningModule):
 
     def training_step(self, batch, batch_idx):
         data, y, *_ = batch
-        images = data['images']
+        images = data["images"]
 
         logits = self.forward(images)
         loss = F.cross_entropy(logits, y)
@@ -48,7 +48,7 @@ class ResNet(pl.LightningModule):
 
     def validation_step(self, batch, batch_idx):
         data, y, *_ = batch
-        images = data['images']
+        images = data["images"]
 
         logits = self.forward(images)
         loss = F.cross_entropy(logits, y)

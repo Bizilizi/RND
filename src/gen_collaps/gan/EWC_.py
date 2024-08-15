@@ -237,14 +237,14 @@ class Net(nn.Module):
         #                (n.find('fc') >= 0 or n.find('layer4.') >= 0)]
         self.params = [param for n, param in self.feat.named_parameters() if 1]
 
-        self.online=False
-        self.gamma = 1.
+        self.online = False
+        self.gamma = 1.0
 
     def forward(self, x):
-        if x.shape[3]>224:
-            h = F.interpolate(x, 224, mode='bilinear')
+        if x.shape[3] > 224:
+            h = F.interpolate(x, 224, mode="bilinear")
         else:
-            h= x
+            h = x
         # h = F.interpolate(x, 224, mode='bilinear')
         h = self.feat(h)
         # h = F.relu(self.EWC_fc1(h))
@@ -260,22 +260,24 @@ class Net(nn.Module):
         est_fisher_info = {}
         for n, p in self.named_parameters():
             if p.requires_grad:
-                n = n.replace('.', '__')
+                n = n.replace(".", "__")
                 est_fisher_info[n] = p.detach().clone().zero_()
 
         mode = self.training
         self.eval()
         data_loader = dataset
-        for index,(x,y) in enumerate(data_loader):
-            #print(x.size(), y.size())
+        for index, (x, y) in enumerate(data_loader):
+            # print(x.size(), y.size())
             # x = x.view(batch_size, -1)
-            if index >= sample_size//batch_size:
+            if index >= sample_size // batch_size:
                 break
 
             x = x.to(self.device)
             y = y.to(self.device)
 
-            loglikelihoods = F.log_softmax(self(x), dim=1)[range(batch_size), y.data].mean()
+            loglikelihoods = F.log_softmax(self(x), dim=1)[
+                range(batch_size), y.data
+            ].mean()
             # negloglikelihood = F.nll_loss(F.log_softmax(self(x), dim=1), y.data)
             self.zero_grad()
             loglikelihoods.backward()
@@ -283,26 +285,29 @@ class Net(nn.Module):
             # Square gradients and keep running sum
             for n, p in self.named_parameters():
                 if p.requires_grad:
-                    n = n.replace('.', '__')
+                    n = n.replace(".", "__")
                     if p.grad is not None:
                         est_fisher_info[n] += p.grad.detach() ** 2
 
-        est_fisher_info = {n: p/index for n, p in est_fisher_info.items()}
+        est_fisher_info = {n: p / index for n, p in est_fisher_info.items()}
 
         # Store new values in the network
         for n, p in self.named_parameters():
             if p.requires_grad:
-                n = n.replace('.', '__')
+                n = n.replace(".", "__")
                 # -mode (=MAP parameter estimate)
-                self.register_buffer('{}_estimated_mean{}'.format(n, 9 if self.online else task_id),
-                                     p.detach().clone())
+                self.register_buffer(
+                    "{}_estimated_mean{}".format(n, 9 if self.online else task_id),
+                    p.detach().clone(),
+                )
                 # -precision (approximated by diagonal Fisher Information matrix)
-                if self.online and task_id>= 1:
-                    existing_values = getattr(self, '{}_estimated_fisher9'.format(n))
+                if self.online and task_id >= 1:
+                    existing_values = getattr(self, "{}_estimated_fisher9".format(n))
                     est_fisher_info[n] += self.gamma * existing_values
                 self.register_buffer(
-                    '{}_estimated_fisher{}'.format(n, 9 if self.online else task_id),
-                    est_fisher_info[n])
+                    "{}_estimated_fisher{}".format(n, 9 if self.online else task_id),
+                    est_fisher_info[n],
+                )
         # Set model back to its initial mode
         self.train(mode=mode)
 
@@ -313,17 +318,25 @@ class Net(nn.Module):
                 for n, p in self.named_parameters():
                     # retrieve the consolidated mean and fisher information.
                     if p.requires_grad:
-                        n = n.replace('.', '__')
-                        mean = getattr(self, '{}_estimated_mean{}'.format(n,9 if self.online else task))
-                        fisher = getattr(self, '{}_estimated_fisher{}'.format(n,9 if self.online else task))
+                        n = n.replace(".", "__")
+                        mean = getattr(
+                            self,
+                            "{}_estimated_mean{}".format(n, 9 if self.online else task),
+                        )
+                        fisher = getattr(
+                            self,
+                            "{}_estimated_fisher{}".format(
+                                n, 9 if self.online else task
+                            ),
+                        )
                         # wrap mean and fisher in Vs.
                         # mean = V(mean)
-                        fisher = self.gamma*fisher if self.online else fisher
+                        fisher = self.gamma * fisher if self.online else fisher
                         # calculate a ewc loss. (assumes the parameter's prior as
                         # gaussian distribution with the estimated mean and the
                         # estimated cramer-rao lower bound variance, which is
                         # equivalent to the inverse of fisher information)
-                        losses.append((fisher * (p-mean)**2).sum())
-            return (lamda/2)*sum(losses)
+                        losses.append((fisher * (p - mean) ** 2).sum())
+            return (lamda / 2) * sum(losses)
         else:
-            return torch.tensor(0., device=self.device)
+            return torch.tensor(0.0, device=self.device)

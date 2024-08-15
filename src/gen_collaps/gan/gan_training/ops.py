@@ -4,7 +4,7 @@ from torch.nn import Parameter
 
 
 class SpectralNorm(nn.Module):
-    def __init__(self, module, name='weight', power_iterations=1):
+    def __init__(self, module, name="weight", power_iterations=1):
         super(SpectralNorm, self).__init__()
         self.module = module
         self.name = name
@@ -19,10 +19,8 @@ class SpectralNorm(nn.Module):
 
         height = w.data.shape[0]
         for _ in range(self.power_iterations):
-            v.data = l2normalize(
-                torch.mv(torch.t(w.view(height, -1).data), u.data))
-            u.data = l2normalize(
-                torch.mv(w.view(height, -1).data, v.data))
+            v.data = l2normalize(torch.mv(torch.t(w.view(height, -1).data), u.data))
+            u.data = l2normalize(torch.mv(w.view(height, -1).data, v.data))
 
         # sigma = torch.dot(u.data, torch.mv(w.view(height,-1).data, v.data))
         sigma = u.dot(w.view(height, -1).mv(v))
@@ -74,14 +72,14 @@ class CBatchNorm(nn.Module):
         self.beta_embedding = nn.Embedding(nlabels, nfilter)
         self.bn = nn.BatchNorm2d(nfilter, affine=False)
         # Initialize
-        nn.init.constant_(self.alpha_embedding.weight, 1.)
-        nn.init.constant_(self.beta_embedding.weight, 0.)
+        nn.init.constant_(self.alpha_embedding.weight, 1.0)
+        nn.init.constant_(self.beta_embedding.weight, 0.0)
 
     def forward(self, x, y):
         dim = len(x.size())
         batch_size = x.size(0)
-        assert(dim >= 2)
-        assert(x.size(1) == self.nfilter)
+        assert dim >= 2
+        assert x.size(1) == self.nfilter
 
         s = [batch_size, self.nfilter] + [1] * (dim - 2)
         alpha = self.alpha_embedding(y)
@@ -106,14 +104,14 @@ class CInstanceNorm(nn.Module):
         self.beta_embedding = nn.Embedding(nlabels, nfilter)
         self.bn = nn.InstanceNorm2d(nfilter, affine=False)
         # Initialize
-        nn.init.uniform(self.alpha_embedding.weight, -1., 1.)
-        nn.init.constant_(self.beta_embedding.weight, 0.)
+        nn.init.uniform(self.alpha_embedding.weight, -1.0, 1.0)
+        nn.init.constant_(self.beta_embedding.weight, 0.0)
 
     def forward(self, x, y):
         dim = len(x.size())
         batch_size = x.size(0)
-        assert(dim >= 2)
-        assert(x.size(1) == self.nfilter)
+        assert dim >= 2
+        assert x.size(1) == self.nfilter
 
         s = [batch_size, self.nfilter] + [1] * (dim - 2)
         alpha = self.alpha_embedding(y)

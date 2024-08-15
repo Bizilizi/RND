@@ -5,7 +5,7 @@ import torchvision
 
 class Logger(object):
     def __init__(
-        self, log_dir='./logs', img_dir='./imgs', monitoring=None, monitoring_dir=None
+        self, log_dir="./logs", img_dir="./imgs", monitoring=None, monitoring_dir=None
     ):
         self.stats = dict()
         self.log_dir = log_dir
@@ -17,7 +17,7 @@ class Logger(object):
         if not os.path.exists(img_dir):
             os.makedirs(img_dir)
 
-        if not (monitoring is None or monitoring == 'none'):
+        if not (monitoring is None or monitoring == "none"):
             self.setup_monitoring(monitoring, monitoring_dir)
         else:
             self.monitoring = None
@@ -27,13 +27,13 @@ class Logger(object):
         self.monitoring = monitoring
         self.monitoring_dir = monitoring_dir
 
-        if monitoring == 'telemetry':
+        if monitoring == "telemetry":
             import telemetry
 
             self.tm = telemetry.ApplicationTelemetry()
             if self.tm.get_status() == 0:
-                print('Telemetry successfully connected.')
-        elif monitoring == 'tensorboard':
+                print("Telemetry successfully connected.")
+        elif monitoring == "tensorboard":
             import tensorboardX
 
             self.tb = tensorboardX.SummaryWriter(monitoring_dir)
@@ -51,17 +51,17 @@ class Logger(object):
 
         self.stats[category][k].append((it, v))
 
-        k_name = '%s/%s' % (category, k)
-        if self.monitoring == 'telemetry':
-            self.tm.metric_push_async({'metric': k_name, 'value': v, 'it': it})
-        elif self.monitoring == 'tensorboard':
+        k_name = "%s/%s" % (category, k)
+        if self.monitoring == "telemetry":
+            self.tm.metric_push_async({"metric": k_name, "value": v, "it": it})
+        elif self.monitoring == "tensorboard":
             self.tb.add_scalar(k_name, v, it)
 
     def add_imgs(self, imgs, class_name, it, nrow=8):
         outdir = os.path.join(self.img_dir, class_name)
         if not os.path.exists(outdir):
             os.makedirs(outdir)
-        outfile = os.path.join(outdir, '%08d.png' % it)
+        outfile = os.path.join(outdir, "%08d.png" % it)
 
         imgs = imgs / 2 + 0.5
         imgs = torchvision.utils.make_grid(imgs, nrow=nrow, pad_value=1)
@@ -80,7 +80,7 @@ class Logger(object):
 
     def save_stats(self, filename):
         filename = os.path.join(self.log_dir, filename)
-        with open(filename, 'wb') as f:
+        with open(filename, "wb") as f:
             pickle.dump(self.stats, f)
 
     def load_stats(self, filename):
@@ -90,7 +90,7 @@ class Logger(object):
             return
 
         try:
-            with open(filename, 'rb') as f:
+            with open(filename, "rb") as f:
                 self.stats = pickle.load(f)
         except EOFError:
-            print('Warning: log file corrupted!')
+            print("Warning: log file corrupted!")

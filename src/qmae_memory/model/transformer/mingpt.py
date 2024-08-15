@@ -92,7 +92,7 @@ class CausalSelfAttention(nn.Module):
         # causal self-attention; Self-attend: (B, nh, T, hs) x (B, nh, hs, T) -> (B, nh, T, T)
         att = (q @ k.transpose(-2, -1)) * (1.0 / math.sqrt(k.size(-1)))
         if layer_past is None:
-            att = att.masked_fill(self.mask[:, :, :T, :T] == 0, float('-inf'))
+            att = att.masked_fill(self.mask[:, :, :T, :T] == 0, float("-inf"))
 
         att = F.softmax(att, dim=-1)
         att = self.attn_drop(att)
@@ -358,7 +358,7 @@ class CodeGPT(nn.Module):
 def top_k_logits(logits, k):
     v, ix = torch.topk(logits, k)
     out = logits.clone()
-    out[out < v[:, [-1]]] = -float('Inf')
+    out[out < v[:, [-1]]] = -float("Inf")
     return out
 
 
@@ -447,7 +447,7 @@ class KMeans(nn.Module):
         self.niter = niter
         self.shape = (3, 32, 32)
         self.register_buffer("C", torch.zeros(self.ncluster, nc))
-        self.register_buffer('initialized', torch.tensor(0, dtype=torch.uint8))
+        self.register_buffer("initialized", torch.tensor(0, dtype=torch.uint8))
 
     def is_initialized(self):
         return self.initialized.item() == 1
@@ -466,7 +466,7 @@ class KMeans(nn.Module):
             nanix = torch.any(torch.isnan(c), dim=1)
             ndead = nanix.sum().item()
             print(
-                'done step %d/%d, re-initialized %d dead clusters'
+                "done step %d/%d, re-initialized %d dead clusters"
                 % (i + 1, self.niter, ndead)
             )
             c[nanix] = x[torch.randperm(N)[:ndead]]  # re-init dead clusters
