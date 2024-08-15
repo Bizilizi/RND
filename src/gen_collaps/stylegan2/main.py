@@ -589,18 +589,20 @@ def main(initial_step: int = 0):
     if initial_step == 0:
         # Initial dataset
         dataset = InitialDataset(image_size=configs.image_size)
-        configs.init(dataset)
 
         init_experiment(step_id=STEP_ID)
+        configs.init(dataset)
+
         train(configs, step_id=STEP_ID)
 
     for _ in range(12):
         STEP_ID += 1
 
         dataset = SyntheticDataset(configs, experiment_singleton().run.run_path)
-        configs.init(dataset, init_layers=False)
 
         init_experiment(step_id=STEP_ID)
+        configs.init(dataset, init_layers=False)
+
         train(configs, step_id=STEP_ID)
 
 
