@@ -144,7 +144,7 @@ class Configs(BaseConfigs):
     # Device to train the model on.
     # [`DeviceConfigs`](https://docs.labml.ai/api/helpers.html#labml_helpers.device.DeviceConfigs)
     #  picks up an available CUDA device or defaults to CPU.
-    device: torch.device = DeviceConfigs()
+    device: torch.device
 
     # [StyleGAN2 Discriminator](index.html#discriminator)
     discriminator: Discriminator
@@ -164,7 +164,7 @@ class Configs(BaseConfigs):
     mapping_network_optimizer: torch.optim.Adam
 
     # [Gradient Penalty Regularization Loss](index.html#gradient_penalty)
-    gradient_penalty = GradientPenalty()
+    gradient_penalty: GradientPenalty
     # Gradient penalty coefficient $\gamma$
     gradient_penalty_coefficient: float = 10.0
 
@@ -231,6 +231,12 @@ class Configs(BaseConfigs):
     # Synthetic dataset
     synth_dataset_num_images: int = 8000
     synth_dataset_batch_size: int = 128
+
+    def __init__(self):
+        super().__init__()
+
+        self.device = torch.device("cuda:0")
+        self.gradient_penalty = GradientPenalty()
 
     def init(self, dataset, discriminator=None, generator=None, mapping_network=None):
         """
