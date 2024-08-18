@@ -141,6 +141,7 @@ class Configs(BaseConfigs):
     ## Configurations
     """
 
+    device: torch.device
     # [StyleGAN2 Discriminator](index.html#discriminator)
     discriminator: Discriminator
     # [StyleGAN2 Generator](index.html#generator)
