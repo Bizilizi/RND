@@ -141,11 +141,6 @@ class Configs(BaseConfigs):
     ## Configurations
     """
 
-    # Device to train the model on.
-    # [`DeviceConfigs`](https://docs.labml.ai/api/helpers.html#labml_helpers.device.DeviceConfigs)
-    #  picks up an available CUDA device or defaults to CPU.
-    device: torch.device
-
     # [StyleGAN2 Discriminator](index.html#discriminator)
     discriminator: Discriminator
     # [StyleGAN2 Generator](index.html#generator)
@@ -235,7 +230,7 @@ class Configs(BaseConfigs):
     def __init__(self):
         super().__init__()
 
-        self.device = DeviceConfigs()
+        self.device = torch.device("cuda:0")
         self.gradient_penalty = GradientPenalty()
 
     def init(self, dataset, discriminator=None, generator=None, mapping_network=None):
@@ -527,7 +522,7 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
     lab.configure({"path": str(lab_path)})
     experiment.create(name="stylegan2")
     # Set configurations and override some
-    experiment.configs(configs, {"device.cuda_device": 0, "log_generated_interval": 200})
+    experiment.configs(configs, {"log_generated_interval": 200})
 
     configs.init(dataset, discriminator=discriminator, generator=generator, mapping_network=mapping_network)
 
