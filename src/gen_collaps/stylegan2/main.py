@@ -85,7 +85,7 @@ class SyntheticDataset(torch.utils.data.Dataset):
         image = self.images[item]
         image = self.preprocess(image)
 
-        return {"images": image}
+        return image
 
 
 class InitialDataset(torch.utils.data.Dataset):
@@ -141,7 +141,11 @@ class Configs(BaseConfigs):
     ## Configurations
     """
 
-    cuda_device: torch.device
+    # Device to train the model on.
+    # [`DeviceConfigs`](https://docs.labml.ai/api/helpers.html#labml_helpers.device.DeviceConfigs)
+    #  picks up an available CUDA device or defaults to CPU.
+    device: torch.device
+
     # [StyleGAN2 Discriminator](index.html#discriminator)
     discriminator: Discriminator
     # [StyleGAN2 Generator](index.html#generator)
@@ -231,6 +235,7 @@ class Configs(BaseConfigs):
     def __init__(self):
         super().__init__()
 
+        self.device = DeviceConfigs()
         self.gradient_penalty = GradientPenalty()
 
     def init(self, dataset, discriminator=None, generator=None, mapping_network=None):
@@ -252,24 +257,24 @@ class Configs(BaseConfigs):
         if discriminator is not None:
             self.discriminator = discriminator
         else:
-            self.discriminator = Discriminator(log_resolution).cuda()
+            self.discriminator = Discriminator(log_resolution).to(self.device)
 
         if generator is not None:
             self.generator = generator
         else:
-            self.generator = Generator(log_resolution, self.d_latent).cuda()
+            self.generator = Generator(log_resolution, self.d_latent).to(self.device)
 
         if mapping_network is not None:
             self.mapping_network = mapping_network
         else:
-            self.mapping_network = MappingNetwork(self.d_latent, self.mapping_network_layers).cuda()
+            self.mapping_network = MappingNetwork(self.d_latent, self.mapping_network_layers).to(self.device)
 
         # Get number of generator blocks for creating style and noise inputs
         self.n_gen_blocks = self.generator.n_blocks
         # Create mapping network
 
         # Create path length penalty loss
-        self.path_length_penalty = PathLengthPenalty(0.99).cuda()
+        self.path_length_penalty = PathLengthPenalty(0.99).to(self.device)
 
         # Add model hooks to monitor layer outputs
         if self.log_layer_outputs:
@@ -278,8 +283,8 @@ class Configs(BaseConfigs):
             hook_model_outputs(self.mode, self.mapping_network, "mapping_network")
 
         # Discriminator and generator losses
-        self.discriminator_loss = DiscriminatorLoss().cuda()
-        self.generator_loss = GeneratorLoss().cuda()
+        self.discriminator_loss = DiscriminatorLoss().to(self.device)
+        self.generator_loss = GeneratorLoss().to(self.device)
 
         # Create optimizers
         self.discriminator_optimizer = torch.optim.Adam(
@@ -313,8 +318,8 @@ class Configs(BaseConfigs):
             # Random cross-over point
             cross_over_point = int(torch.rand(()).item() * self.n_gen_blocks)
             # Sample $z_1$ and $z_2$
-            z2 = torch.randn(batch_size, self.d_latent).cuda()
-            z1 = torch.randn(batch_size, self.d_latent).cuda()
+            z2 = torch.randn(batch_size, self.d_latent).to(self.device)
+            z1 = torch.randn(batch_size, self.d_latent).to(self.device)
             # Get $w_1$ and $w_2$
             w1 = self.mapping_network(z1)
             w2 = self.mapping_network(z2)
@@ -325,7 +330,7 @@ class Configs(BaseConfigs):
         # Without mixing
         else:
             # Sample $z$ and $z$
-            z = torch.randn(batch_size, self.d_latent).cuda()
+            z = torch.randn(batch_size, self.d_latent).to(self.device)
             # Get $w$ and $w$
             w = self.mapping_network(z)
             # Expand $w$ for the generator blocks
@@ -349,9 +354,9 @@ class Configs(BaseConfigs):
                 n1 = None
             # Generate noise to add after the first convolution layer
             else:
-                n1 = torch.randn(batch_size, 1, resolution, resolution, device=torch.device("cuda:0"))
+                n1 = torch.randn(batch_size, 1, resolution, resolution, device=self.device)
             # Generate noise to add after the second convolution layer
-            n2 = torch.randn(batch_size, 1, resolution, resolution, device=torch.device("cuda:0"))
+            n2 = torch.randn(batch_size, 1, resolution, resolution, device=self.device)
 
             # Add noise tensors to the list
             noise.append((n1, n2))
@@ -400,7 +405,7 @@ class Configs(BaseConfigs):
                     fake_output = self.discriminator(generated_images.detach())
 
                     # Get real images from the data loader
-                    real_images = next(self.loader).cuda()
+                    real_images = next(self.loader).to(self.device)
                     # We need to calculate gradients w.r.t. real images for gradient penalty
                     if (idx + 1) % self.lazy_gradient_penalty_interval == 0:
                         real_images.requires_grad_()
@@ -522,7 +527,7 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
     lab.configure({"path": str(lab_path)})
     experiment.create(name="stylegan2")
     # Set configurations and override some
-    experiment.configs(configs, {"log_generated_interval": 200})
+    experiment.configs(configs, {"device.cuda_device": 0, "log_generated_interval": 200})
 
     configs.init(dataset, discriminator=discriminator, generator=generator, mapping_network=mapping_network)
 
