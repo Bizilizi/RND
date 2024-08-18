@@ -212,7 +212,7 @@ class Configs(BaseConfigs):
     lazy_path_penalty_after: int = 5_000
 
     # How often to log generated images
-    log_generated_interval: int = 500
+    log_generated_interval: int = 200
     # How often to save model checkpoints
     save_checkpoint_interval: int = 2_000
 
@@ -520,8 +520,6 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
 
     lab.configure({"path": str(lab_path)})
     experiment.create(name="stylegan2")
-    # Set configurations and override some
-    experiment.configs(configs, {"device.cuda_device": 0, "log_generated_interval": 200})
 
     configs.init(dataset, discriminator=discriminator, generator=generator, mapping_network=mapping_network)
 
@@ -538,6 +536,7 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
         synthetic_dataset_path = Path(experiment_singleton().run.run_path) / "synth_dataset"
         sample_synthetic_dataset(configs, synthetic_dataset_path)
 
+    experiment.create()
     return synthetic_dataset_path
 
 
