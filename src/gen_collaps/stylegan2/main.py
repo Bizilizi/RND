@@ -231,7 +231,6 @@ class Configs(BaseConfigs):
     def __init__(self):
         super().__init__()
 
-        self.cuda_device = torch.device("cuda:0")
         self.gradient_penalty = GradientPenalty()
 
     def init(self, dataset, discriminator=None, generator=None, mapping_network=None):
@@ -253,24 +252,24 @@ class Configs(BaseConfigs):
         if discriminator is not None:
             self.discriminator = discriminator
         else:
-            self.discriminator = Discriminator(log_resolution).to(self.cuda_device)
+            self.discriminator = Discriminator(log_resolution).cuda()
 
         if generator is not None:
             self.generator = generator
         else:
-            self.generator = Generator(log_resolution, self.d_latent).to(self.cuda_device)
+            self.generator = Generator(log_resolution, self.d_latent).cuda()
 
         if mapping_network is not None:
             self.mapping_network = mapping_network
         else:
-            self.mapping_network = MappingNetwork(self.d_latent, self.mapping_network_layers).to(self.cuda_device)
+            self.mapping_network = MappingNetwork(self.d_latent, self.mapping_network_layers).cuda()
 
         # Get number of generator blocks for creating style and noise inputs
         self.n_gen_blocks = self.generator.n_blocks
         # Create mapping network
 
         # Create path length penalty loss
-        self.path_length_penalty = PathLengthPenalty(0.99).to(self.cuda_device)
+        self.path_length_penalty = PathLengthPenalty(0.99).cuda()
 
         # Add model hooks to monitor layer outputs
         if self.log_layer_outputs:
@@ -279,8 +278,8 @@ class Configs(BaseConfigs):
             hook_model_outputs(self.mode, self.mapping_network, "mapping_network")
 
         # Discriminator and generator losses
-        self.discriminator_loss = DiscriminatorLoss().to(self.cuda_device)
-        self.generator_loss = GeneratorLoss().to(self.cuda_device)
+        self.discriminator_loss = DiscriminatorLoss().cuda()
+        self.generator_loss = GeneratorLoss().cuda()
 
         # Create optimizers
         self.discriminator_optimizer = torch.optim.Adam(
@@ -314,8 +313,8 @@ class Configs(BaseConfigs):
             # Random cross-over point
             cross_over_point = int(torch.rand(()).item() * self.n_gen_blocks)
             # Sample $z_1$ and $z_2$
-            z2 = torch.randn(batch_size, self.d_latent).to(self.cuda_device)
-            z1 = torch.randn(batch_size, self.d_latent).to(self.cuda_device)
+            z2 = torch.randn(batch_size, self.d_latent).cuda()
+            z1 = torch.randn(batch_size, self.d_latent).cuda()
             # Get $w_1$ and $w_2$
             w1 = self.mapping_network(z1)
             w2 = self.mapping_network(z2)
@@ -326,7 +325,7 @@ class Configs(BaseConfigs):
         # Without mixing
         else:
             # Sample $z$ and $z$
-            z = torch.randn(batch_size, self.d_latent).to(self.cuda_device)
+            z = torch.randn(batch_size, self.d_latent).cuda()
             # Get $w$ and $w$
             w = self.mapping_network(z)
             # Expand $w$ for the generator blocks
@@ -350,9 +349,9 @@ class Configs(BaseConfigs):
                 n1 = None
             # Generate noise to add after the first convolution layer
             else:
-                n1 = torch.randn(batch_size, 1, resolution, resolution, device=self.cuda_device)
+                n1 = torch.randn(batch_size, 1, resolution, resolution, device=torch.device("cuda:0"))
             # Generate noise to add after the second convolution layer
-            n2 = torch.randn(batch_size, 1, resolution, resolution, device=self.cuda_device)
+            n2 = torch.randn(batch_size, 1, resolution, resolution, device=torch.device("cuda:0"))
 
             # Add noise tensors to the list
             noise.append((n1, n2))
@@ -401,7 +400,7 @@ class Configs(BaseConfigs):
                     fake_output = self.discriminator(generated_images.detach())
 
                     # Get real images from the data loader
-                    real_images = next(self.loader).to(self.cuda_device)
+                    real_images = next(self.loader).cuda()
                     # We need to calculate gradients w.r.t. real images for gradient penalty
                     if (idx + 1) % self.lazy_gradient_penalty_interval == 0:
                         real_images.requires_grad_()
