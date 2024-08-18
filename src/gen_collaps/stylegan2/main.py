@@ -29,7 +29,7 @@ Save the images inside [`data/stylegan` folder](#dataset_path).
 """
 import argparse
 import glob
-
+import re
 import math
 from pathlib import Path
 from typing import Iterator, Tuple
@@ -49,13 +49,7 @@ from labml.internal.experiment import experiment_singleton
 from labml.configs import BaseConfigs
 from labml_helpers.device import DeviceConfigs
 from labml_helpers.train_valid import ModeState, hook_model_outputs
-from labml_nn.gan.stylegan import (
-    Discriminator,
-    Generator,
-    MappingNetwork,
-    GradientPenalty,
-    PathLengthPenalty,
-)
+from labml_nn.gan.stylegan import Discriminator, Generator, MappingNetwork, GradientPenalty, PathLengthPenalty
 from labml_nn.gan.wasserstein import DiscriminatorLoss, GeneratorLoss
 from labml_nn.utils import cycle_dataloader
 
@@ -71,10 +65,7 @@ class SyntheticDataset(torch.utils.data.Dataset):
             batched_images = read_image(batched_images)
             self.images.extend(
                 [
-                    batched_images[
-                        :, i * config.image_size : (i + 1) * config.image_size
-                    ].float()
-                    / 255
+                    batched_images[:, i * config.image_size : (i + 1) * config.image_size].float() / 255
                     for i in range(batched_images.shape[-2] // config.image_size)
                 ]
             )
@@ -140,13 +131,9 @@ def sample_synthetic_dataset(configs, run_path):
     synthetic_dataset_path = Path(run_path) / "synth_dataset"
     synthetic_dataset_path.mkdir(exist_ok=True, parents=True)
 
-    for i in range(
-        configs.synth_dataset_num_images // configs.synth_dataset_batch_size + 1
-    ):
+    for i in range(configs.synth_dataset_num_images // configs.synth_dataset_batch_size + 1):
         images, _ = configs.generate_images(configs.synth_dataset_batch_size)
-        torchvision.utils.save_image(
-            images, fp=f"{synthetic_dataset_path}/batch_{i}.jpg", nrow=1
-        )
+        torchvision.utils.save_image(images, fp=f"{synthetic_dataset_path}/batch_{i}.jpg", nrow=1)
 
 
 class Configs(BaseConfigs):
@@ -245,19 +232,14 @@ class Configs(BaseConfigs):
     synth_dataset_num_images: int = 8000
     synth_dataset_batch_size: int = 128
 
-    def init(self, dataset, init_layers: bool = True):
+    def init(self, dataset, discriminator=None, generator=None, mapping_network=None):
         """
         ### Initialize
         """
 
         # Create data loader
         dataloader = torch.utils.data.DataLoader(
-            dataset,
-            batch_size=self.batch_size,
-            num_workers=8,
-            shuffle=True,
-            drop_last=True,
-            pin_memory=True,
+            dataset, batch_size=self.batch_size, num_workers=8, shuffle=True, drop_last=True, pin_memory=True
         )
         # Continuous [cyclic loader](../../utils.html#cycle_dataloader)
         self.loader = cycle_dataloader(dataloader)
@@ -266,15 +248,25 @@ class Configs(BaseConfigs):
         log_resolution = int(math.log2(self.image_size))
 
         # Create discriminator and generator
-        if init_layers:
+        if discriminator is not None:
+            self.discriminator = discriminator
+        else:
             self.discriminator = Discriminator(log_resolution).to(self.device)
+
+        if generator is not None:
+            self.generator = generator
+        else:
             self.generator = Generator(log_resolution, self.d_latent).to(self.device)
+
+        if mapping_network is not None:
+            self.mapping_network = mapping_network
+        else:
+            self.mapping_network = MappingNetwork(self.d_latent, self.mapping_network_layers).to(self.device)
+
         # Get number of generator blocks for creating style and noise inputs
         self.n_gen_blocks = self.generator.n_blocks
         # Create mapping network
-        self.mapping_network = MappingNetwork(
-            self.d_latent, self.mapping_network_layers
-        ).to(self.device)
+
         # Create path length penalty loss
         self.path_length_penalty = PathLengthPenalty(0.99).to(self.device)
 
@@ -290,17 +282,13 @@ class Configs(BaseConfigs):
 
         # Create optimizers
         self.discriminator_optimizer = torch.optim.Adam(
-            self.discriminator.parameters(),
-            lr=self.learning_rate,
-            betas=self.adam_betas,
+            self.discriminator.parameters(), lr=self.learning_rate, betas=self.adam_betas
         )
         self.generator_optimizer = torch.optim.Adam(
             self.generator.parameters(), lr=self.learning_rate, betas=self.adam_betas
         )
         self.mapping_network_optimizer = torch.optim.Adam(
-            self.mapping_network.parameters(),
-            lr=self.mapping_network_learning_rate,
-            betas=self.adam_betas,
+            self.mapping_network.parameters(), lr=self.mapping_network_learning_rate, betas=self.adam_betas
         )
 
         # Set tracker configurations
@@ -360,9 +348,7 @@ class Configs(BaseConfigs):
                 n1 = None
             # Generate noise to add after the first convolution layer
             else:
-                n1 = torch.randn(
-                    batch_size, 1, resolution, resolution, device=self.device
-                )
+                n1 = torch.randn(batch_size, 1, resolution, resolution, device=self.device)
             # Generate noise to add after the second convolution layer
             n2 = torch.randn(batch_size, 1, resolution, resolution, device=self.device)
 
@@ -406,9 +392,7 @@ class Configs(BaseConfigs):
             # Accumulate gradients for `gradient_accumulate_steps`
             for i in range(self.gradient_accumulate_steps):
                 # Update `mode`. Set whether to log activation
-                with self.mode.update(
-                    is_log_activations=(idx + 1) % self.log_generated_interval == 0
-                ):
+                with self.mode.update(is_log_activations=(idx + 1) % self.log_generated_interval == 0):
                     # Sample images from generator
                     generated_images, _ = self.generate_images(self.batch_size)
                     # Discriminator classification for generated images
@@ -423,9 +407,7 @@ class Configs(BaseConfigs):
                     real_output = self.discriminator(real_images)
 
                     # Get discriminator loss
-                    real_loss, fake_loss = self.discriminator_loss(
-                        real_output, fake_output
-                    )
+                    real_loss, fake_loss = self.discriminator_loss(real_output, fake_output)
                     disc_loss = real_loss + fake_loss
 
                     # Add gradient penalty
@@ -436,10 +418,7 @@ class Configs(BaseConfigs):
                         # Multiply by coefficient and add gradient penalty
                         disc_loss = (
                             disc_loss
-                            + 0.5
-                            * self.gradient_penalty_coefficient
-                            * gp
-                            * self.lazy_gradient_penalty_interval
+                            + 0.5 * self.gradient_penalty_coefficient * gp * self.lazy_gradient_penalty_interval
                         )
 
                     # Compute gradients
@@ -453,9 +432,7 @@ class Configs(BaseConfigs):
                 tracker.add("discriminator", self.discriminator)
 
             # Clip gradients for stabilization
-            torch.nn.utils.clip_grad_norm_(
-                self.discriminator.parameters(), max_norm=1.0
-            )
+            torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), max_norm=1.0)
             # Take optimizer step
             self.discriminator_optimizer.step()
 
@@ -476,10 +453,7 @@ class Configs(BaseConfigs):
                 gen_loss = self.generator_loss(fake_output)
 
                 # Add path length penalty
-                if (
-                    idx > self.lazy_path_penalty_after
-                    and (idx + 1) % self.lazy_path_penalty_interval == 0
-                ):
+                if idx > self.lazy_path_penalty_after and (idx + 1) % self.lazy_path_penalty_interval == 0:
                     # Calculate path length penalty
                     plp = self.path_length_penalty(w, generated_images)
                     # Ignore if `nan`
@@ -500,9 +474,7 @@ class Configs(BaseConfigs):
 
             # Clip gradients for stabilization
             torch.nn.utils.clip_grad_norm_(self.generator.parameters(), max_norm=1.0)
-            torch.nn.utils.clip_grad_norm_(
-                self.mapping_network.parameters(), max_norm=1.0
-            )
+            torch.nn.utils.clip_grad_norm_(self.mapping_network.parameters(), max_norm=1.0)
 
             # Take optimizer step
             self.generator_optimizer.step()
@@ -511,15 +483,11 @@ class Configs(BaseConfigs):
         # Log generated images
         if (idx + 1) % self.log_generated_interval == 0:
             logged_images = torch.cat([generated_images[:6], real_images[:3]], dim=0)
-            samples_path = Path(experiment_singleton().run.run_path) / 'samples'
+            samples_path = Path(experiment_singleton().run.run_path) / "samples"
             samples_path.mkdir(parents=True, exist_ok=True)
 
             tracker.add("generated", logged_images)
-            torchvision.utils.save_image(
-                logged_images,
-                fp=f"{samples_path}/samples_{idx}.png",
-                nrow=3,
-            )
+            torchvision.utils.save_image(logged_images, fp=f"{samples_path}/samples_{idx}.png", nrow=3)
 
         # Save model checkpoints
         if (idx + 1) % self.save_checkpoint_interval == 0:
@@ -542,71 +510,114 @@ class Configs(BaseConfigs):
                 tracker.new_line()
 
 
-def init_experiment(step_id):
+def train(configs, step_id, dataset, discriminator=None, generator=None, mapping_network=None):
+    """
+    ### Train StyleGAN2
+    """
     # Create an experiment
-    lab_path = Path(
-        f"/scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_{step_id}"
-    )
+    lab_path = Path(f"/scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_{step_id}")
     lab_path.mkdir(exist_ok=True, parents=True)
 
     lab.configure({"path": str(lab_path)})
     experiment.create(name="stylegan2")
-
-
-def train(configs, step_id, dataset, init_layers=True):
-    """
-    ### Train StyleGAN2
-    """
-
     # Set configurations and override some
-    experiment.configs(
-        configs,
-        {
-            "device.cuda_device": 0,
-            "log_generated_interval": 200,
-        },
-    )
-    configs.init(dataset, init_layers=init_layers)
+    experiment.configs(configs, {"device.cuda_device": 0, "log_generated_interval": 200})
+
+    configs.init(dataset, discriminator=discriminator, generator=generator, mapping_network=mapping_network)
 
     # Set models for saving and loading
     experiment.add_pytorch_models(
-        mapping_network=configs.mapping_network,
-        generator=configs.generator,
-        discriminator=configs.discriminator,
+        mapping_network=configs.mapping_network, generator=configs.generator, discriminator=configs.discriminator
     )
 
     # Start the experiment
-    with experiment.start() as exp_watcher:
+    with experiment.start():
         # Run the training loop
         configs.train()
-        sample_synthetic_dataset(configs, experiment_singleton().run.run_path)
+
+        synthetic_dataset_path = experiment_singleton().run.run_path
+        sample_synthetic_dataset(configs, synthetic_dataset_path)
+
+    return synthetic_dataset_path
 
 
-def main(initial_step: int = 0):
+def restore_from_previous_step(configs, restore_from):
+    experiment_path = Path(restore_from)
+
+    """
+    Checkpoints are stored in following format:
+    /{run_path}/checkpoints/{train_step_id}
+    
+    Examples:
+    /stylegan/logs/269df7125b2211efbb79d94a5e421c0d/checkpoints/123999
+    /stylegan/logs/269df7125b2211efbb79d94a5e421c0d/checkpoints/43999
+    /stylegan/logs/269df7125b2211efbb79d94a5e421c0d/checkpoints/139999
+    
+    We take the most recent one with sorting by step_id
+    """
+
+    last_checkpoint = sorted(
+        map(
+            lambda path: int(path.split("/")[-1]),
+            glob.glob(f"{experiment_path}/checkpoints/*"),
+        ),
+        reverse=True,
+    )
+    last_checkpoint = last_checkpoint[0]
+
+    checkpoints_path = experiment_path / "checkpoints" / str(last_checkpoint)
+
+    # load checkpoints into models
+    configs.generator.load_state_dict(torch.load(checkpoints_path / "generator.pth"))
+    configs.discriminator.load_state_dict(torch.load(checkpoints_path / "discriminator.pth"))
+    configs.mapping_network.load_state_dict(torch.load(checkpoints_path / "mapping_network.pth"))
+
+    # restore synthetic data set path
+    synthetic_dataset_path = experiment_path / "synth_dataset"
+
+    # restore step from experiment name
+    m = re.search("step_([0-9]+)", str(experiment_path))
+    step_id = int(m[1])
+
+    return step_id, synthetic_dataset_path
+
+
+def main(restore_from: str = None):
     # Create configurations object
     configs = Configs()
-    STEP_ID = initial_step
+    dataset = InitialDataset(image_size=configs.image_size)
 
-    if initial_step == 0:
-        # Initial dataset
-        dataset = InitialDataset(image_size=configs.image_size)
-
-        init_experiment(step_id=STEP_ID)
-        train(configs, dataset=dataset, step_id=STEP_ID)
+    if restore_from:
+        # We need to reinit config obj to make sure network is ready to be reinitialized
+        configs.init(dataset)
+        STEP_ID, synthetic_dataset_path = restore_from_previous_step(configs, restore_from)
+    else:
+        STEP_ID = 0
+        synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset)
 
     for _ in range(12):
         STEP_ID += 1
 
-        dataset = SyntheticDataset(configs, experiment_singleton().run.run_path)
+        dataset = SyntheticDataset(configs, synthetic_dataset_path)
+        old_discriminator = configs.discriminator
+        old_generator = configs.generator
+        old_mapping_network = configs.mapping_network
 
-        init_experiment(step_id=STEP_ID)
-        train(configs, dataset=dataset, step_id=STEP_ID, init_layers=False)
+        configs = Configs()
+        train(
+            configs,
+            step_id=STEP_ID,
+            dataset=dataset,
+            generator=old_discriminator,
+            discriminator=old_generator,
+            mapping_network=old_mapping_network,
+        )
 
 
 #
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="stylegan trainer")
-    parser.add_argument("--initial_step", type=int, help="initial step", default=0)
+    parser.add_argument("--restore_from", type=str, help="experiment path", default=None)
     args = parser.parse_args()
 
-    main(args.initial_step)
+    main(args.restore_from)
