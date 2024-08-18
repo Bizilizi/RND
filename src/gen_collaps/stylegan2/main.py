@@ -520,6 +520,8 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
 
     lab.configure({"path": str(lab_path)})
     experiment.create(name="stylegan2")
+    # Set configurations and override some
+    experiment.configs(configs, {"device.cuda_device": 0, "log_generated_interval": 200})
 
     configs.init(dataset, discriminator=discriminator, generator=generator, mapping_network=mapping_network)
 
