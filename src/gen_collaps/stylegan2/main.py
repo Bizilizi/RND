@@ -57,7 +57,7 @@ from labml_nn.utils import cycle_dataloader
 class SyntheticDataset(torch.utils.data.Dataset):
     def __init__(self, config, run_path):
         self.images = []
-        synthetic_dataset_path = Path(run_path) / "synth_dataset"
+        synthetic_dataset_path = Path(run_path)
 
         # read dataset to memory
         sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"))
@@ -128,7 +128,7 @@ class InitialDataset(torch.utils.data.Dataset):
 
 @torch.no_grad()
 def sample_synthetic_dataset(configs, run_path):
-    synthetic_dataset_path = Path(run_path) / "synth_dataset"
+    synthetic_dataset_path = Path(run_path)
     synthetic_dataset_path.mkdir(exist_ok=True, parents=True)
 
     for i in range(configs.synth_dataset_num_images // configs.synth_dataset_batch_size + 1):
@@ -535,7 +535,7 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
         # Run the training loop
         configs.train()
 
-        synthetic_dataset_path = experiment_singleton().run.run_path
+        synthetic_dataset_path = Path(experiment_singleton().run.run_path) / "synth_dataset"
         sample_synthetic_dataset(configs, synthetic_dataset_path)
 
     return synthetic_dataset_path
