@@ -614,8 +614,8 @@ def main(restore_from: str = None):
             configs,
             step_id=STEP_ID,
             dataset=dataset,
-            generator=old_discriminator,
-            discriminator=old_generator,
+            generator=old_generator,
+            discriminator=old_discriminator,
             mapping_network=old_mapping_network,
         )
 
