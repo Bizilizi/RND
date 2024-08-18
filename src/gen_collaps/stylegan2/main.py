@@ -591,6 +591,12 @@ def main(restore_from: str = None):
         # We need to reinit config obj to make sure network is ready to be reinitialized
         configs.init(dataset)
         STEP_ID, synthetic_dataset_path = restore_from_previous_step(configs, restore_from)
+
+        print(
+            f"""Successfully restored from: {restore_from}
+        STEP_ID = {STEP_ID}
+        synthetic_dataset_path= {synthetic_dataset_path}"""
+        )
     else:
         STEP_ID = 0
         synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset)
@@ -614,7 +620,6 @@ def main(restore_from: str = None):
         )
 
 
-#
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="stylegan trainer")
     parser.add_argument("--restore_from", type=str, help="experiment path", default=None)
