@@ -235,7 +235,7 @@ class Configs(BaseConfigs):
     def __init__(self):
         super().__init__()
 
-        self.device = torch.device("cuda:0")
+        self.device = DeviceConfigs()
         self.gradient_penalty = GradientPenalty()
 
     def init(self, dataset, discriminator=None, generator=None, mapping_network=None):
@@ -527,7 +527,7 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
     lab.configure({"path": str(lab_path)})
     experiment.create(name="stylegan2")
     # Set configurations and override some
-    experiment.configs(configs, {"log_generated_interval": 200})
+    experiment.configs(configs, {"device.cuda_device": 0, "log_generated_interval": 200})
 
     configs.init(dataset, discriminator=discriminator, generator=generator, mapping_network=mapping_network)
 
