@@ -133,7 +133,7 @@ def sample_synthetic_dataset(configs, run_path):
 
     for i in range(configs.synth_dataset_num_images // configs.synth_dataset_batch_size + 1):
         images, _ = configs.generate_images(configs.synth_dataset_batch_size)
-        torchvision.utils.save_image(images, fp=f"{synthetic_dataset_path}/batch_{i}.jpg", nrow=1)
+        torchvision.utils.save_image(images, fp=f"{synthetic_dataset_path}/batch_{i}.jpg", nrow=1, padding=0)
 
 
 class Configs(BaseConfigs):
