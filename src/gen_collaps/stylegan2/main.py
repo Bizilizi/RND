@@ -644,5 +644,7 @@ if __name__ == "__main__":
 
     if args.command == "resample":
         resample(args.restore_from)
-    else:
+    elif args.command == "train":
         main(args.restore_from)
+    else:
+        raise Exception(f"Wrong command {args.command}")
