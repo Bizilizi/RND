@@ -1,6 +1,6 @@
 import argparse
 
-from src.gen_collaps.stylegan2.main import Configs, restore_from_previous_step, sample_synthetic_dataset
+from .main import Configs, restore_from_previous_step, sample_synthetic_dataset
 
 
 def resample(restore_from):
