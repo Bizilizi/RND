@@ -632,6 +632,9 @@ def resample(restore_from):
 
     # Create configurations object
     configs = Configs()
+    dataset = InitialDataset(image_size=configs.image_size)
+
+    configs.init(dataset)
     _, synthetic_dataset_path = restore_from_previous_step(configs, restore_from)
     sample_synthetic_dataset(configs, synthetic_dataset_path)
 
