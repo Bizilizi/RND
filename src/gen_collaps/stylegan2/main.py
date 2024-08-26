@@ -29,6 +29,7 @@ Save the images inside [`data/stylegan` folder](#dataset_path).
 """
 import argparse
 import glob
+import pathlib
 import re
 import math
 from pathlib import Path
@@ -44,7 +45,7 @@ from torchvision.io import read_image
 from datasets import load_dataset
 
 from labml import tracker, lab, monit, experiment
-from labml.internal.experiment import experiment_singleton
+from labml.internal.experiment import experiment_singleton, ModelSaver
 
 from labml.configs import BaseConfigs
 from labml_helpers.device import DeviceConfigs
@@ -52,6 +53,26 @@ from labml_helpers.train_valid import ModeState, hook_model_outputs
 from labml_nn.gan.stylegan import Discriminator, Generator, MappingNetwork, GradientPenalty, PathLengthPenalty
 from labml_nn.gan.wasserstein import DiscriminatorLoss, GeneratorLoss
 from labml_nn.utils import cycle_dataloader
+
+
+class PyTorchOptimizerSaver(ModelSaver):
+    def __init__(self, name: str, model):
+        self.name = name
+        self.model = model
+
+    def save(self, checkpoint_path: pathlib.Path) -> any:
+        state = self.model.state_dict()
+        file_name = f"{self.name}.pth"
+        torch.save(state, str(checkpoint_path / file_name))
+        return file_name
+
+    def load(self, checkpoint_path: pathlib.Path, info: any):
+        file_name: str = info
+        device = torch.device("cpu")
+
+        state = torch.load(str(checkpoint_path / file_name), map_location=device)
+
+        self.model.load_state_dict(state)
 
 
 class SyntheticDataset(torch.utils.data.Dataset):
@@ -542,9 +563,16 @@ def train(
         mapping_network=configs.mapping_network,
         generator=configs.generator,
         discriminator=configs.discriminator,
-        generator_optimizer=configs.generator_optimizer,
-        discriminator_optimizer=configs.discriminator_optimizer,
-        mapping_network_optimizer=configs.mapping_network_optimizer,
+    )
+    experiment.add_model_savers(
+        {
+            name: PyTorchOptimizerSaver(name, optimizer)
+            for name, optimizer in dict(
+                generator_optimizer=configs.generator_optimizer,
+                discriminator_optimizer=configs.discriminator_optimizer,
+                mapping_network_optimizer=configs.mapping_network_optimizer,
+            ).items()
+        }
     )
 
     if restore_experiment_uuid is not None:
