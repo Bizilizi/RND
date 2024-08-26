@@ -35,6 +35,7 @@ import re
 import math
 from pathlib import Path
 from typing import Iterator, Tuple
+import shutil
 
 import torch
 import torch.utils.data
@@ -631,7 +632,7 @@ def restore_from_previous_step(configs, restore_from):
     configs.mapping_network_optimizer.load_state_dict(torch.load(checkpoints_path / "mapping_network_optimizer.pth"))
 
     # remove pid
-    os.rmdir(experiment_path / "pid")
+    shutil.rmtree(experiment_path / "pid", ignore_errors=True)
 
     # restore step from experiment name
     m = re.search("step_([0-9]+)", str(experiment_path))
