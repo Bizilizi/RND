@@ -436,6 +436,7 @@ class Configs(BaseConfigs):
             if (idx + 1) % self.log_generated_interval == 0:
                 # Log discriminator model parameters occasionally
                 tracker.add("discriminator", self.discriminator)
+                tracker.add("discriminator_optimizer", self.discriminator_optimizer)
 
             # Clip gradients for stabilization
             torch.nn.utils.clip_grad_norm_(self.discriminator.parameters(), max_norm=1.0)
@@ -476,7 +477,10 @@ class Configs(BaseConfigs):
             if (idx + 1) % self.log_generated_interval == 0:
                 # Log discriminator model parameters occasionally
                 tracker.add("generator", self.generator)
+                tracker.add("generator_optimizer", self.generator_optimizer)
+
                 tracker.add("mapping_network", self.mapping_network)
+                tracker.add("mapping_network_optimizer", self.mapping_network_optimizer)
 
             # Clip gradients for stabilization
             torch.nn.utils.clip_grad_norm_(self.generator.parameters(), max_norm=1.0)
@@ -533,7 +537,12 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
 
     # Set models for saving and loading
     experiment.add_pytorch_models(
-        mapping_network=configs.mapping_network, generator=configs.generator, discriminator=configs.discriminator
+        mapping_network=configs.mapping_network,
+        generator=configs.generator,
+        discriminator=configs.discriminator,
+        generator_optimizer=configs.generator_optimizer,
+        discriminator_optimizer=configs.discriminator_optimizer,
+        mapping_network_optimizer=configs.mapping_network_optimizer,
     )
 
     # Start the experiment
