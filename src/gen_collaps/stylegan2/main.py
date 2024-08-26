@@ -29,6 +29,7 @@ Save the images inside [`data/stylegan` folder](#dataset_path).
 """
 import argparse
 import glob
+import os
 import pathlib
 import re
 import math
@@ -628,6 +629,9 @@ def restore_from_previous_step(configs, restore_from):
     configs.generator_optimizer.load_state_dict(torch.load(checkpoints_path / "generator_optimizer.pth"))
     configs.discriminator_optimizer.load_state_dict(torch.load(checkpoints_path / "discriminator_optimizer.pth"))
     configs.mapping_network_optimizer.load_state_dict(torch.load(checkpoints_path / "mapping_network_optimizer.pth"))
+
+    # remove pid
+    os.rmdir(experiment_path / "pid")
 
     # restore step from experiment name
     m = re.search("step_([0-9]+)", str(experiment_path))
