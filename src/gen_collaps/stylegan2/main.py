@@ -596,7 +596,7 @@ def train(
     # Start the experiment
     with experiment.start():
         # Run the training loop
-        configs.train()
+        configs.train(global_step)
 
         synthetic_dataset_path = Path(experiment_singleton().run.run_path) / "synth_dataset"
         sample_synthetic_dataset(configs, synthetic_dataset_path)
