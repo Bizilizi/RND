@@ -628,7 +628,7 @@ def restore_from_previous_step(configs, restore_from):
         ),
         reverse=True,
     )
-    global_step = last_checkpoint[0]
+    global_step = last_checkpoint[0] + 1
 
     checkpoints_path = experiment_path / "checkpoints" / str(global_step)
 
