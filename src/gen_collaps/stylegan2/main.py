@@ -628,7 +628,7 @@ def restore_from_previous_step(configs, restore_from):
         ),
         reverse=True,
     )
-    global_step = last_checkpoint[0] + 1
+    global_step = last_checkpoint[0]
 
     checkpoints_path = experiment_path / "checkpoints" / str(global_step)
 
@@ -677,7 +677,9 @@ def main(restore_from: str = None, restore_synthetic_dataset_path: str = None, *
         configs.init(dataset)
 
         # Restore parameters
-        STEP_ID, global_step, restore_experiment_uuid = restore_from_previous_step(configs, restore_from)
+        STEP_ID, checkpoint_step, restore_experiment_uuid = restore_from_previous_step(configs, restore_from)
+
+        global_step = checkpoint_step + 1
         synthetic_dataset_path = restore_synthetic_dataset_path
 
         # If we got restored from the last step checkpoint, move to the next step
