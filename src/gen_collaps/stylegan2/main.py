@@ -632,7 +632,7 @@ def restore_from_previous_step(configs, restore_from):
     configs.mapping_network_optimizer.load_state_dict(torch.load(checkpoints_path / "mapping_network_optimizer.pth"))
 
     # remove pid
-    shutil.rmtree(experiment_path / "pid", ignore_errors=True)
+    shutil.rmtree(experiment_path / "pids", ignore_errors=True)
 
     # restore step from experiment name
     m = re.search("step_([0-9]+)", str(experiment_path))
