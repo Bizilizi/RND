@@ -552,7 +552,13 @@ def train(
     lab_path.mkdir(exist_ok=True, parents=True)
 
     lab.configure({"path": str(lab_path)})
-    experiment.create(name="stylegan2")
+
+    if restore_experiment_uuid is not None:
+        experiment.load(restore_experiment_uuid)
+        experiment.create(name="stylegan2", uuid=restore_experiment_uuid)
+    else:
+        experiment.create(name="stylegan2")
+
     # Set configurations and override some
     experiment.configs(configs, {"device.cuda_device": 0, "log_generated_interval": 200})
 
@@ -574,9 +580,6 @@ def train(
             ).items()
         }
     )
-
-    if restore_experiment_uuid is not None:
-        experiment.load(restore_experiment_uuid)
 
     # Start the experiment
     with experiment.start():
