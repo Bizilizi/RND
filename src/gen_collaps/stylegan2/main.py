@@ -529,22 +529,32 @@ class Configs(BaseConfigs):
         # Flush tracker
         tracker.save()
 
-    def train(self):
+    def train(self, global_step=0):
         """
         ## Train model
         """
 
         # Loop for `training_steps`
-        for i in monit.loop(self.training_steps):
+        idx = global_step
+        for _ in monit.loop(self.training_steps - global_step):
             # Take a training step
-            self.step(i)
+            self.step(idx)
             #
-            if (i + 1) % self.log_generated_interval == 0:
+            if (idx + 1) % self.log_generated_interval == 0:
                 tracker.new_line()
+
+            idx += 1
 
 
 def train(
-    configs, step_id, dataset, discriminator=None, generator=None, mapping_network=None, restore_experiment_uuid=None
+    configs,
+    step_id,
+    dataset,
+    global_step=0,
+    discriminator=None,
+    generator=None,
+    mapping_network=None,
+    restore_experiment_uuid=None,
 ):
     """
     ### Train StyleGAN2
@@ -658,7 +668,9 @@ def main(restore_from: str = None, restore_synthetic_dataset_path: str = None, *
 
     if restore_from is None:
         synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset)
+
         STEP_ID = 1
+        global_step = 0
     else:
         assert restore_synthetic_dataset_path is not None, "restore_synthetic_dataset_path can't be None"
         # We need to reinit config obj to make sure network is ready to be reinitialized
@@ -673,6 +685,7 @@ def main(restore_from: str = None, restore_synthetic_dataset_path: str = None, *
             print("Model was restored from the last training step. Moving further.")
 
             STEP_ID += 1
+            global_step = 0
             restore_experiment_uuid = None
 
     for _ in range(TOTAL_STEPS - STEP_ID):
@@ -686,12 +699,14 @@ def main(restore_from: str = None, restore_synthetic_dataset_path: str = None, *
             configs,
             step_id=STEP_ID,
             dataset=dataset,
+            global_step=global_step,
             generator=old_generator,
             discriminator=old_discriminator,
             mapping_network=old_mapping_network,
             restore_experiment_uuid=restore_experiment_uuid,
         )
 
+        global_step = 0
         STEP_ID += 1
 
 
