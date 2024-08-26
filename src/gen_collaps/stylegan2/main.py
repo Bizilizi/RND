@@ -520,7 +520,9 @@ class Configs(BaseConfigs):
                 tracker.new_line()
 
 
-def train(configs, step_id, dataset, discriminator=None, generator=None, mapping_network=None):
+def train(
+    configs, step_id, dataset, discriminator=None, generator=None, mapping_network=None, restore_experiment_uuid=None
+):
     """
     ### Train StyleGAN2
     """
@@ -545,6 +547,9 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
         mapping_network_optimizer=configs.mapping_network_optimizer,
     )
 
+    if restore_experiment_uuid is not None:
+        experiment.load(restore_experiment_uuid)
+
     # Start the experiment
     with experiment.start():
         # Run the training loop
@@ -559,6 +564,7 @@ def train(configs, step_id, dataset, discriminator=None, generator=None, mapping
 
 def restore_from_previous_step(configs, restore_from):
     experiment_path = Path(restore_from)
+    experiment_uuid = experiment_path.name
 
     """
     Checkpoints are stored in following format:
@@ -579,47 +585,61 @@ def restore_from_previous_step(configs, restore_from):
         ),
         reverse=True,
     )
-    last_checkpoint = last_checkpoint[0]
+    global_step = last_checkpoint[0]
 
-    checkpoints_path = experiment_path / "checkpoints" / str(last_checkpoint)
+    checkpoints_path = experiment_path / "checkpoints" / str(global_step)
 
     # load checkpoints into models
     configs.generator.load_state_dict(torch.load(checkpoints_path / "generator.pth"))
     configs.discriminator.load_state_dict(torch.load(checkpoints_path / "discriminator.pth"))
     configs.mapping_network.load_state_dict(torch.load(checkpoints_path / "mapping_network.pth"))
 
-    # restore synthetic data set path
-    synthetic_dataset_path = experiment_path / "synth_dataset"
+    configs.generator_optimizer.load_state_dict(torch.load(checkpoints_path / "generator_optimizer.pth"))
+    configs.discriminator_optimizer.load_state_dict(torch.load(checkpoints_path / "discriminator_optimizer.pth"))
+    configs.mapping_network_optimizer.load_state_dict(torch.load(checkpoints_path / "mapping_network_optimizer.pth"))
 
     # restore step from experiment name
     m = re.search("step_([0-9]+)", str(experiment_path))
     step_id = int(m[1])
 
-    return step_id, synthetic_dataset_path
+    print(
+        f"""Successfully restored from: {restore_from}
+            STEP_ID = {step_id}
+            global_step= {global_step}
+            """
+    )
+
+    return step_id, global_step, experiment_uuid
 
 
-def main(restore_from: str = None):
+def main(restore_from: str = None, restore_synthetic_dataset_path: str = None, *, TOTAL_STEPS=12):
     # Create configurations object
     configs = Configs()
     dataset = InitialDataset(image_size=configs.image_size)
 
-    if restore_from:
+    restore_experiment_uuid = None
+    STEP_ID = 0
+
+    if restore_from is None:
+        synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset)
+        STEP_ID = 1
+    else:
+        assert restore_synthetic_dataset_path is not None, "restore_synthetic_dataset_path can't be None"
         # We need to reinit config obj to make sure network is ready to be reinitialized
         configs.init(dataset)
-        STEP_ID, synthetic_dataset_path = restore_from_previous_step(configs, restore_from)
 
-        print(
-            f"""Successfully restored from: {restore_from}
-        STEP_ID = {STEP_ID}
-        synthetic_dataset_path= {synthetic_dataset_path}"""
-        )
-    else:
-        STEP_ID = 0
-        synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset)
+        # Restore parameters
+        STEP_ID, global_step, restore_experiment_uuid = restore_from_previous_step(configs, restore_from)
+        synthetic_dataset_path = restore_synthetic_dataset_path
 
-    for _ in range(12):
-        STEP_ID += 1
+        # If we got restored from the last step checkpoint, move to the next step
+        if global_step >= configs.training_steps - 1:
+            print("Model was restored from the last training step. Moving further.")
 
+            STEP_ID += 1
+            restore_experiment_uuid = None
+
+    for _ in range(TOTAL_STEPS - STEP_ID):
         dataset = SyntheticDataset(configs, synthetic_dataset_path)
         old_discriminator = configs.discriminator
         old_generator = configs.generator
@@ -633,7 +653,10 @@ def main(restore_from: str = None):
             generator=old_generator,
             discriminator=old_discriminator,
             mapping_network=old_mapping_network,
+            restore_experiment_uuid=restore_experiment_uuid,
         )
+
+        STEP_ID += 1
 
 
 def resample(restore_from):
