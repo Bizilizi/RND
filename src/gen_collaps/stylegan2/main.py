@@ -674,12 +674,13 @@ def resample(restore_from):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="stylegan trainer")
     parser.add_argument("--restore_from", type=str, help="experiment path", default=None)
+    parser.add_argument("--restore_synthetic_dataset", type=str, help="synthetic dataset path", default=None)
     parser.add_argument("--command", type=str, help="command", default="train")
     args = parser.parse_args()
 
     if args.command == "resample":
         resample(args.restore_from)
     elif args.command == "train":
-        main(args.restore_from)
+        main(args.restore_from, args.restore_synthetic_dataset)
     else:
         raise Exception(f"Wrong command {args.command}")
