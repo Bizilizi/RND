@@ -63,9 +63,7 @@ class Logger(object):
             os.makedirs(outdir)
         outfile = os.path.join(outdir, "%08d.png" % it)
 
-        imgs = imgs / 2 + 0.5
-        imgs = torchvision.utils.make_grid(imgs, nrow=nrow, pad_value=1)
-        torchvision.utils.save_image(imgs, outfile, nrow=nrow, pad_value=1)
+        torchvision.utils.save_image(imgs, outfile, nrow=nrow, pad_value=0)
 
         # if self.monitoring == 'tensorboard':
         #     self.tb.add_image(class_name, imgs, it)

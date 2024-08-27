@@ -1,4 +1,4 @@
-"""
+        """
 ---
 title: StyleGAN 2 Model Training
 summary: >

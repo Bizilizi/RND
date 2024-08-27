@@ -358,7 +358,7 @@ def load_synthetic_dataset(config):
 
         synthetic_images.extend(
             [
-                batched_images[:, :, i * 64 : (i + 1) * 64]
+                batched_images[:, i * 64 : (i + 1) * 64].float() / 255
                 for i in range(batched_images.shape[-1] // 64)
             ]
         )
@@ -393,8 +393,10 @@ def sample_synthetic_dataset(config, device, evaluator, logger):
         ztest = zdist.sample((config["synth_dataset_batch_size"],)).to(device)
 
         x, y = evaluator.create_samples(ztest)
+
         logger.img_dir = str(synthetic_dataset_path)
-        logger.add_imgs(x, "all", 100_000 + i, nrow=config["synth_dataset_batch_size"])
+        logger.add_imgs(x, "all", 100_000 + i, nrow=1)
+        
         torch.save(y.cpu(), f"{str(synthetic_dataset_path)}/all/{100_000 + i}.pt")
 
 
