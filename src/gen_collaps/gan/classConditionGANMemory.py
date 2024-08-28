@@ -417,7 +417,7 @@ initial_dataset = load_dataset("nelorth/oxford-flowers", split="train")
 initial_dataset.set_transform(transform)
 
 STEP_ID = 0
-train(initial_dataset, step_id=STEP_ID)
+# train(initial_dataset, step_id=STEP_ID)
 
 for _ in range(12):
     STEP_ID += 1

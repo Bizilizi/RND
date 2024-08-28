@@ -33,7 +33,7 @@ class Logger(object):
             self.tm = telemetry.ApplicationTelemetry()
             if self.tm.get_status() == 0:
                 print("Telemetry successfully connected.")
-        elif monitoring == "tensorboard":
+        elif monitoring == "tensorboard":   
             import tensorboardX
 
             self.tb = tensorboardX.SummaryWriter(monitoring_dir)
