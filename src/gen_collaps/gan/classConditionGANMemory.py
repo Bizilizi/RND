@@ -417,6 +417,8 @@ initial_dataset = load_dataset("nelorth/oxford-flowers", split="train")
 initial_dataset.set_transform(transform)
 
 STEP_ID = 0
+config["training"]["out_dir"] = out_path + f"/step_{STEP_ID}"
+
 # train(initial_dataset, step_id=STEP_ID)
 
 for _ in range(12):
