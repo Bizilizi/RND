@@ -346,7 +346,7 @@ def load_synthetic_dataset(config):
     synthetic_labels = []
 
     synthetic_dataset_path = (
-        Path(config["training"]["out_dir"]) / "synth_dataset" / "all"
+        Path(config["training"]["out_dir"]) / "synth_dataset"
     )
 
     # read dataset to memory
@@ -394,10 +394,8 @@ def sample_synthetic_dataset(config, device, evaluator, logger):
 
         x, y = evaluator.create_samples(ztest)
 
-        logger.img_dir = str(synthetic_dataset_path)
-        logger.add_imgs(x, "all", 100_000 + i, nrow=1)
-        
-        torch.save(y.cpu(), f"{str(synthetic_dataset_path)}/all/{100_000 + i}.pt")
+        torchvision.utils.save_image(x, fp=f"{synthetic_dataset_path}/img_batch_{i}.jpg", nrow=1, padding=0)
+        torch.save(y.cpu(), f"{str(synthetic_dataset_path)}/label_batch_{i}.pt")
 
 
 def transform(examples):
