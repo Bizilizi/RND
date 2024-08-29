@@ -75,7 +75,7 @@ config["synth_dataset_num_images"] = 8_000
 config["synth_dataset_batch_size"] = 128
 
 
-def train(train_dataset, step_id, nlabels=102):
+def train(train_dataset, step_id, nlabels=102, generator=None, discriminator=None):
     config["training"]["out_dir"] = out_path + f"/step_{step_id}"
     if not os.path.isdir(config["training"]["out_dir"]):
         os.makedirs(config["training"]["out_dir"])
@@ -136,10 +136,11 @@ def train(train_dataset, step_id, nlabels=102):
 
         # Create models
         """ --------- Choose the fixed layer ---------------"""
-        generator, discriminator = build_models(config)
+        if generator is None or discriminator is None:
+            generator, discriminator = build_models(config)
 
-        generator = load_model_norm(generator)
-        discriminator = load_model_norm(discriminator, is_G=False)
+            generator = load_model_norm(generator)
+            discriminator = load_model_norm(discriminator, is_G=False)
 
         for name, param in generator.named_parameters():
             if name.find("AdaFM_") >= 0:
@@ -339,6 +340,7 @@ def train(train_dataset, step_id, nlabels=102):
                 #     torch.save(discriminator_part, save_dir + TrainModeSave + 'Pre_discriminator')
 
     sample_synthetic_dataset(config, device, evaluator, logger)
+    return generator, discriminator
 
 
 def load_synthetic_dataset(config):
@@ -417,10 +419,10 @@ initial_dataset.set_transform(transform)
 STEP_ID = 0
 config["training"]["out_dir"] = out_path + f"/step_{STEP_ID}"
 
-# train(initial_dataset, step_id=STEP_ID)
+generator, discriminator = train(initial_dataset, step_id=STEP_ID)
 
 for _ in range(12):
     STEP_ID += 1
 
     synth_dataset = load_synthetic_dataset(config)
-    train(synth_dataset, step_id=STEP_ID)
+    generator, discriminator = train(synth_dataset, step_id=STEP_ID, generator=generator, discriminator=discriminator)
