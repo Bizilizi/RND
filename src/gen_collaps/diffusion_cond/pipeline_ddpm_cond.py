@@ -13,14 +13,29 @@
 # limitations under the License.
 
 
+from dataclasses import dataclass
 from typing import List, Optional, Tuple, Union
 
+import PIL
+import numpy as np
 import torch
 
 from diffusers.utils.torch_utils import randn_tensor
-from diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
+from diffusers.utils import BaseOutput
+from diffusers.pipelines.pipeline_utils import DiffusionPipeline
 
-class ConditionedImagePipelineOutput(ImagePipelineOutput):
+@dataclass
+class ConditionedImagePipelineOutput(BaseOutput):
+    """
+    Output class for image pipelines.
+
+    Args:
+        images (`List[PIL.Image.Image]` or `np.ndarray`)
+            List of denoised PIL images of length `batch_size` or NumPy array of shape `(batch_size, height, width,
+            num_channels)`.
+    """
+
+    images: Union[List[PIL.Image.Image], np.ndarray]
     labels: torch.Tensor
 
 class ConditionalDDPMPipeline(DiffusionPipeline):
@@ -54,7 +69,7 @@ class ConditionalDDPMPipeline(DiffusionPipeline):
         num_inference_steps: int = 1000,
         output_type: Optional[str] = "pil",
         return_dict: bool = True,
-    ) -> Union[ImagePipelineOutput, Tuple]:
+    ) -> Union[ConditionedImagePipelineOutput, Tuple]:
         r"""
         The call function to the pipeline for generation.
 

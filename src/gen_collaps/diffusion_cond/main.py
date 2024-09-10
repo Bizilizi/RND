@@ -33,8 +33,8 @@ class SyntheticDataset(Dataset):
         )
         
         # read dataset to memory
-        sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"))
-        sample_labels = sorted(glob.glob(f"{synthetic_dataset_path}/*.pt"))
+        sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"), key=lambda x: int(x.split("_")[-1].split(".")[0]))
+        sample_labels = sorted(glob.glob(f"{synthetic_dataset_path}/*.pt"), key=lambda x: int(x.split("_")[-1].split(".")[0]))
 
         for image_path, label_path in zip(sample_images, sample_labels):
             image = read_image(image_path)
@@ -91,7 +91,7 @@ def sample_synthetic_dataset(config, pipeline):
         images.save(synthetic_dataset_path / f"batch_{i}.jpg")
 
         # save the labels as .pt file
-        torch.save(labels, synthetic_dataset_path / f"batch_{i}_labels.pt")
+        torch.save(labels, synthetic_dataset_path / f"batch_labels_{i}.pt")
 
 @dataclass
 class TrainingConfig:
@@ -310,7 +310,7 @@ if __name__ == "__main__":
     dataset.set_transform(transform)
 
     # RUN TRAINING ON STEP 0
-    STEP_ID = 1
+    STEP_ID = 0
     model = train_loop(
         config,
         model,
