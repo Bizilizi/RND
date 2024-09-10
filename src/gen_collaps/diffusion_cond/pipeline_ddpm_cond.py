@@ -20,8 +20,10 @@ import torch
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+class ConditionedImagePipelineOutput(ImagePipelineOutput):
+    labels: torch.Tensor
 
-class DDPMPipeline(DiffusionPipeline):
+class ConditionalDDPMPipeline(DiffusionPipeline):
     r"""
     Pipeline for image generation.
 
@@ -38,9 +40,11 @@ class DDPMPipeline(DiffusionPipeline):
 
     model_cpu_offload_seq = "unet"
 
-    def __init__(self, unet, scheduler):
+    def __init__(self, unet, scheduler, num_classes):
         super().__init__()
         self.register_modules(unet=unet, scheduler=scheduler)
+        self.num_classes = num_classes
+
 
     @torch.no_grad()
     def __call__(
@@ -106,16 +110,21 @@ class DDPMPipeline(DiffusionPipeline):
         else:
             image = randn_tensor(image_shape, generator=generator, device=self.device)
 
+        # Generate random labels from 0 to self.num_classes - 1
+        labels = torch.randint(0, self.num_classes, (batch_size,), device=self.device)
+
         # set step values
         self.scheduler.set_timesteps(num_inference_steps)
 
         for t in self.progress_bar(self.scheduler.timesteps):
             # 1. predict noise model_output
-            model_output = self.unet(image, t).sample
+            model_output = self.unet(image, t, class_labels=labels).sample
 
             # 2. compute previous image: x_t -> x_t-1
             image = self.scheduler.step(model_output, t, image, generator=generator).prev_sample
 
+        labels = labels.cpu()
+        
         image = (image / 2 + 0.5).clamp(0, 1)
         image = image.cpu().permute(0, 2, 3, 1).numpy()
         if output_type == "pil":
@@ -124,4 +133,4 @@ class DDPMPipeline(DiffusionPipeline):
         if not return_dict:
             return (image,)
 
-        return ImagePipelineOutput(images=image)
+        return ConditionedImagePipelineOutput(images=image, labels=labels)

@@ -10,7 +10,6 @@ from torchvision.io.image import read_image
 
 from diffusers.optimization import get_cosine_schedule_with_warmup
 from diffusers import DDPMScheduler
-from diffusers import DDPMPipeline
 from diffusers.utils import make_image_grid
 import os
 from accelerate import Accelerator
@@ -21,27 +20,37 @@ import glob
 from torch.utils.data import Dataset
 from dataclasses import dataclass
 
+from .pipeline_ddpm_cond import ConditionalDDPMPipeline
+
 
 class SyntheticDataset(Dataset):
     def __init__(self, config, step_id):
         self.images = []
+        self.labels = []
+
         synthetic_dataset_path = (
             Path(config.base_output_dir) / f"step_{step_id}" / "synth_dataset"
         )
-
+        
         # read dataset to memory
         sample_images = sorted(glob.glob(f"{synthetic_dataset_path}/*.jpg"))
-        for batched_images in sample_images:
-            batched_images = read_image(batched_images)
+        sample_labels = sorted(glob.glob(f"{synthetic_dataset_path}/*.pt"))
+
+        for image_path, label_path in zip(sample_images, sample_labels):
+            image = read_image(image_path)
+            label = torch.load(label_path).tolist()
+
             self.images.extend(
                 [
-                    batched_images[
+                    image[
                         :, i * config.image_size : (i + 1) * config.image_size
                     ].float()
                     / 255
-                    for i in range(batched_images.shape[-2] // config.image_size)
+                    for i in range(image.shape[-2] // config.image_size)
                 ]
             )
+
+            self.labels.extend(label)
 
         # transform dataset
         self.preprocess = transforms.Compose(
@@ -59,32 +68,9 @@ class SyntheticDataset(Dataset):
         image = self.images[item]
         image = self.preprocess(image)
 
-        return {"images": image}
+        label = self.labels[item]
 
-
-@dataclass
-class TrainingConfig:
-    num_steps = 12
-
-    image_size = 64  # the generated image resolution
-    train_batch_size = 16
-    eval_batch_size = 16  # how many images to sample during evaluation
-    synth_dataset_num_images = 8_000
-    synth_dataset_batch_size = 512
-    num_epochs = 50
-    gradient_accumulation_steps = 1
-    learning_rate = 1e-4
-    lr_warmup_steps = 500
-    save_image_epochs = 10
-    save_model_epochs = 30
-    mixed_precision = "fp16"  # `no` for float32, `fp16` for automatic mixed precision
-    base_output_dir = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion"
-    output_dir = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion"
-
-    push_to_hub = False  # whether to upload the saved model to the HF Hub
-    hub_private_repo = False
-    overwrite_output_dir = True  # overwrite the old model when re-running the notebook
-    seed = 0
+        return {"images": image, "labels": label}
 
 
 @torch.no_grad()
@@ -93,14 +79,44 @@ def sample_synthetic_dataset(config, pipeline):
     synthetic_dataset_path.mkdir(exist_ok=True, parents=True)
 
     for i in range(config.synth_dataset_num_images // config.synth_dataset_batch_size):
-        images = pipeline(
+        pipeline_output = pipeline(
             batch_size=config.synth_dataset_batch_size,
             generator=torch.Generator(device="cuda").manual_seed(config.seed),
-        ).images
+        )
+        images = pipeline_output.images
+        labels = pipeline_output.labels
 
         # save the image column
         images = make_image_grid(images, rows=len(images), cols=1)
         images.save(synthetic_dataset_path / f"batch_{i}.jpg")
+
+        # save the labels as .pt file
+        torch.save(labels, synthetic_dataset_path / f"batch_{i}_labels.pt")
+
+@dataclass
+class TrainingConfig:
+    num_steps: int = 12
+    num_classes: int = 102
+
+    image_size: int = 64  # the generated image resolution
+    train_batch_size: int = 16
+    eval_batch_size: int = 16  # how many images to sample during evaluation
+    synth_dataset_num_images: int = 8_000
+    synth_dataset_batch_size: int = 512
+    num_epochs: int = 50
+    gradient_accumulation_steps: int = 1
+    learning_rate: float = 1e-4
+    lr_warmup_steps: int = 500
+    save_image_epochs: int = 10
+    save_model_epochs: int = 30
+    mixed_precision: str = "fp16"  # `no` for float32, `fp16` for automatic mixed precision
+    base_output_dir: str = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion_cond"
+    output_dir: str = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion_cond"
+
+    push_to_hub: bool = False  # whether to upload the saved model to the HF Hub
+    hub_private_repo: bool = False
+    overwrite_output_dir: bool = True  # overwrite the old model when re-running the notebook
+    seed: int = 0
 
 
 def train_loop(
@@ -156,6 +172,8 @@ def train_loop(
 
         for step, batch in enumerate(train_dataloader):
             clean_images = batch["images"]
+            labels = batch["labels"]
+
             # Sample noise to add to the images
             noise = torch.randn(clean_images.shape, device=clean_images.device)
             bs = clean_images.shape[0]
@@ -175,7 +193,7 @@ def train_loop(
 
             with accelerator.accumulate(model):
                 # Predict the noise residual
-                noise_pred = model(noisy_images, timesteps, return_dict=False)[0]
+                noise_pred = model(noisy_images, timesteps, return_dict=False, class_labels=labels)[0]
                 loss = F.mse_loss(noise_pred, noise)
                 accelerator.backward(loss)
 
@@ -196,8 +214,8 @@ def train_loop(
 
         # After each epoch you optionally sample some demo images with evaluate() and save the model
         if accelerator.is_main_process:
-            pipeline = DDPMPipeline(
-                unet=accelerator.unwrap_model(model), scheduler=noise_scheduler
+            pipeline = ConditionalDDPMPipeline(
+                unet=accelerator.unwrap_model(model), scheduler=noise_scheduler, num_classes=config.num_classes
             )
 
             if (
@@ -211,8 +229,8 @@ def train_loop(
                 pipeline.save_pretrained(config.output_dir)
 
     # sample synthetic dataset
-    pipeline = DDPMPipeline(
-        unet=accelerator.unwrap_model(model), scheduler=noise_scheduler
+    pipeline = ConditionalDDPMPipeline(
+        unet=accelerator.unwrap_model(model), scheduler=noise_scheduler, num_classes=config.num_classes
     )
     sample_synthetic_dataset(config, pipeline)
 
@@ -270,7 +288,7 @@ if __name__ == "__main__":
             "UpBlock2D",
             "UpBlock2D",
         ),
-        num_class_embeds=102,
+        num_class_embeds=config.num_classes,
     )
 
     # Initial training on original dataset
@@ -286,11 +304,10 @@ if __name__ == "__main__":
         )
 
         images = [preprocess(image.convert("RGB")) for image in examples["image"]]
-        return {"images": images}
+        return {"images": images, "labels": examples["label"]}
 
-    # dataset = load_dataset("huggan/flowers-102-categories", split="train")
-    # dataset.set_transform(transform)
-    dataset = SyntheticDataset(config, step_id=0)
+    dataset = load_dataset("nelorth/oxford-flowers", split="train")
+    dataset.set_transform(transform)
 
     # RUN TRAINING ON STEP 0
     STEP_ID = 1
