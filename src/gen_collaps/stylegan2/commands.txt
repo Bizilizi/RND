@@ -3,5 +3,5 @@ python3 src/gen_collaps/stylegan2/main.py \
     --restore_synthetic_dataset /scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_1/logs/stylegan2/645539aa60ca11efbf94f1e12f202ee6/synth_dataset
 
 sbatch --job-name stylegan-collaps submit.sh python3 src/gen_collaps/stylegan2/main.py \
-    --restore_from /scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_3/logs/stylegan2/c4e4cef863c111efbddad183aa4ad69c \
-    --restore_synthetic_dataset /scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_2/logs/stylegan2/c4e4cef863c111efbddad183aa4ad69c/synth_dataset
+    --restore_from /scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_5/logs/stylegan2/c4e4cef863c111efbddad183aa4ad69c \
+    --restore_synthetic_dataset /scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_4/logs/stylegan2/c4e4cef863c111efbddad183aa4ad69c/synth_dataset

@@ -128,7 +128,7 @@ class Configs(BaseConfigs):
     style_mixing_prob: float = 0.9
 
     # Total number of training steps
-    training_steps: int = 3_000
+    training_steps: int = 50_000
 
     # Number of blocks in the generator (calculated based on image resolution)
     n_gen_blocks: int
