@@ -96,7 +96,7 @@ def sample_synthetic_dataset(config, pipeline):
 @dataclass
 class TrainingConfig:
     num_steps: int = 12
-    num_classes: int = 102
+    num_classes: int = 200
 
     image_size: int = 64  # the generated image resolution
     train_batch_size: int = 16
@@ -110,8 +110,8 @@ class TrainingConfig:
     save_image_epochs: int = 10
     save_model_epochs: int = 30
     mixed_precision: str = "fp16"  # `no` for float32, `fp16` for automatic mixed precision
-    base_output_dir: str = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion_cond"
-    output_dir: str = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion_cond"
+    base_output_dir: str = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion_cond_tinyimagenet"
+    output_dir: str = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion_cond_tinyimagenet"
 
     push_to_hub: bool = False  # whether to upload the saved model to the HF Hub
     hub_private_repo: bool = False

@@ -69,7 +69,7 @@ class TrainingConfig:
     image_size = 64  # the generated image resolution
     train_batch_size = 16
     eval_batch_size = 16  # how many images to sample during evaluation
-    synth_dataset_num_images = 8_000
+    synth_dataset_num_images = 110_000
     synth_dataset_batch_size = 512
     num_epochs = 50
     gradient_accumulation_steps = 1
@@ -78,8 +78,8 @@ class TrainingConfig:
     save_image_epochs = 10
     save_model_epochs = 30
     mixed_precision = "fp16"  # `no` for float32, `fp16` for automatic mixed precision
-    base_output_dir = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion"
-    output_dir = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion"
+    base_output_dir = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion_tinyimagenet"
+    output_dir = "/scratch/shared/beegfs/dzverev/gen_collaps/diffusion_tinyimagenet"
 
     push_to_hub = False  # whether to upload the saved model to the HF Hub
     hub_private_repo = False
@@ -287,12 +287,11 @@ if __name__ == "__main__":
         images = [preprocess(image.convert("RGB")) for image in examples["image"]]
         return {"images": images}
 
-    # dataset = load_dataset("huggan/flowers-102-categories", split="train")
-    # dataset.set_transform(transform)
-    dataset = SyntheticDataset(config, step_id=0)
+    dataset = load_dataset("zh-plus/tiny-imagenet", split="train")
+    dataset.set_transform(transform)
 
     # RUN TRAINING ON STEP 0
-    STEP_ID = 1
+    STEP_ID = 0
     model = train_loop(
         config,
         model,
