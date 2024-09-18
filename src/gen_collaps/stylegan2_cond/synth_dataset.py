@@ -54,7 +54,7 @@ class InitialDataset(torch.utils.data.Dataset):
     This loads the training dataset and resize it to the give image size.
     """
 
-    def __init__(self, image_size: int):
+    def __init__(self, image_size: int, dataset_slug: str):
         """
         * `path` path to the folder containing the images
         * `image_size` size of the image
@@ -62,7 +62,7 @@ class InitialDataset(torch.utils.data.Dataset):
         super().__init__()
 
         # Get the paths of all `jpg` files
-        self.dataset = load_dataset("nelorth/oxford-flowers", split="train")
+        self.dataset = load_dataset(dataset_slug, split="train")
 
         # Transformation
         self.transform = torchvision.transforms.Compose(
@@ -81,8 +81,14 @@ class InitialDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         """Get the the `index`-th image"""
-        data = self.dataset[index]
-        return self.transform(data["image"]), data["label"]
+        label = self.dataset[index]['label']
+        data = self.dataset[index]['image']
+
+        # Ensure the image has 3 channels (RGB)
+        if data.mode != 'RGB':
+            data = data.convert('RGB')
+        
+        return self.transform(data), label
 
 
 @torch.no_grad()

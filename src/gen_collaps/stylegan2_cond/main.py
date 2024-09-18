@@ -128,7 +128,7 @@ class Configs(BaseConfigs):
     style_mixing_prob: float = 0.9
 
     # Total number of training steps
-    training_steps: int = 50_000
+    training_steps: int = 150_000
 
     # Number of blocks in the generator (calculated based on image resolution)
     n_gen_blocks: int
@@ -548,14 +548,14 @@ def train(
     mapping_network=None,
     label_embedding=None,
     restore_experiment_uuid=None,
+    dataset_slug: str = "nelorth/oxford-flowers",
 ):
     """
     ### Train StyleGAN2
     """
     # Create an experiment
-    lab_path = Path(
-        f"/scratch/shared/beegfs/dzverev/gen_collaps/stylegan_cond/step_{step_id}"
-    )
+    dataset_name = dataset_slug.split("/")[-1]
+    lab_path = Path(f"/scratch/shared/beegfs/dzverev/gen_collaps/stylegan_cond/{dataset_name}/step_{step_id}")
     lab_path.mkdir(exist_ok=True, parents=True)
 
     lab.configure({"path": str(lab_path)})
@@ -593,6 +593,7 @@ def train(
                 discriminator_optimizer=configs.discriminator_optimizer,
                 mapping_network_optimizer=configs.mapping_network_optimizer,
                 label_embedding_optimizer=configs.label_embedding_optimizer,
+                label_embedding=configs.label_embedding,
             ).items()
         }
     )
@@ -602,9 +603,7 @@ def train(
         # Run the training loop
         configs.train(global_step)
 
-        synthetic_dataset_path = (
-            Path(experiment_singleton().run.run_path) / "synth_dataset"
-        )
+        synthetic_dataset_path = Path(experiment_singleton().run.run_path) / "synth_dataset"
         sample_synthetic_dataset(configs, synthetic_dataset_path)
 
     experiment.create()
@@ -685,16 +684,22 @@ def main(
     restore_synthetic_dataset_path: str = None,
     *,
     TOTAL_STEPS=12,
+    dataset_slug: str = "nelorth/oxford-flowers",
+    num_classes: int = 102,
+    synth_dataset_num_images: int = 8_000,
 ):
     # Create configurations object
     configs = Configs()
-    dataset = InitialDataset(image_size=configs.image_size)
+    configs.num_classes = num_classes
+    configs.synth_dataset_num_images = synth_dataset_num_images
+    
+    dataset = InitialDataset(image_size=configs.image_size, dataset_slug=dataset_slug)
 
     restore_experiment_uuid = None
     STEP_ID = 0
 
     if restore_from is None:
-        synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset)
+        synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset, dataset_slug=dataset_slug)
 
         STEP_ID = 1
         global_step = 0
@@ -729,6 +734,10 @@ def main(
         old_label_embedding = configs.label_embedding
 
         configs = Configs()
+        configs.training_steps = 50_000
+        configs.num_classes = num_classes
+        configs.synth_dataset_num_images = synth_dataset_num_images
+
         train(
             configs,
             step_id=STEP_ID,
@@ -739,6 +748,7 @@ def main(
             mapping_network=old_mapping_network,
             label_embedding=old_label_embedding,
             restore_experiment_uuid=restore_experiment_uuid,
+            dataset_slug=dataset_slug,
         )
 
         global_step = 0
@@ -759,21 +769,18 @@ def resample(restore_from):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="stylegan trainer")
-    parser.add_argument(
-        "--restore_from", type=str, help="experiment path", default=None
-    )
-    parser.add_argument(
-        "--restore_synthetic_dataset",
-        type=str,
-        help="synthetic dataset path",
-        default=None,
-    )
+    parser.add_argument("--restore_from", type=str, help="experiment path", default=None)
+    parser.add_argument("--restore_synthetic_dataset", type=str, help="synthetic dataset path", default=None)
     parser.add_argument("--command", type=str, help="command", default="train")
+    parser.add_argument("--dataset_slug", type=str, help="dataset nickname", default="nelorth/oxford-flowers")
+    parser.add_argument("--num_classes", type=int, help="number of classes", default=102)
+    parser.add_argument("--synth_dataset_num_images", type=int, help="number of images in synthetic dataset", default=8_000)
+
     args = parser.parse_args()
 
     if args.command == "resample":
         resample(args.restore_from)
     elif args.command == "train":
-        main(args.restore_from, args.restore_synthetic_dataset)
+        main(args.restore_from, args.restore_synthetic_dataset, dataset_slug=args.dataset_slug, num_classes=args.num_classes)
     else:
         raise Exception(f"Wrong command {args.command}")

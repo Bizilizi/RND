@@ -118,7 +118,7 @@ class InitialDataset(torch.utils.data.Dataset):
     This loads the training dataset and resize it to the give image size.
     """
 
-    def __init__(self, image_size: int):
+    def __init__(self, image_size: int, dataset_slug: str):
         """
         * `path` path to the folder containing the images
         * `image_size` size of the image
@@ -126,7 +126,7 @@ class InitialDataset(torch.utils.data.Dataset):
         super().__init__()
 
         # Get the paths of all `jpg` files
-        self.dataset = load_dataset("nelorth/oxford-flowers", split="train")
+        self.dataset = load_dataset(dataset_slug, split="train")
 
         # Transformation
         self.transform = torchvision.transforms.Compose(
@@ -145,8 +145,14 @@ class InitialDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         """Get the the `index`-th image"""
-        data = self.dataset[index]
-        return self.transform(data["image"])
+        data = self.dataset[index]['image']
+
+        # Ensure the image has 3 channels (RGB)
+        if data.mode != 'RGB':
+            data = data.convert('RGB')
+        
+        return self.transform(data)
+
 
 
 @torch.no_grad()
@@ -555,12 +561,14 @@ def train(
     generator=None,
     mapping_network=None,
     restore_experiment_uuid=None,
+    dataset_slug: str = "nelorth/oxford-flowers",
 ):
     """
     ### Train StyleGAN2
     """
     # Create an experiment
-    lab_path = Path(f"/scratch/shared/beegfs/dzverev/gen_collaps/stylegan/step_{step_id}")
+    dataset_name = dataset_slug.split("/")[-1]
+    lab_path = Path(f"/scratch/shared/beegfs/dzverev/gen_collaps/stylegan/{dataset_name}/step_{step_id}")
     lab_path.mkdir(exist_ok=True, parents=True)
 
     lab.configure({"path": str(lab_path)})
@@ -658,16 +666,27 @@ def restore_from_previous_step(configs, restore_from):
     return step_id, global_step, experiment_uuid
 
 
-def main(restore_from: str = None, restore_synthetic_dataset_path: str = None, *, TOTAL_STEPS=12):
+def main(
+        restore_from: str = None, 
+        restore_synthetic_dataset_path: str = None,
+        *,
+        TOTAL_STEPS=12,
+        dataset_slug: str = "nelorth/oxford-flowers",
+        num_classes: int = 102, 
+        synth_dataset_num_images: int = 8_000
+    ):
     # Create configurations object
     configs = Configs()
-    dataset = InitialDataset(image_size=configs.image_size)
+    configs.num_classes = num_classes
+    configs.synth_dataset_num_images = synth_dataset_num_images
+
+    dataset = InitialDataset(image_size=configs.image_size, dataset_slug=dataset_slug)
 
     restore_experiment_uuid = None
     STEP_ID = 0
 
     if restore_from is None:
-        synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset)
+        synthetic_dataset_path = train(configs, step_id=STEP_ID, dataset=dataset, dataset_slug=dataset_slug)
 
         STEP_ID = 1
         global_step = 0
@@ -697,6 +716,10 @@ def main(restore_from: str = None, restore_synthetic_dataset_path: str = None, *
         old_mapping_network = configs.mapping_network
 
         configs = Configs()
+        configs.num_classes = num_classes
+        configs.synth_dataset_num_images = synth_dataset_num_images
+        configs.training_steps = 50_000
+
         train(
             configs,
             step_id=STEP_ID,
@@ -706,6 +729,7 @@ def main(restore_from: str = None, restore_synthetic_dataset_path: str = None, *
             discriminator=old_discriminator,
             mapping_network=old_mapping_network,
             restore_experiment_uuid=restore_experiment_uuid,
+            dataset_slug=dataset_slug,
         )
 
         global_step = 0
@@ -729,11 +753,21 @@ if __name__ == "__main__":
     parser.add_argument("--restore_from", type=str, help="experiment path", default=None)
     parser.add_argument("--restore_synthetic_dataset", type=str, help="synthetic dataset path", default=None)
     parser.add_argument("--command", type=str, help="command", default="train")
+    parser.add_argument("--dataset_slug", type=str, help="datset nickname", default="nelorth/oxford-flowers")
+    parser.add_argument("--num_classes", type=int, help="number of classes", default=102)
+    parser.add_argument("--synth_dataset_num_images", type=int, help="number of images in synthetic dataset", default=8_000)
+
     args = parser.parse_args()
 
     if args.command == "resample":
         resample(args.restore_from)
     elif args.command == "train":
-        main(args.restore_from, args.restore_synthetic_dataset)
+        main(
+            args.restore_from,
+            args.restore_synthetic_dataset,
+            dataset_slug=args.dataset_slug,
+            num_classes=args.num_classes,
+            synth_dataset_num_images=args.synth_dataset_num_images,
+        )
     else:
         raise Exception(f"Wrong command {args.command}")
