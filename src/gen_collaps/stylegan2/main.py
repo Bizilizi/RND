@@ -677,7 +677,6 @@ def main(
     ):
     # Create configurations object
     configs = Configs()
-    configs.num_classes = num_classes
     configs.synth_dataset_num_images = synth_dataset_num_images
 
     dataset = InitialDataset(image_size=configs.image_size, dataset_slug=dataset_slug)
@@ -716,7 +715,6 @@ def main(
         old_mapping_network = configs.mapping_network
 
         configs = Configs()
-        configs.num_classes = num_classes
         configs.synth_dataset_num_images = synth_dataset_num_images
         configs.training_steps = 50_000
 
@@ -754,7 +752,6 @@ if __name__ == "__main__":
     parser.add_argument("--restore_synthetic_dataset", type=str, help="synthetic dataset path", default=None)
     parser.add_argument("--command", type=str, help="command", default="train")
     parser.add_argument("--dataset_slug", type=str, help="datset nickname", default="nelorth/oxford-flowers")
-    parser.add_argument("--num_classes", type=int, help="number of classes", default=102)
     parser.add_argument("--synth_dataset_num_images", type=int, help="number of images in synthetic dataset", default=8_000)
 
     args = parser.parse_args()

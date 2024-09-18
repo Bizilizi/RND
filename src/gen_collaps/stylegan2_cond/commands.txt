@@ -12,7 +12,7 @@ sbatch --job-name stylegan-cond-imgnet submit.sh python3 -m src.gen_collaps.styl
     --num_classes 200 \
     --synth_dataset_num_images 100_000
 
-sbatch --job-name stylegan-cond-imgnet submit.sh python3 -m src.gen_collaps.stylegan2_cond.main \
+sbatch --job-name stylegan-cond-flowers submit.sh python3 -m src.gen_collaps.stylegan2_cond.main \
     --dataset_slug nelorth/oxford-flowers \
     --num_classes 102 \
     --synth_dataset_num_images 8_000

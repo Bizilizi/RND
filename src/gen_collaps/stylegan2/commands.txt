@@ -8,8 +8,10 @@ sbatch --job-name stylegan-collaps submit.sh python3 src/gen_collaps/stylegan2/m
     --dataset_slug zh-plus/tiny-imagenet
 
 
-sbatch --job-name stylegan-coll-imgnet submit.sh python3 src/gen_collaps/stylegan2/main.py \
-    --dataset_slug zh-plus/tiny-imagenet
+sbatch --job-name stylegan-imgnet submit.sh python3 src/gen_collaps/stylegan2/main.py \
+    --dataset_slug zh-plus/tiny-imagenet \
+    --num_classes 200 \
+    --synth_dataset_num_images 100_000
 
 sbatch --job-name stylegan-collaps submit.sh python3 src/gen_collaps/stylegan2/main.py \
     --dataset_slug nelorth/oxford-flowers
